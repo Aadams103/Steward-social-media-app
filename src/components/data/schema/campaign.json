@@ -1,0 +1,130 @@
+{
+  "id": "102019b2374785d76378511909f95c0c992",
+  "version": "102019b2374785d7435bd6d4ac82d015052",
+  "schema": {
+    "name": "campaign",
+    "description": "Marketing campaigns to organize posts",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for the campaign",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "name",
+        "description": "Name of the campaign",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal marketing strategy"
+        }
+      },
+      {
+        "name": "org_id",
+        "description": "Organization owning the campaign",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Foreign Key"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "org_id"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "org_id"
+        ],
+        "referenced_entity": {
+          "name": "organization"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

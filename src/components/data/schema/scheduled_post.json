@@ -1,0 +1,194 @@
+{
+  "id": "102019b23767dcc750ebc11c9a1693fa68f",
+  "version": "102019b23767dcc74539ababd695bfbd5bb",
+  "schema": {
+    "name": "scheduled_post",
+    "description": "Stores scheduling details for posts including timing and retry logic",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "post_id",
+        "description": "Reference to the post being scheduled",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal relationship"
+        },
+        "taxonomy": {
+          "category": "Content",
+          "subject": "Scheduling"
+        }
+      },
+      {
+        "name": "publish_time",
+        "description": "Target timestamp for publication",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal logic"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "timezone",
+        "description": "Timezone for the publish time",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal logic"
+        }
+      },
+      {
+        "name": "retry_count",
+        "description": "Number of times publication has been retried",
+        "type": 2,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System status"
+        },
+        "reference": {
+          "name": "post"
+        },
+        "numeric": "int"
+      },
+      {
+        "name": "retry_status",
+        "description": "Current status of the scheduling attempt",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System status"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Pending"
+          },
+          {
+            "number": 2,
+            "value": "Retrying"
+          },
+          {
+            "number": 3,
+            "value": "Failed"
+          },
+          {
+            "number": 4,
+            "value": "Success"
+          }
+        ]
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "post_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "publish_time",
+          "retry_status"
+        ],
+        "order": true
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "post_id"
+        ],
+        "referenced_entity": {
+          "name": "post"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

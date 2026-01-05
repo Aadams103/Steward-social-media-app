@@ -1,0 +1,139 @@
+{
+  "id": "102019b2374785d74cea6d2561d7ed01cd5",
+  "version": "102019b2374785d7435bd6d4ac82d015052",
+  "schema": {
+    "name": "organization",
+    "description": "Represents a business or entity subscribing to the platform",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for the organization",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "name",
+        "description": "Name of the organization",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public organization identity"
+        }
+      },
+      {
+        "name": "plan",
+        "description": "Subscription plan level",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Business logic"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Free"
+          },
+          {
+            "number": 2,
+            "value": "Pro"
+          },
+          {
+            "number": 3,
+            "value": "Enterprise"
+          }
+        ]
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "name"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "plan"
+        ],
+        "order": false
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

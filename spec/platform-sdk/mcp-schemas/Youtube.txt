@@ -1,0 +1,138 @@
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_GET_CHANNEL_ACTIVITIES
+
+Here is the input and output schema info of Tool YOUTUBE_GET_CHANNEL_ACTIVITIES of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"channelId":{"type":"string","description":"The YouTube channel ID to retrieve activities for. Channel IDs typically start with 'UC'.","title":"Channel Id","examples":["UCBJycsmduvYEL83R_U4JriQ"]},"maxResults":{"type":"integer","description":"Maximum number of activities to return.","title":"Max Results","default":25,"minimum":0,"maximum":50,"examples":[25]},"pageToken":{"type":"string","description":"Pagination token from a previous response to get the next page of results.","title":"Page Token","examples":["CAUQAA"]},"part":{"type":"string","description":"Comma-separated list of activity resource properties to include (e.g., 'snippet', 'contentDetails', 'id').","title":"Part","default":"snippet,contentDetails","examples":["snippet,contentDetails"]},"publishedAfter":{"type":"string","description":"Return activities published after this date-time (RFC 3339 format: YYYY-MM-DDTHH:MM:SSZ).","title":"Published After","examples":["2024-01-01T00:00:00Z"]},"publishedBefore":{"type":"string","description":"Return activities published before this date-time (RFC 3339 format: YYYY-MM-DDTHH:MM:SSZ).","title":"Published Before","examples":["2024-12-31T23:59:59Z"]}},"required":["channelId"],"title":"GetChannelActivitiesRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"activities":{"type":"array","description":"List of channel activities including uploads, playlist additions, likes, etc.","title":"Activities","items":{"type":"object","properties":{},"additionalProperties":true}},"nextPageToken":{"type":"string","description":"Token to retrieve the next page of results, if available","title":"Next Page Token","default":null,"nullable":true},"totalResults":{"type":"integer","description":"Total number of activities available","title":"Total Results"}},"required":["activities","totalResults"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"GetChannelActivitiesResponseWrapper"}
+schema info of YOUTUBE_GET_CHANNEL_ACTIVITIES ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_GET_CHANNEL_ID_BY_HANDLE
+
+Here is the input and output schema info of Tool YOUTUBE_GET_CHANNEL_ID_BY_HANDLE of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"channel_handle":{"type":"string","description":"The YouTube channel handle (e.g., @Google) for which to retrieve the corresponding channel ID. This handle must start with an '@' symbol.","title":"Channel Handle","examples":["@Google","@YouTubeCreators"]}},"required":["channel_handle"],"title":"GetChannelIdByHandleRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"items":{"type":"array","description":"A list of channel resource items. If a channel is found for the given handle, this list typically contains a single item object with an 'id' field representing the YouTube Channel ID. The list will be empty if the handle is not found or is invalid.","title":"Items","items":{"properties":{}}}},"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"GetChannelIdByHandleResponseWrapper"}
+schema info of YOUTUBE_GET_CHANNEL_ID_BY_HANDLE ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_GET_CHANNEL_STATISTICS
+
+Here is the input and output schema info of Tool YOUTUBE_GET_CHANNEL_STATISTICS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"id":{"type":"string","description":"Comma-separated list of YouTube channel IDs. Channel IDs typically start with 'UC'.","title":"Id","examples":["UCddiUEpeqJcYeBxX1IVBKvQ"]},"part":{"type":"string","description":"Comma-separated list of channel resource properties to include. Use 'statistics' for subscriber count.","title":"Part","default":"statistics","examples":["statistics","snippet,statistics"]}},"required":["id"],"title":"GetChannelStatisticsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"channels":{"type":"array","description":"List of channel data including statistics like subscriber count, view count, and video count","title":"Channels","items":{"type":"object","properties":{},"additionalProperties":true}}},"required":["channels"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"GetChannelStatisticsResponseWrapper"}
+schema info of YOUTUBE_GET_CHANNEL_STATISTICS ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_LIST_CAPTION_TRACK
+
+Here is the input and output schema info of Tool YOUTUBE_LIST_CAPTION_TRACK of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"part":{"type":"string","description":"Specifies a comma-separated list of one or more caption resource parts that the API response will include. Valid parts are 'id' and 'snippet'.","title":"Part","default":"snippet","examples":["snippet","id","id,snippet"]},"videoId":{"type":"string","description":"The YouTube video ID for which the API should return caption tracks.","title":"Video Id","examples":["dQw4w9WgXcQ","L_jWHffIx5E"]}},"required":["videoId"],"title":"ListCaptionsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"etag":{"type":"string","description":"The ETag of this resource, an opaque identifier that reflects changes to the resource.","title":"Etag"},"items":{"type":"array","description":"A list of caption tracks that are available for the specified video. Each item in the list represents a single caption track.","title":"Items","items":{"type":"object","properties":{},"additionalProperties":true}},"kind":{"type":"string","description":"Identifies the resource as a YouTube caption list response. Value is fixed to 'youtube#captionListResponse'.","title":"Kind","default":"youtube#captionListResponse"}},"required":["etag","items"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"ListCaptionsResponseWrapper"}
+schema info of YOUTUBE_LIST_CAPTION_TRACK ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_LIST_CHANNEL_VIDEOS
+
+Here is the input and output schema info of Tool YOUTUBE_LIST_CHANNEL_VIDEOS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"channelId":{"type":"string","description":"The unique ID of the YouTube channel for which videos are to be retrieved.","title":"Channel Id","examples":["UC_x5XG1OV2P6uZZ5FSM9Ttw"]},"maxResults":{"type":"integer","description":"The maximum number of videos to return per page.","title":"Max Results","default":5,"minimum":1,"maximum":50,"examples":["5"]},"pageToken":{"type":"string","description":"Token for pagination; use `nextPageToken` from a previous response for the next page, or `prevPageToken` for the previous page.","title":"Page Token","examples":["CAUQAA"]},"part":{"type":"string","description":"Specifies `search` resource properties to include; it must be `snippet` for this action. The `snippet` includes basic video details like ID, title, description, and thumbnails.","title":"Part","default":"snippet","examples":["snippet"]}},"required":["channelId"],"title":"ListChannelVideosRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"The raw JSON response from the YouTube Data API, containing video items (details based on the `part` parameter, typically `snippet`) and pagination tokens (e.g., `nextPageToken`, `prevPageToken`) if applicable.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"ListChannelVideosResponseWrapper"}
+schema info of YOUTUBE_LIST_CHANNEL_VIDEOS ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_LIST_USER_PLAYLISTS
+
+Here is the input and output schema info of Tool YOUTUBE_LIST_USER_PLAYLISTS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"maxResults":{"type":"integer","description":"Maximum number of playlists to return.","title":"Max Results","default":5,"minimum":1,"maximum":50,"examples":[50]},"pageToken":{"type":"string","description":"Token for pagination to retrieve a specific page of results.","title":"Page Token","examples":["CAUQAA"]},"part":{"type":"string","description":"Specifies a comma-separated list of one or more playlist resource properties to include in the response. Common values are 'snippet', 'id', and 'contentDetails'.","title":"Part","default":"snippet","examples":["snippet","id","contentDetails"]}},"title":"ListUserPlaylistsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"The raw JSON response from the YouTube API, containing the list of the user's playlists and related metadata.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"ListUserPlaylistsResponseWrapper"}
+schema info of YOUTUBE_LIST_USER_PLAYLISTS ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_LIST_USER_SUBSCRIPTIONS
+
+Here is the input and output schema info of Tool YOUTUBE_LIST_USER_SUBSCRIPTIONS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"maxResults":{"type":"integer","description":"Maximum number of subscription items to return per page.","title":"Max Results","default":5,"minimum":1,"maximum":50,"examples":["5","25","50"]},"pageToken":{"type":"string","description":"Token for a specific page of results, obtained from a previous response. Omit for the first page.","title":"Page Token","examples":["CAUQAA","CBkQAA"]},"part":{"type":"string","description":"Specifies the comma-separated subscription resource parts to include. Valid parts are `id`, `snippet`, `contentDetails`, and `subscriberSnippet`.","title":"Part","default":"snippet,contentDetails","examples":["snippet","contentDetails","snippet,contentDetails","id,subscriberSnippet"]}},"title":"ListUserSubscriptionsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"The raw JSON response from the YouTube API, containing the list of subscriptions for the authenticated user and related metadata, such as pagination tokens and page information.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"ListUserSubscriptionsResponseWrapper"}
+schema info of YOUTUBE_LIST_USER_SUBSCRIPTIONS ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_LOAD_CAPTIONS
+
+Here is the input and output schema info of Tool YOUTUBE_LOAD_CAPTIONS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"id":{"type":"string","description":"Unique YouTube-assigned ID of the caption track to download.","title":"Id","examples":["abcd1234efgh"]},"tfmt":{"type":"string","description":"Desired format for the caption track. Supported formats: 'srt' (SubRip), 'sbv' (SubViewer), 'vtt' (WebVTT).","title":"Tfmt","default":"srt","examples":["srt","sbv","vtt"]}},"required":["id"],"title":"LoadCaptionsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"captions_text":{"type":"string","description":"The content of the downloaded caption track in the specified format.","title":"Captions Text"}},"required":["captions_text"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"LoadCaptionsResponseWrapper"}
+schema info of YOUTUBE_LOAD_CAPTIONS ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_SEARCH_YOU_TUBE
+
+Here is the input and output schema info of Tool YOUTUBE_SEARCH_YOU_TUBE of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"maxResults":{"type":"integer","description":"Maximum number of items to return per page.","title":"Max Results","default":5,"minimum":1,"maximum":50,"examples":["5"]},"pageToken":{"type":"string","description":"Pagination token from a previous response's 'nextPageToken' or 'prevPageToken', used to retrieve a specific page of results.","title":"Page Token","examples":["CAUQAA"]},"part":{"type":"string","description":"Comma-separated list of search resource properties (e.g., 'id', 'snippet') to include in the API response.","title":"Part","default":"snippet","examples":["snippet"]},"q":{"type":"string","description":"Search query term. Supports: - Basic text: 'machine learning' - Exact phrases: '\"exact phrase\"' - Exclusions: 'python -snake' - Multiple terms: 'AI OR ML' - Channel search: '@channelhandle' or channel name","title":"Q","examples":["OpenAI","machine learning tutorial","\"exact phrase\"","@mkbhd"]},"type":{"type":"string","description":"Restricts search to 'video', 'channel', or 'playlist'; comma-separate for multiple types (e.g., 'video,channel').","title":"Type","default":"video","examples":["video"]}},"required":["q"],"title":"SearchYouTubeRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"Raw JSON response from the YouTube Search API, including search results (items), details for each item based on the 'part' parameter, and pagination tokens (e.g., 'nextPageToken').","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"SearchYouTubeResponseWrapper"}
+schema info of YOUTUBE_SEARCH_YOU_TUBE ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_SUBSCRIBE_CHANNEL
+
+Here is the input and output schema info of Tool YOUTUBE_SUBSCRIBE_CHANNEL of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"channelId":{"type":"string","description":"Unique identifier (ID) of the YouTube channel to subscribe to (typically starts with 'UC').","title":"Channel Id","examples":["UCXUPKJO5MZQN11PqgIvyuvQ"]}},"required":["channelId"],"title":"SubscribeChannelRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"API response from YouTube for the subscription, including details of the new subscription resource like 'kind', 'etag', 'id', and 'snippet'.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"SubscribeChannelResponseWrapper"}
+schema info of YOUTUBE_SUBSCRIBE_CHANNEL ends.

@@ -1,0 +1,201 @@
+{
+  "id": "102019b2374785d75dd9fffedde0ba3b604",
+  "version": "102019b2374785d7435bd6d4ac82d015052",
+  "schema": {
+    "name": "post",
+    "description": "Content posts scheduled or published to social platforms",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for the post",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "content",
+        "description": "Text content of the post",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Content is internal until published"
+        }
+      },
+      {
+        "name": "status",
+        "description": "Current status of the post",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Workflow status"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Draft"
+          },
+          {
+            "number": 2,
+            "value": "Scheduled"
+          },
+          {
+            "number": 3,
+            "value": "Published"
+          },
+          {
+            "number": 4,
+            "value": "Failed"
+          }
+        ]
+      },
+      {
+        "name": "platform",
+        "description": "Target social media platform",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public info"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Twitter"
+          },
+          {
+            "number": 2,
+            "value": "Facebook"
+          },
+          {
+            "number": 3,
+            "value": "LinkedIn"
+          },
+          {
+            "number": 4,
+            "value": "Instagram"
+          }
+        ]
+      },
+      {
+        "name": "author_id",
+        "description": "User ID of the content creator",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Foreign Key"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "author_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "status"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "platform"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "author_id"
+        ],
+        "referenced_entity": {
+          "name": "user"
+        },
+        "referenced_fields": [
+          "id"
+        ]
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

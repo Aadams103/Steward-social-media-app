@@ -1,0 +1,185 @@
+{
+  "id": "102019b23767dcc76be80f291b2e1efa5be",
+  "version": "102019b23767dcc74539ababd695bfbd5bb",
+  "schema": {
+    "name": "audit_log",
+    "description": "Logs of user actions and system events for security and debugging",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "user_id",
+        "description": "ID of the user performing the action",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Accountability"
+        }
+      },
+      {
+        "name": "action_type",
+        "description": "Type of action performed (e.g., create, delete)",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit detail"
+        }
+      },
+      {
+        "name": "resource_type",
+        "description": "The entity type affected by the action",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit detail"
+        }
+      },
+      {
+        "name": "resource_id",
+        "description": "ID of the specific resource affected",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit detail"
+        }
+      },
+      {
+        "name": "details_json",
+        "description": "JSON string containing details of the change",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 3,
+          "reason": "Sensitive change details"
+        },
+        "nullable": true
+      },
+      {
+        "name": "org_id",
+        "description": "Organization context of the action",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Data isolation"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "create_time",
+          "org_id"
+        ],
+        "order": true
+      },
+      {
+        "fields": [
+          "resource_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "user_id"
+        ],
+        "referenced_entity": {
+          "name": "user"
+        },
+        "referenced_fields": [
+          "id"
+        ]
+      },
+      {
+        "referencing_fields": [
+          "org_id"
+        ],
+        "referenced_entity": {
+          "name": "organization"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

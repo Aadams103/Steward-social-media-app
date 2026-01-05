@@ -1,0 +1,175 @@
+{
+  "id": "102019b2376dc2c755a8a50685a4c6e7f8a",
+  "version": "102019b2458f878772cb63866dad0847f01",
+  "schema": {
+    "name": "team_note",
+    "description": "Internal collaboration notes attached to various resources",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "resource_type",
+        "description": "Type of resource the note is attached to",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Context"
+        }
+      },
+      {
+        "name": "resource_id",
+        "description": "ID of the resource the note is attached to",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Context"
+        }
+      },
+      {
+        "name": "content",
+        "description": "The note content",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 3,
+          "reason": "Internal communication"
+        }
+      },
+      {
+        "name": "author_user_id",
+        "description": "User who wrote the note",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Authorship"
+        }
+      },
+      {
+        "name": "org_id",
+        "description": "Organization owning the note",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Data isolation"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "resource_id",
+          "resource_type"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "org_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "author_user_id"
+        ],
+        "referenced_entity": {
+          "name": "user"
+        },
+        "referenced_fields": [
+          "id"
+        ]
+      },
+      {
+        "referencing_fields": [
+          "org_id"
+        ],
+        "referenced_entity": {
+          "name": "organization"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "69409619feb6c5be2e057ca3",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

@@ -1,0 +1,195 @@
+{
+  "id": "102019b23767dcc772d972855d531947210",
+  "version": "102019b23767dcc74539ababd695bfbd5bb",
+  "schema": {
+    "name": "approval_workflow",
+    "description": "Tracks the approval process for posts before publishing",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "post_id",
+        "description": "The post requiring approval",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal relationship"
+        }
+      },
+      {
+        "name": "approver_user_id",
+        "description": "The user designated to approve the post",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Workflow assignment"
+        }
+      },
+      {
+        "name": "status",
+        "description": "Current status of the approval request",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Workflow status"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Pending"
+          },
+          {
+            "number": 2,
+            "value": "Approved"
+          },
+          {
+            "number": 3,
+            "value": "Rejected"
+          }
+        ]
+      },
+      {
+        "name": "approved_at",
+        "description": "Timestamp when the post was approved",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "nullable": true,
+        "format": "timestamp"
+      },
+      {
+        "name": "rejection_reason",
+        "description": "Reason provided if the post is rejected",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Feedback"
+        },
+        "nullable": true
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "post_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "approver_user_id",
+          "status"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "post_id"
+        ],
+        "referenced_entity": {
+          "name": "post"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      },
+      {
+        "referencing_fields": [
+          "approver_user_id"
+        ],
+        "referenced_entity": {
+          "name": "user"
+        },
+        "referenced_fields": [
+          "id"
+        ]
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

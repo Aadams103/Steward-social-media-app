@@ -1,0 +1,168 @@
+{
+  "id": "102019b2374785d75898be2f8026cd415fc",
+  "version": "102019b2374785d7435bd6d4ac82d015052",
+  "schema": {
+    "name": "social_account",
+    "description": "Connected social media accounts for posting",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for the social account",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Audit trail"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "platform",
+        "description": "The social media platform",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public information"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Twitter"
+          },
+          {
+            "number": 2,
+            "value": "Facebook"
+          },
+          {
+            "number": 3,
+            "value": "LinkedIn"
+          },
+          {
+            "number": 4,
+            "value": "Instagram"
+          }
+        ]
+      },
+      {
+        "name": "oauth_token",
+        "description": "OAuth token for API access",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 4,
+          "reason": "Sensitive authentication credential"
+        },
+        "encryption": true
+      },
+      {
+        "name": "user_id",
+        "description": "User who owns/connected this account",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Foreign Key"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "user_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "platform",
+          "user_id"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "user_id"
+        ],
+        "referenced_entity": {
+          "name": "user"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

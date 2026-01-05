@@ -1,0 +1,201 @@
+{
+  "id": "102019b2376dc2b7956bd5047b99bbccd54",
+  "version": "102019b2458f878772cb63866dad0847f01",
+  "schema": {
+    "name": "asset_library",
+    "description": "Library of digital assets and templates for posts",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "type",
+        "description": "Type of the asset",
+        "type": 100,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Classification"
+        },
+        "enumeration": [
+          {
+            "value": "Unspecified"
+          },
+          {
+            "number": 1,
+            "value": "Image"
+          },
+          {
+            "number": 2,
+            "value": "Video"
+          },
+          {
+            "number": 3,
+            "value": "Template"
+          },
+          {
+            "number": 4,
+            "value": "Hashtags"
+          }
+        ]
+      },
+      {
+        "name": "url",
+        "description": "Storage URL of the asset",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 3,
+          "reason": "Resource location"
+        },
+        "nullable": true
+      },
+      {
+        "name": "metadata_json",
+        "description": "JSON string containing technical metadata (dimensions, duration, etc)",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Technical details"
+        },
+        "nullable": true
+      },
+      {
+        "name": "version",
+        "description": "Version identifier for the asset",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Versioning"
+        }
+      },
+      {
+        "name": "tags",
+        "description": "Array of tags for searchability",
+        "type": 101,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Categorization"
+        },
+        "nullable": true,
+        "items": {
+          "type": 1,
+          "taxonomy": {
+            "category": "Meta",
+            "subject": "Tagging"
+          },
+          "reference": {
+            "name": "tag"
+          }
+        }
+      },
+      {
+        "name": "org_id",
+        "description": "Organization owning the asset",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Data isolation"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "org_id",
+          "type"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "org_id"
+        ],
+        "referenced_entity": {
+          "name": "organization"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "69409619feb6c5be2e057ca3",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}

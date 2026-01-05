@@ -1,0 +1,54 @@
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_UPDATE_THUMBNAIL
+
+Here is the input and output schema info of Tool YOUTUBE_UPDATE_THUMBNAIL of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"thumbnailUrl":{"type":"string","description":"Publicly accessible URL of the new thumbnail image. Must be JPG, GIF, or PNG; under 2MB. Recommended: 16:9 aspect ratio, 1280x720 resolution (minimum 640px width).","title":"Thumbnail Url","minLength":1,"format":"uri","examples":["https://example.com/thumbnail.jpg"]},"videoId":{"type":"string","description":"Identifier of the YouTube video for which to update the thumbnail.","title":"Video Id","examples":["dQw4w9WgXcQ"]}},"required":["videoId","thumbnailUrl"],"title":"UpdateThumbnailRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"Data from the YouTube API after the update attempt, typically including new thumbnail details if successful.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"UpdateThumbnailResponseWrapper"}
+schema info of YOUTUBE_UPDATE_THUMBNAIL ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_UPDATE_VIDEO
+
+Here is the input and output schema info of Tool YOUTUBE_UPDATE_VIDEO of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"categoryId":{"type":"string","description":"New YouTube category ID. No change if omitted or `None`.","title":"Category Id","default":null,"nullable":true,"examples":["22"]},"description":{"type":"string","description":"New video description. No change if omitted or `None`.","title":"Description","default":null,"nullable":true,"examples":["This is an updated description of my awesome video."]},"privacyStatus":{"type":"string","description":"New privacy status ('public', 'private', or 'unlisted'). No change if omitted or `None`.","title":"Privacy Status","default":null,"nullable":true,"examples":["public"]},"tags":{"type":"array","description":"New tags, replacing all existing. An empty list removes all. No change if omitted or `None`.","title":"Tags","default":null,"nullable":true,"items":{"type":"string","properties":{}},"examples":[["updatedTag1","updatedTag2"]]},"title":{"type":"string","description":"New video title. No change if omitted or `None`.","title":"Title","default":null,"nullable":true,"examples":["My Updated Awesome Video"]},"videoId":{"type":"string","description":"The video's unique YouTube ID, typically found in its URL.","title":"Video Id","examples":["dQw4w9WgXcQ"]}},"required":["videoId"],"title":"UpdateVideoRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"Complete API response from YouTube, including details of the updated video resource if successful.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"UpdateVideoResponseWrapper"}
+schema info of YOUTUBE_UPDATE_VIDEO ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_UPLOAD_VIDEO
+
+Here is the input and output schema info of Tool YOUTUBE_UPLOAD_VIDEO of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"categoryId":{"type":"string","description":"YouTube category ID (e.g., '22' for People & Blogs). See YouTube Data API docs for a full list of category IDs.","title":"Category Id","examples":["22"]},"description":{"type":"string","description":"Detailed description of the video content, optionally including keywords and context.","title":"Description","examples":["A detailed walkthrough of my latest project, showcasing all its features."]},"privacyStatus":{"type":"string","description":"Privacy status: 'public', 'private' (uploader/specified users only), or 'unlisted' (link accessible, not publicly listed).","title":"Privacy Status","examples":["public"]},"tags":{"type":"array","description":"List of keyword tags (strings) for the video, used to improve discoverability.","title":"Tags","items":{"properties":{}},"examples":["['educational', 'python', 'coding tutorial']"]},"title":{"type":"string","description":"The title for the video.","title":"Title","examples":["My Awesome Video Adventure"]},"videoFilePath":{"type":"string","description":"Local file path (absolute or relative) of the video to be uploaded.","title":"Video File Path","examples":["/path/to/my_video.mp4"]}},"required":["title","description","tags","categoryId","privacyStatus","videoFilePath"],"title":"UploadVideoRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"Details from the YouTube API post-upload, typically including video ID, snippet, and status.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"UploadVideoResponseWrapper"}
+schema info of YOUTUBE_UPLOAD_VIDEO ends.
+
+
+Mcp name: "Youtube"
+Mcp id: "68770d542dee48ccb69d7bcd"
+Mcp url: "https://backend.composio.dev/v3/mcp/f29d4eaf-72ac-4234-adc8-9c9f9f8d0e12/mcp?user_id=694045ef165ebbbd81746187"
+Schema info:
+Tool Name: YOUTUBE_VIDEO_DETAILS
+
+Here is the input and output schema info of Tool YOUTUBE_VIDEO_DETAILS of Mcp Youtube (Mcp Id: 68770d542dee48ccb69d7bcd):
+inputSchema:
+{"type":"object","properties":{"id":{"type":"string","description":"The YouTube video ID (typically an 11-character string) for which details are to be retrieved.","title":"Id","examples":["dQw4w9WgXcQ","getVideoDetails"]},"part":{"type":"string","description":"Comma-separated list of video resource parts that the API response will include. Valid parts: 'snippet' (title, description, thumbnails), 'contentDetails' (duration, definition, dimension), 'statistics' (view count, like count, comment count), 'status' (upload status, privacy status), 'player' (embed HTML), 'topicDetails' (associated topics), 'recordingDetails' (recording location and date), 'liveStreamingDetails' (live broadcast details), and 'localizations' (localized metadata).","title":"Part","default":"snippet,contentDetails,statistics","examples":["snippet,contentDetails,statistics","snippet,statistics","player"]}},"required":["id"],"title":"VideoDetailsRequest"}
+outputSchema:
+{"type":"object","properties":{"data":{"type":"object","description":"Data from the action execution","title":"Data","properties":{"response_data":{"type":"object","description":"A dictionary containing the raw JSON response from the YouTube API, including the requested video resource parts.","title":"Response Data","additionalProperties":true}},"required":["response_data"],"additionalProperties":false},"error":{"type":"string","description":"Error if any occurred during the execution of the action","title":"Error","default":null,"nullable":true},"successful":{"type":"boolean","description":"Whether or not the action execution was successful or not","title":"Successful"}},"required":["data","successful"],"title":"VideoDetailsResponseWrapper"}
+schema info of YOUTUBE_VIDEO_DETAILS ends.

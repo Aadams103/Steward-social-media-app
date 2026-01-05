@@ -1,0 +1,159 @@
+{
+  "id": "102019b23767dcc77ed9fb3157f4e56d967",
+  "version": "102019b23767dcc74539ababd695bfbd5bb",
+  "schema": {
+    "name": "alert",
+    "description": "Configuration for keyword monitoring and notifications",
+    "fields": [
+      {
+        "name": "id",
+        "description": "Unique identifier for each data of this entity.",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public identifier"
+        }
+      },
+      {
+        "name": "data_creator",
+        "description": "id of the user who creates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "data_updater",
+        "description": "id of the user who updates the record",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Internal audit"
+        }
+      },
+      {
+        "name": "create_time",
+        "description": "create time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "update_time",
+        "description": "update time in timestamp unix",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 1,
+          "reason": "Public timestamp"
+        },
+        "format": "timestamp"
+      },
+      {
+        "name": "keyword",
+        "description": "The keyword or phrase to monitor",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Business logic"
+        }
+      },
+      {
+        "name": "platform",
+        "description": "Platform to monitor for the keyword",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Business logic"
+        }
+      },
+      {
+        "name": "notification_config_json",
+        "description": "Configuration for how to notify when alert triggers",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 3,
+          "reason": "User configuration"
+        }
+      },
+      {
+        "name": "trigger_count",
+        "description": "Number of times this alert has been triggered",
+        "type": 2,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "System status"
+        },
+        "numeric": "int"
+      },
+      {
+        "name": "org_id",
+        "description": "Organization owning this alert",
+        "type": 1,
+        "compliance": {
+          "confidentiality": 2,
+          "reason": "Data isolation"
+        }
+      }
+    ],
+    "indexes": [
+      {
+        "fields": [
+          "id"
+        ],
+        "unique": true,
+        "primary": true,
+        "order": false
+      },
+      {
+        "fields": [
+          "keyword",
+          "org_id"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_creator"
+        ],
+        "order": false
+      },
+      {
+        "fields": [
+          "data_updater"
+        ],
+        "order": false
+      }
+    ],
+    "relations": [
+      {
+        "referencing_fields": [
+          "org_id"
+        ],
+        "referenced_entity": {
+          "name": "organization"
+        },
+        "referenced_fields": [
+          "id"
+        ],
+        "cascade": true
+      }
+    ]
+  },
+  "task": {
+    "id": "694045ef165ebbbd81746188",
+    "root": "694045ef165ebbbd81746188",
+    "project": "694045ef165ebbbd81746187",
+    "user": "e871b3c0-80b1-70fa-809f-4e623d70bbe7"
+  },
+  "namespace": {
+    "id": "01987547fc6c72ecb453bd2736bd4ea0",
+    "tenant": 2,
+    "name": "global-1",
+    "default": true
+  },
+  "revision": 1
+}
