@@ -14,6 +14,7 @@ import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types';
+import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed';
 
 const app = express();
 const server = createServer(app);
@@ -72,52 +73,8 @@ function getBrandIdFromRequest(req: express.Request): string | 'all' {
   const primaryBrand = Array.from(brands.values()).find(b => b.slug === 'primary');
   return primaryBrand?.id || 'default';
 }
-let autopilotSettings: AutopilotSettings = {
-  operatingMode: 'approval',
-  approvalWindow: '2h',
-  noResponseAction: 'hold',
-  timezone: 'America/New_York',
-  quietHoursStart: '22:00',
-  quietHoursEnd: '07:00',
-  blackoutDates: [],
-  platformCadence: {
-    facebook: 7,
-    instagram: 7,
-    linkedin: 3,
-    tiktok: 5,
-    pinterest: 3,
-    reddit: 5,
-    slack: 10,
-    notion: 3,
-  },
-  enableWebResearch: true,
-  enableImageGeneration: false,
-  notificationChannels: {
-    inApp: true,
-    email: true,
-    sms: false,
-    slack: false,
-  },
-  isPaused: false,
-};
-
-const defaultOrg: Organization = {
-  id: 'org1',
-  name: 'Default Organization',
-  slug: 'default-org',
-  logoUrl: '',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  ownerId: 'user1',
-  billingPlan: 'professional',
-  billingStatus: 'active',
-  settings: {
-    timezone: 'America/New_York',
-    defaultApprovalWindow: '2h',
-    autoEnableNewAccounts: false,
-    requireMfaForPublishing: false,
-  },
-};
+// Use seed data for autopilot settings
+let autopilotSettings: AutopilotSettings = { ...defaultAutopilotSettings };
 
 // WebSocket clients
 const clients: Set<WebSocket> = new Set();
@@ -2248,13 +2205,7 @@ app.post('/api/autopilot/generate', (req, res) => {
 // Initialize default brand if none exist
 function ensureDefaultBrand() {
   if (brands.size === 0) {
-    const defaultBrand: Brand = {
-      id: generateId(),
-      name: 'Primary',
-      slug: 'primary',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const defaultBrand = createDefaultBrand(generateId);
     brands.set(defaultBrand.id, defaultBrand);
   }
 }
@@ -3685,14 +3636,22 @@ app.get('/api/email/triage', (req, res) => {
   res.json({ triage: brandTriage });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// ============================================================================
+// HEALTH CHECK
+// ============================================================================
+
+// GET /api/health
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    time: new Date().toISOString(),
+    version: '1.0.0',
+  });
 });
 
-const PORT = 8080;
-server.listen(PORT, () => {
-  console.log(`🚀 Backend shim running on http://localhost:${PORT}`);
-  console.log(`📡 WebSocket server running on ws://localhost:${PORT}/ws`);
+const PORT = Number(process.env.PORT) || 8080;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Backend shim running on http://0.0.0.0:${PORT}`);
+  console.log(`📡 WebSocket server running on ws://0.0.0.0:${PORT}/ws`);
   console.log(`📊 Posts: ${posts.size}, Jobs: ${publishJobs.size}, Campaigns: ${campaigns.size}, Accounts: ${socialAccounts.size}, Assets: ${assets.size}`);
 });
