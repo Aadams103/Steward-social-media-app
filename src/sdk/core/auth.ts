@@ -1,19 +1,18 @@
 /**
  * Authentication Integration Utilities with Zustand
  *
- * This file provides utilities for built pages to receive and handle
- * authentication tokens from the parent Build Studio application.
+ * This file provides utilities for authentication token management.
  *
  * Usage in built pages:
  * 1. Include this file in your built application
  * 3. Use await getAuthTokenAsync() to get the current token for API calls
- * 4. Or use the useCreaoAuth() hook in React components
+ * 4. Or use the useAuth() hook in React components
  */
 
 import { create } from "zustand";
 
 interface AuthMessage {
-	type: "CREAO_AUTH_TOKEN";
+	type: "AUTH_TOKEN";
 	token: string;
 	origin: string;
 }
@@ -46,7 +45,27 @@ interface AuthStore extends AuthState {
 }
 
 // Configuration for token validation
-const API_BASE_URL = import.meta.env.VITE_API_BASE_PATH;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_PATH || "/api";
+
+/**
+ * Normalize a base URL to be absolute.
+ * If the base is already absolute (starts with http:// or https://), return it as-is.
+ * If the base is relative (e.g., "/api"), convert it to an absolute URL using window.location.origin.
+ */
+function normalizeBase(basePath: string | undefined): string {
+	if (!basePath) {
+		return `${window.location.origin}/api`;
+	}
+
+	// If absolute, keep it
+	if (/^https?:\/\//i.test(basePath)) {
+		return basePath;
+	}
+
+	// If relative (/api), make it absolute using current origin
+	const clean = basePath.startsWith("/") ? basePath : `/${basePath}`;
+	return `${window.location.origin}${clean}`;
+}
 
 /**
  * Zustand store for authentication state management
@@ -72,15 +91,22 @@ const useAuthStore = create<AuthStore>(
 
 		// Validate token by making a request to the /me endpoint
 		validateToken: async (token: string): Promise<boolean> => {
+			// #region agent log
+			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:73',message:'Token validation start',data:{hasToken:!!token,apiBaseUrl:API_BASE_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 			console.log("Validating token...", { API_BASE_URL });
 
 			if (!API_BASE_URL) {
+				// #region agent log
+				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:77',message:'Token validation failed - no API_BASE_URL',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
+				// #endregion
 				console.error("API_BASE_URL is not set");
 				return false;
 			}
 
 			try {
-				const response = await fetch(`${API_BASE_URL}/me`, {
+				const normalizedBase = normalizeBase(API_BASE_URL);
+				const response = await fetch(`${normalizedBase}/me`, {
 					method: "GET",
 					headers: {
 						Authorization: `Bearer ${token}`,
@@ -88,9 +114,15 @@ const useAuthStore = create<AuthStore>(
 					},
 				});
 
+				// #region agent log
+				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:91',message:'Token validation response',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
+				// #endregion
 				console.log("Token validation response:", response.status, response.ok);
 				return response.ok;
 			} catch (error) {
+				// #region agent log
+				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:93',message:'Token validation error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
+				// #endregion
 				console.warn("Token validation failed:", error);
 				return false;
 			}
@@ -109,7 +141,7 @@ const useAuthStore = create<AuthStore>(
 				});
 
 				// Store in localStorage for persistence
-				localStorage.setItem("creao_auth_token", token);
+				localStorage.setItem("auth_token", token);
 			} else {
 				// Token is invalid, clear it
 				set({
@@ -117,7 +149,7 @@ const useAuthStore = create<AuthStore>(
 					status: "invalid_token",
 					parentOrigin: origin || get().parentOrigin,
 				});
-				localStorage.removeItem("creao_auth_token");
+				localStorage.removeItem("auth_token");
 			}
 		},
 
@@ -128,7 +160,7 @@ const useAuthStore = create<AuthStore>(
 				status: "unauthenticated",
 				parentOrigin: null,
 			});
-			localStorage.removeItem("creao_auth_token");
+			localStorage.removeItem("auth_token");
 		},
 
 		// Refresh authentication state by re-validating the current token
@@ -142,7 +174,7 @@ const useAuthStore = create<AuthStore>(
 			const isValid = await validateToken(token);
 			if (!isValid) {
 				set({ status: "invalid_token" });
-				localStorage.removeItem("creao_auth_token");
+				localStorage.removeItem("auth_token");
 				return false;
 			}
 
@@ -152,6 +184,9 @@ const useAuthStore = create<AuthStore>(
 
 		// Initialize the authentication system
 		initialize: async (): Promise<void> => {
+			// #region agent log
+			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:153',message:'Auth init start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
 			console.log("Auth initialization started");
 			try {
 				// Initialize from storage
@@ -165,6 +200,9 @@ const useAuthStore = create<AuthStore>(
 
 				// If still loading after initialization, set to unauthenticated
 				const currentStatus = get().status;
+				// #region agent log
+				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:167',message:'Auth init complete',data:{status:currentStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
+				// #endregion
 				if (currentStatus === "loading") {
 					console.log(
 						"Auth initialization complete - setting to unauthenticated",
@@ -174,6 +212,9 @@ const useAuthStore = create<AuthStore>(
 					console.log("Auth initialization complete - status:", currentStatus);
 				}
 			} catch (error) {
+				// #region agent log
+				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:175',message:'Auth init error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
+				// #endregion
 				console.error("Auth initialization failed:", error);
 				set({ status: "unauthenticated" });
 			}
@@ -189,7 +230,7 @@ async function initializeFromStorage(
 	set: (state: Partial<AuthStore>) => void,
 ): Promise<void> {
 	console.log("Initializing auth from storage...");
-	const storedToken = localStorage.getItem("creao_auth_token");
+	const storedToken = localStorage.getItem("auth_token");
 	if (storedToken) {
 		console.log("Found stored token, validating...");
 		const { validateToken } = get();
@@ -202,7 +243,7 @@ async function initializeFromStorage(
 			});
 		} else {
 			console.log("Stored token is invalid, clearing...");
-			localStorage.removeItem("creao_auth_token");
+			localStorage.removeItem("auth_token");
 			set({ status: "invalid_token" });
 		}
 	} else {
@@ -234,7 +275,7 @@ function setupMessageListener(get: () => AuthStore): void {
 		try {
 			const data = event.data as AuthMessage;
 
-			if (data?.type === "CREAO_AUTH_TOKEN" && data.token) {
+			if (data?.type === "AUTH_TOKEN" && data.token) {
 				const { setToken } = get();
 				await setToken(data.token, event.origin);
 			}
@@ -270,7 +311,7 @@ async function ensureInitialized(): Promise<void> {
  * React hook for using authentication state
  * @returns Authentication state and helper methods
  */
-export function useCreaoAuth() {
+export function useAuth() {
 	const token = useAuthStore((state) => state.token);
 	const status = useAuthStore((state) => state.status);
 	const parentOrigin = useAuthStore((state) => state.parentOrigin);
@@ -289,6 +330,7 @@ export function useCreaoAuth() {
 		refreshAuth,
 	};
 }
+
 
 /**
  * Initialize authentication integration for built pages

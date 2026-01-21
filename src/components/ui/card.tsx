@@ -1,4 +1,4 @@
-import { useDelegatedComponentEventHandler } from "@/sdk/core/internal/creao-shell";
+import { useDelegatedComponentEventHandler } from "@/sdk/core/internal/app-shell";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";

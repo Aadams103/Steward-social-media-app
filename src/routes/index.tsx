@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import * as React from "react";
-import { format, addDays, startOfWeek, isSameDay, formatDistanceToNow } from "date-fns";
+import { format, addDays, startOfWeek, isSameDay, formatDistanceToNow, startOfMonth, endOfMonth, getDaysInMonth, subDays, addMonths, subMonths, startOfDay, endOfDay, isSameMonth, eachDayOfInterval } from "date-fns";
 import {
   LayoutDashboard,
   PenSquare,
@@ -19,6 +19,7 @@ import {
   Send,
   CheckCircle2,
   XCircle,
+  X,
   AlertCircle,
   FileEdit,
   Facebook,
@@ -66,13 +67,24 @@ import {
   Wand2,
   ImagePlus,
   ExternalLink,
+  CircleDot,
+  Trash2,
+  Upload,
+  Repeat,
+  Rss,
+  Download,
+  Clock3,
+  Globe,
+  RotateCcw,
+  Layers,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -80,13 +92,24 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useAppStore } from "@/store/app-store";
+import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
+import { AppShell } from "@/components/AppShell";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePosts, useCampaigns, useSocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useAssets, useCreateAsset, useUploadAssets, useUpdateAsset, useDeleteAsset, useCreatePost, useBulkCreatePosts, useHashtagRecommendations, useBestTimeToPost, useRSSFeeds, useCreateRSSFeed, useDeleteRSSFeed, useImportRSSFeed, useRSSFeedItems, useTimezoneOptimization, useRecyclePost, useRecycledPosts, useAutopilotSettings, useUpdateAutopilotSettings, useEvents, useCreateEvent, useGenerateEventDrafts, useAutopilotBrief, useUpdateAutopilotBrief, useGenerateStrategyPlan, useAutopilotGenerate, useBrands, useCurrentBrand, useCreateBrand, useUpdateBrand, useDeleteBrand, useUploadBrandAvatar, useDeleteBrandAvatar, useSetCurrentBrand, useCalendar, useScheduleTemplates, useCreateScheduleTemplate, useUpdateScheduleTemplate, useDeleteScheduleTemplate, useGoogleIntegrations, useDeleteGoogleIntegration, useEmailAccounts, useDeleteEmailAccount, useEmailThreads, useEmailMessage, useSetEmailTriage } from "@/hooks/use-api";
+import { UploadDropzone, type UploadedItem } from "@/components/uploads/UploadDropzone";
+import type { HashtagRecommendation, AutopilotGenerateResponse, AutopilotDraftPost } from "@/types/app";
+import { LoadingSkeleton, LoadingList } from "@/components/ui/loading-skeleton";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Inbox as InboxIcon } from "lucide-react";
 import {
   type Platform,
   type PostStatus,
@@ -101,8 +124,31 @@ import {
   POSTING_GOALS,
   type Post,
   type CalendarView,
+  type Asset,
+  type AssetType,
+  type Campaign,
+  type SocialAccount,
+  type RecurrencePattern,
+  type RecurrenceSchedule,
+  type AutopilotBrief,
+  type StrategyPlan,
+  type SubjectType,
+  type PrimaryGoal,
+  type PlatformConfig,
+  type VoiceConfig,
+  type BrandAssets,
+  type Constraints,
+  type Brand,
 } from "@/types/app";
+import { SOCIAL_PLATFORMS } from "@/config/social-platforms";
 import { toast } from "sonner";
+import { 
+  validateMediaCount, 
+  validateCaptionLength, 
+  validateMediaTypes,
+  getPlatformConstraint,
+  type PlatformConstraint 
+} from "@/config/platform-constraints";
 
 export const Route = createFileRoute("/")({
   component: App,
@@ -121,6 +167,12 @@ function PlatformIcon({ platform, className }: { platform: Platform; className?:
       return <Music className={className} />;
     case "pinterest":
       return <Pin className={className} />;
+    case "reddit":
+      return <CircleDot className={className} />;
+    case "slack":
+      return <MessageSquare className={className} />;
+    case "notion":
+      return <BookOpen className={className} />;
     default:
       return null;
   }
@@ -170,13 +222,15 @@ function Sidebar() {
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "notifications", label: "Notifications", icon: BellRing, badge: pendingApprovals },
     { id: "inbox", label: "Inbox", icon: Inbox, badge: unreadCount },
+    { id: "email", label: "Email", icon: Inbox },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "brand", label: "Brand Profile", icon: Building2 },
     { id: "accounts", label: "Accounts", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
     { id: "assets", label: "Assets", icon: Image },
     { id: "audit", label: "Audit Log", icon: History },
-    { id: "settings", label: "Settings", icon: Settings },
+            { id: "settings", label: "Settings", icon: Settings },
+            { id: "vertical-slice", label: "Vertical Slice (Test)", icon: Zap },
   ];
 
   return (
@@ -239,8 +293,24 @@ function Sidebar() {
 
 // Dashboard View
 function DashboardView() {
-  const { posts, socialAccounts, conversations, campaigns, autopilotSettings, scheduledSlots, autopilotNotifications } = useAppStore();
+  // API Hooks
+  const { data: postsData, isLoading: postsLoading, error: postsError, refetch: refetchPosts } = usePosts();
+  const { data: campaignsData, isLoading: campaignsLoading, error: campaignsError } = useCampaigns();
+  const { data: accountsData, isLoading: accountsLoading, error: accountsError } = useSocialAccounts();
+  
+  // Get data from store for autopilot (still using mock for now)
+  const { conversations, autopilotSettings, scheduledSlots, autopilotNotifications } = useAppStore();
 
+  // Extract data from API responses
+  const posts = postsData?.posts || [];
+  const campaigns = campaignsData?.campaigns || [];
+  const socialAccounts = accountsData?.accounts || [];
+
+  // Loading states
+  const isLoading = postsLoading || campaignsLoading || accountsLoading;
+  const hasError = postsError || campaignsError || accountsError;
+
+  // Calculate metrics
   const metrics = {
     totalPosts: posts.length,
     published: posts.filter((p) => p.status === "published").length,
@@ -256,6 +326,44 @@ function DashboardView() {
   const nextPost = scheduledSlots
     .filter((s) => s.status === "approved" || s.status === "pending_approval")
     .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <LoadingSkeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <LoadingSkeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <LoadingSkeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <LoadingList count={3} />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (hasError) {
+    return (
+      <div className="p-6">
+        <ErrorDisplay
+          error={postsError || campaignsError || accountsError}
+          onRetry={() => {
+            if (postsError) refetchPosts();
+            // Add refetch for campaigns and accounts if needed
+          }}
+          title="Failed to load dashboard data"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -409,8 +517,17 @@ function DashboardView() {
           <CardDescription>Your social media accounts and their status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {socialAccounts.map((account) => (
+          {socialAccounts.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No connected accounts"
+              description="Connect your social media accounts to start posting"
+              actionLabel="Connect Account"
+              onAction={() => useAppStore.getState().setActiveView("accounts")}
+            />
+          ) : (
+            <div className="space-y-4">
+              {socialAccounts.map((account) => (
               <div key={account.id} className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="flex items-center gap-3">
                   <div className={cn(
@@ -419,7 +536,10 @@ function DashboardView() {
                     account.platform === "instagram" && "bg-pink-500/10",
                     account.platform === "linkedin" && "bg-blue-700/10",
                     account.platform === "tiktok" && "bg-gray-900/10",
-                    account.platform === "pinterest" && "bg-red-600/10"
+                    account.platform === "pinterest" && "bg-red-600/10",
+                    account.platform === "reddit" && "bg-orange-500/10",
+                    account.platform === "slack" && "bg-purple-600/10",
+                    account.platform === "notion" && "bg-gray-900/10"
                   )}>
                     <PlatformIcon platform={account.platform} className={cn(
                       "h-5 w-5",
@@ -427,7 +547,10 @@ function DashboardView() {
                       account.platform === "instagram" && "text-pink-500",
                       account.platform === "linkedin" && "text-blue-700",
                       account.platform === "tiktok" && "text-gray-900",
-                      account.platform === "pinterest" && "text-red-600"
+                      account.platform === "pinterest" && "text-red-600",
+                      account.platform === "reddit" && "text-orange-500",
+                      account.platform === "slack" && "text-purple-600",
+                      account.platform === "notion" && "text-gray-900"
                     )} />
                   </div>
                   <div>
@@ -442,8 +565,9 @@ function DashboardView() {
                   </p>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -454,8 +578,17 @@ function DashboardView() {
           <CardDescription>Your latest social media posts</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {posts.slice(0, 5).map((post) => (
+          {posts.length === 0 ? (
+            <EmptyState
+              icon={PenSquare}
+              title="No posts yet"
+              description="Create your first post to get started"
+              actionLabel="Create Post"
+              onAction={() => useAppStore.getState().setActiveView("compose")}
+            />
+          ) : (
+            <div className="space-y-4">
+              {posts.slice(0, 5).map((post) => (
               <div key={post.id} className="flex items-start gap-4 p-3 rounded-lg border">
                 <PlatformIcon platform={post.platform} className="h-5 w-5 mt-1 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
@@ -476,6 +609,7 @@ function DashboardView() {
               </div>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -484,20 +618,95 @@ function DashboardView() {
 
 // Post Composer View
 function ComposeView() {
-  const { posts, addPost, campaigns, socialAccounts } = useAppStore();
+  const { activeBrandId, setActiveView } = useAppStore();
+  const { data: brandsData } = useBrands();
+  const { data: currentBrand } = useCurrentBrand();
+  
+  const isAllMode = activeBrandId === 'all';
+  const brands = brandsData?.brands || [];
+  const currentBrandData = isAllMode 
+    ? { id: 'all', name: 'All Brands' }
+    : (currentBrand || brands.find(b => b.id === activeBrandId) || null);
+
+  // Block composing in "All Brands" mode
+  if (isAllMode) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Brand Selection Required</AlertTitle>
+          <AlertDescription>
+            Please select a specific brand to compose posts. Each post must be associated with a brand.
+            <Button
+              variant="link"
+              className="px-2"
+              onClick={() => {
+                if (brands.length > 0) {
+                  useAppStore.getState().setActiveBrandId(brands[0].id);
+                } else {
+                  useAppStore.getState().setActiveView('settings');
+                }
+              }}
+            >
+              Select a brand
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // API Hooks
+  const { data: campaignsData, isLoading: campaignsLoading } = useCampaigns();
+  const { data: accountsData, isLoading: accountsLoading } = useSocialAccounts();
+  const { data: postsData } = usePosts();
+  const createPost = useCreatePost();
+  
+  const posts = postsData?.posts || [];
+
   const [content, setContent] = React.useState("");
-  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>("facebook");
+  const [selectedPlatforms, setSelectedPlatforms] = React.useState<Platform[]>(["facebook"]);
+  const [selectedPlatform, setSelectedPlatform] = React.useState<Platform>("facebook"); // Keep for backward compatibility
   const [selectedCampaign, setSelectedCampaign] = React.useState<string>("");
   const [scheduleDate, setScheduleDate] = React.useState("");
   const [scheduleTime, setScheduleTime] = React.useState("");
   const [isScheduled, setIsScheduled] = React.useState(false);
+  const [isRecurring, setIsRecurring] = React.useState(false);
+  const [recurrencePattern, setRecurrencePattern] = React.useState<RecurrencePattern>("daily");
+  const [recurrenceInterval, setRecurrenceInterval] = React.useState(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = React.useState("");
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = React.useState<number[]>([]);
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = React.useState(1);
+  const [hashtagDialogOpen, setHashtagDialogOpen] = React.useState(false);
+  const [selectedHashtags, setSelectedHashtags] = React.useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = React.useState<File[]>([]);
+  const [mediaDialogOpen, setMediaDialogOpen] = React.useState(false);
+  const [mediaUploadedItems, setMediaUploadedItems] = React.useState<UploadedItem[]>([]);
 
+  // Extract data
+  const campaigns = campaignsData?.campaigns || [];
+  const socialAccounts = accountsData?.accounts || [];
+
+  // Hashtag recommendations
+  const { data: hashtagData, isLoading: hashtagsLoading } = useHashtagRecommendations(
+    content,
+    selectedPlatform,
+    { enabled: content.length > 10 && hashtagDialogOpen } as any
+  );
 
   const platformLimit = PLATFORM_LIMITS[selectedPlatform];
+  const platformConstraint = getPlatformConstraint(selectedPlatform);
   const charCount = content.length;
   const isOverLimit = charCount > platformLimit.maxChars;
+  const isSubmitting = createPost.isPending;
+  const mediaCount = mediaFiles.length;
+  
+  // Validation results (computed for render)
+  const captionValidation = validateCaptionLength(selectedPlatform, content.length);
+  const mediaValidation = validateMediaCount(selectedPlatform, mediaCount);
+  const canPublish = content.trim().length > 0 && !captionValidation.error && !mediaValidation.error && !isSubmitting;
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!content.trim()) {
       toast.error("Please enter some content");
       return;
@@ -508,59 +717,513 @@ function ComposeView() {
       return;
     }
 
-    // Add to local state
-    const newPost: Post = {
-      id: Date.now().toString(),
-      content,
-      platform: selectedPlatform,
-      status: isScheduled ? "scheduled" : "published",
-      scheduledTime: isScheduled && scheduleDate && scheduleTime
-        ? new Date(`${scheduleDate}T${scheduleTime}`)
-        : undefined,
-      publishedTime: !isScheduled ? new Date() : undefined,
-      authorId: "user1",
-      campaignId: selectedCampaign || undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    addPost(newPost);
-    toast.success(isScheduled ? "Post scheduled!" : "Post published!");
-    setContent("");
-    setSelectedCampaign("");
-    setScheduleDate("");
-    setScheduleTime("");
-    setIsScheduled(false);
+    try {
+      const postData = {
+        content,
+        platform: selectedPlatform,
+        status: (isScheduled ? "scheduled" : "draft") as PostStatus,
+        scheduledTime: isScheduled && scheduleDate && scheduleTime
+          ? new Date(`${scheduleDate}T${scheduleTime}`)
+          : undefined,
+        publishedTime: !isScheduled ? new Date() : undefined,
+        authorId: "user1",
+        campaignId: selectedCampaign || undefined,
+      };
+
+      await createPost.mutateAsync(postData);
+      toast.success(isScheduled ? "Post scheduled!" : "Post created!");
+      setContent("");
+      setSelectedCampaign("");
+      setScheduleDate("");
+      setScheduleTime("");
+      setIsScheduled(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create post");
+    }
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     if (!content.trim()) {
       toast.error("Please enter some content");
       return;
     }
 
-    const newPost: Post = {
-      id: Date.now().toString(),
-      content,
-      platform: selectedPlatform,
-      status: "draft",
-      authorId: "user1",
-      campaignId: selectedCampaign || undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    addPost(newPost);
-    toast.success("Draft saved!");
-    setContent("");
+    try {
+      const postData = {
+        content,
+        platform: selectedPlatform,
+        status: "draft" as PostStatus,
+        authorId: "user1",
+        campaignId: selectedCampaign || undefined,
+      };
+
+      await createPost.mutateAsync(postData);
+      toast.success("Draft saved!");
+      setContent("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save draft");
+    }
   };
+
+  const [composeMode, setComposeMode] = React.useState<'single' | 'bulk'>('single');
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Compose Post</h1>
-        <p className="text-muted-foreground">Create and schedule content for your social media accounts</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Compose Post</h1>
+          <p className="text-muted-foreground">Create and schedule content for your social media accounts</p>
+        </div>
+        {/* Active Brand Display */}
+        {currentBrandData && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/50">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs">
+                {currentBrandData && 'avatarUrl' in currentBrandData && currentBrandData.avatarUrl ? (
+                  <img src={currentBrandData.avatarUrl} alt={currentBrandData.name} className="h-full w-full object-cover" />
+                ) : (
+                  currentBrandData?.name?.charAt(0).toUpperCase() || '?'
+                )}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{currentBrandData?.name || 'Unknown'}</span>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Tabs value={composeMode} onValueChange={(v) => setComposeMode(v as 'single' | 'bulk')}>
+        <TabsList>
+          <TabsTrigger value="single">Single Post</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
+        </TabsList>
+        <TabsContent value="single" className="mt-4">
+          <ComposeSinglePostContent
+            content={content}
+            setContent={setContent}
+            selectedPlatform={selectedPlatform}
+            setSelectedPlatform={setSelectedPlatform}
+            selectedCampaign={selectedCampaign}
+            setSelectedCampaign={setSelectedCampaign}
+            scheduleDate={scheduleDate}
+            setScheduleDate={setScheduleDate}
+            scheduleTime={scheduleTime}
+            setScheduleTime={setScheduleTime}
+            isScheduled={isScheduled}
+            setIsScheduled={setIsScheduled}
+            isRecurring={isRecurring}
+            setIsRecurring={setIsRecurring}
+            recurrencePattern={recurrencePattern}
+            setRecurrencePattern={setRecurrencePattern}
+            recurrenceInterval={recurrenceInterval}
+            setRecurrenceInterval={setRecurrenceInterval}
+            recurrenceEndDate={recurrenceEndDate}
+            setRecurrenceEndDate={setRecurrenceEndDate}
+            recurrenceDaysOfWeek={recurrenceDaysOfWeek}
+            setRecurrenceDaysOfWeek={setRecurrenceDaysOfWeek}
+            recurrenceDayOfMonth={recurrenceDayOfMonth}
+            setRecurrenceDayOfMonth={setRecurrenceDayOfMonth}
+            campaigns={campaigns}
+            socialAccounts={socialAccounts}
+            createPost={createPost}
+            posts={posts}
+            hashtagDialogOpen={hashtagDialogOpen}
+            setHashtagDialogOpen={setHashtagDialogOpen}
+            selectedHashtags={selectedHashtags}
+            setSelectedHashtags={setSelectedHashtags}
+            hashtagData={hashtagData}
+            hashtagsLoading={hashtagsLoading}
+            mediaFiles={mediaFiles}
+            setMediaFiles={setMediaFiles}
+            mediaDialogOpen={mediaDialogOpen}
+            setMediaDialogOpen={setMediaDialogOpen}
+            mediaUploadedItems={mediaUploadedItems}
+            setMediaUploadedItems={setMediaUploadedItems}
+          />
+        </TabsContent>
+        <TabsContent value="bulk" className="mt-4">
+          <ComposeBulkUploadContent campaigns={campaigns} socialAccounts={socialAccounts} />
+        </TabsContent>
+      </Tabs>
+
+      {/* Hashtag Recommendations Dialog */}
+      <Dialog open={hashtagDialogOpen} onOpenChange={setHashtagDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Hashtag Recommendations</DialogTitle>
+            <DialogDescription>
+              Select hashtags to add to your post
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {hashtagsLoading ? (
+              <LoadingSkeleton />
+            ) : hashtagData?.recommendations ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto">
+                  {hashtagData.recommendations.map((rec) => (
+                    <Button
+                      key={rec.hashtag}
+                      variant={selectedHashtags.includes(rec.hashtag) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        if (selectedHashtags.includes(rec.hashtag)) {
+                          setSelectedHashtags(selectedHashtags.filter(h => h !== rec.hashtag));
+                        } else {
+                          setSelectedHashtags([...selectedHashtags, rec.hashtag]);
+                        }
+                      }}
+                    >
+                      {rec.hashtag}
+                      {rec.relevance > 0.8 && <span className="ml-1 text-xs">⭐</span>}
+                    </Button>
+                  ))}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Showing {hashtagData.recommendations.length} recommendations
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Enter some content to get hashtag recommendations</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHashtagDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const hashtagsText = selectedHashtags.join(" ");
+                setContent(content + (content ? " " : "") + hashtagsText);
+                setSelectedHashtags([]);
+                setHashtagDialogOpen(false);
+              }}
+            >
+              Add Selected Hashtags
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Upload Dialog */}
+      <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Media</DialogTitle>
+            <DialogDescription>
+              Upload images or videos for your post. Max {platformConstraint.maxMediaCount} file(s) for {selectedPlatform}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <UploadDropzone
+              multiple={platformConstraint.maxMediaCount > 1}
+              accept={platformConstraint.supportedMediaTypes.includes('video') ? 'image/*,video/*' : 'image/*'}
+              maxFiles={platformConstraint.maxMediaCount}
+              maxSizeMB={50}
+              value={mediaUploadedItems}
+              onFilesSelected={async (files) => {
+                const newItems: UploadedItem[] = [];
+                for (const file of files) {
+                  const preview = file.type.startsWith('image/') 
+                    ? await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(file);
+                      })
+                    : undefined;
+                  
+                  newItems.push({
+                    file,
+                    preview,
+                    status: 'success',
+                  });
+                }
+                setMediaUploadedItems((prev) => [...prev, ...newItems]);
+                setMediaFiles((prev) => [...prev, ...files]);
+              }}
+              onFileRemove={(index) => {
+                setMediaUploadedItems((prev) => prev.filter((_, i) => i !== index));
+                setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+              }}
+              title="Upload media files"
+              helperText="Drag and drop files or click to browse"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMediaDialogOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  );
+}
+
+// Single Post Content Component
+function ComposeSinglePostContent({
+  content,
+  setContent,
+  selectedPlatform,
+  setSelectedPlatform,
+  selectedCampaign,
+  setSelectedCampaign,
+  scheduleDate,
+  setScheduleDate,
+  scheduleTime,
+  setScheduleTime,
+  isScheduled,
+  setIsScheduled,
+  isRecurring,
+  setIsRecurring,
+  recurrencePattern,
+  setRecurrencePattern,
+  recurrenceInterval,
+  setRecurrenceInterval,
+  recurrenceEndDate,
+  setRecurrenceEndDate,
+  recurrenceDaysOfWeek,
+  setRecurrenceDaysOfWeek,
+  recurrenceDayOfMonth,
+  setRecurrenceDayOfMonth,
+  campaigns,
+  socialAccounts,
+  createPost,
+  posts,
+  hashtagDialogOpen,
+  setHashtagDialogOpen,
+  selectedHashtags,
+  setSelectedHashtags,
+  hashtagData,
+  hashtagsLoading,
+  mediaFiles,
+  setMediaFiles,
+  mediaDialogOpen,
+  setMediaDialogOpen,
+  mediaUploadedItems,
+  setMediaUploadedItems,
+}: {
+  content: string;
+  setContent: (v: string) => void;
+  selectedPlatform: Platform;
+  setSelectedPlatform: (v: Platform) => void;
+  selectedCampaign: string;
+  setSelectedCampaign: (v: string) => void;
+  scheduleDate: string;
+  setScheduleDate: (v: string) => void;
+  scheduleTime: string;
+  setScheduleTime: (v: string) => void;
+  isScheduled: boolean;
+  setIsScheduled: (v: boolean) => void;
+  isRecurring: boolean;
+  setIsRecurring: (v: boolean) => void;
+  recurrencePattern: RecurrencePattern;
+  setRecurrencePattern: (v: RecurrencePattern) => void;
+  recurrenceInterval: number;
+  setRecurrenceInterval: (v: number) => void;
+  recurrenceEndDate: string;
+  setRecurrenceEndDate: (v: string) => void;
+  recurrenceDaysOfWeek: number[];
+  setRecurrenceDaysOfWeek: (v: number[]) => void;
+  recurrenceDayOfMonth: number;
+  setRecurrenceDayOfMonth: (v: number) => void;
+  campaigns: Campaign[];
+  socialAccounts: SocialAccount[];
+  createPost: ReturnType<typeof useCreatePost>;
+  posts: Post[];
+  hashtagDialogOpen: boolean;
+  setHashtagDialogOpen: (open: boolean) => void;
+  selectedHashtags: string[];
+  setSelectedHashtags: (hashtags: string[]) => void;
+  hashtagData?: { recommendations: HashtagRecommendation[]; total: number };
+  hashtagsLoading: boolean;
+  mediaFiles: File[];
+  setMediaFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  mediaDialogOpen: boolean;
+  setMediaDialogOpen: (open: boolean) => void;
+  mediaUploadedItems: UploadedItem[];
+  setMediaUploadedItems: React.Dispatch<React.SetStateAction<UploadedItem[]>>;
+}) {
+  const platformLimit = PLATFORM_LIMITS[selectedPlatform];
+  const platformConstraint = getPlatformConstraint(selectedPlatform);
+  const charCount = content.length;
+  const isOverLimit = charCount > platformLimit.maxChars;
+  const isSubmitting = createPost.isPending;
+  const mediaCount = mediaFiles.length;
+  
+  // Validation results (computed for render)
+  const captionValidation = validateCaptionLength(selectedPlatform, content.length);
+  const mediaValidation = validateMediaCount(selectedPlatform, mediaCount);
+  const canPublish = content.trim().length > 0 && !captionValidation.error && !mediaValidation.error && !isSubmitting;
+
+  // Handle media file selection
+  const handleMediaFilesSelected = async (files: File[]) => {
+    const maxMedia = platformConstraint.maxMediaCount;
+    const currentCount = mediaFiles.length;
+    
+    if (currentCount + files.length > maxMedia) {
+      toast.error(`Maximum ${maxMedia} media file(s) allowed for ${selectedPlatform}`);
+      return;
+    }
+
+    // Create preview items
+    const newItems: UploadedItem[] = [];
+    for (const file of files) {
+      const preview = file.type.startsWith('image/') 
+        ? await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          })
+        : undefined;
+      
+      newItems.push({
+        file,
+        preview,
+        status: 'success',
+      });
+    }
+
+    setMediaUploadedItems((prev) => [...prev, ...newItems]);
+    setMediaFiles((prev) => [...prev, ...files]);
+  };
+
+  const handleMediaFileRemove = (index: number) => {
+    setMediaUploadedItems((prev) => prev.filter((_, i) => i !== index));
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveDraft = async () => {
+    if (!content.trim()) {
+      toast.error("Please enter some content");
+      return;
+    }
+
+    try {
+      const postData = {
+        content,
+        platform: selectedPlatform,
+        status: "draft" as PostStatus,
+        authorId: "user1",
+        campaignId: selectedCampaign || undefined,
+      };
+
+      await createPost.mutateAsync(postData);
+      toast.success("Draft saved!");
+      setContent("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save draft");
+    }
+  };
+
+  // Recurring schedule helper
+  const getRecurrenceSchedule = (): RecurrenceSchedule | undefined => {
+    if (!isRecurring || !isScheduled || !scheduleDate || !scheduleTime) {
+      return undefined;
+    }
+
+    const startDate = new Date(`${scheduleDate}T${scheduleTime}`);
+    return {
+      pattern: recurrencePattern,
+      interval: recurrenceInterval,
+      startDate,
+      endDate: recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
+      daysOfWeek: recurrencePattern === 'weekly' ? recurrenceDaysOfWeek : undefined,
+      dayOfMonth: recurrencePattern === 'monthly' ? recurrenceDayOfMonth : undefined,
+    };
+  };
+
+  const handlePublishWithRecurrence = async () => {
+    if (!content.trim()) {
+      toast.error("Please enter some content");
+      return;
+    }
+
+    // Validate caption length (re-validate in handler)
+    const captionValidationResult = validateCaptionLength(selectedPlatform, content.length);
+    if (captionValidationResult.error) {
+      toast.error(captionValidationResult.error);
+      return;
+    }
+    if (captionValidationResult.warning) {
+      // Show warning but allow publishing
+      toast.warning(captionValidationResult.warning);
+    }
+
+    // Validate media count (re-validate in handler)
+    const mediaValidationResult = validateMediaCount(selectedPlatform, mediaCount);
+    if (mediaValidationResult.error) {
+      toast.error(mediaValidationResult.error);
+      return;
+    }
+
+    try {
+      const recurrenceSchedule = getRecurrenceSchedule();
+      const postData = {
+        content,
+        platform: selectedPlatform,
+        status: (isScheduled ? "scheduled" : "draft") as PostStatus,
+        scheduledTime: isScheduled && scheduleDate && scheduleTime
+          ? new Date(`${scheduleDate}T${scheduleTime}`)
+          : undefined,
+        publishedTime: !isScheduled ? new Date() : undefined,
+        authorId: "user1",
+        campaignId: selectedCampaign || undefined,
+        recurrenceSchedule,
+      };
+
+      await createPost.mutateAsync(postData);
+      const successMessage = isRecurring && isScheduled 
+        ? "Recurring post scheduled!" 
+        : (isScheduled ? "Post scheduled!" : "Post created!");
+      toast.success(successMessage);
+      
+      setContent("");
+      setSelectedCampaign("");
+      setScheduleDate("");
+      setScheduleTime("");
+      setIsScheduled(false);
+      setIsRecurring(false);
+      setRecurrencePattern("daily");
+      setRecurrenceInterval(1);
+      setRecurrenceEndDate("");
+      setRecurrenceDaysOfWeek([]);
+      setRecurrenceDayOfMonth(1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create post");
+    }
+  };
+
+  // Filter to only social platforms (not slack/notion)
+  const socialPlatforms = PLATFORMS.filter(p => 
+    ['facebook', 'instagram', 'linkedin', 'tiktok', 'pinterest', 'reddit'].includes(p.id)
+  );
+
+  // Check if any accounts are connected
+  const hasConnectedAccounts = socialAccounts.some(a => 
+    a.isConnected || a.status === 'connected' || a.status === 'stub'
+  );
+
+  // Show empty state if no accounts
+  if (!hasConnectedAccounts) {
+    return (
+      <Card>
+        <CardContent className="p-12">
+          <EmptyState
+            icon={Users}
+            title="No social accounts connected"
+            description="Connect a platform account to start posting. You can also create a stub account for testing."
+            actionLabel="Go to Accounts"
+            onAction={() => useAppStore.getState().setActiveView('accounts')}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Composer */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
@@ -568,20 +1231,25 @@ function ComposeView() {
               <CardTitle>Content</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Platform Selection */}
-              <div className="flex gap-2">
-                {PLATFORMS.map((platform) => {
+              {/* Platform Selection - Only social platforms */}
+              <div className="flex flex-wrap gap-2">
+                {socialPlatforms.map((platform) => {
                   const account = socialAccounts.find((a) => a.platform === platform.id);
+                  const hasAccount = account && (account.isConnected || account.status === 'connected' || account.status === 'stub');
                   return (
                     <Button
                       key={platform.id}
                       variant={selectedPlatform === platform.id ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedPlatform(platform.id)}
-                      disabled={!account?.isConnected}
+                      disabled={!hasAccount}
+                      title={!hasAccount ? `No ${platform.label} account connected` : undefined}
                     >
                       <PlatformIcon platform={platform.id} className="h-4 w-4 mr-2" />
                       {platform.label}
+                      {account?.status === 'stub' && (
+                        <Badge variant="secondary" className="ml-1 text-xs">Stub</Badge>
+                      )}
                     </Button>
                   );
                 })}
@@ -597,11 +1265,20 @@ function ComposeView() {
                 />
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setMediaDialogOpen(true)}
+                      type="button"
+                    >
                       <Image className="h-4 w-4 mr-1" />
-                      Media
+                      Media {mediaCount > 0 && `(${mediaCount})`}
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setHashtagDialogOpen(true)}
+                    >
                       <Hash className="h-4 w-4 mr-1" />
                       Hashtags
                     </Button>
@@ -619,6 +1296,33 @@ function ComposeView() {
                   )}>
                     {charCount} / {platformLimit.maxChars}
                   </span>
+                </div>
+                {/* Platform Validation Messages */}
+                {captionValidation.error && (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">{captionValidation.error}</AlertDescription>
+                  </Alert>
+                )}
+                {captionValidation.warning && !captionValidation.error && (
+                  <Alert className="py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">{captionValidation.warning}</AlertDescription>
+                  </Alert>
+                )}
+                {mediaValidation.error && (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">{mediaValidation.error}</AlertDescription>
+                  </Alert>
+                )}
+                {/* Platform Constraints Info */}
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p><strong>Platform:</strong> {selectedPlatform}</p>
+                  <p><strong>Max media:</strong> {platformConstraint.maxMediaCount} • <strong>Supported:</strong> {platformConstraint.supportedMediaTypes.join(', ')}</p>
+                  {platformConstraint.aspectRatioGuidance && (
+                    <p><strong>Aspect ratio:</strong> {platformConstraint.aspectRatioGuidance.recommended.join(', ')}</p>
+                  )}
                 </div>
               </div>
 
@@ -652,6 +1356,7 @@ function ComposeView() {
                 </div>
 
                 {isScheduled && (
+                  <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Date</Label>
@@ -671,6 +1376,100 @@ function ComposeView() {
                       />
                     </div>
                   </div>
+
+                    {/* Recurring Schedule */}
+                    <div className="space-y-3 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="recurring"
+                          checked={isRecurring}
+                          onCheckedChange={(checked) => setIsRecurring(checked === true)}
+                        />
+                        <Label htmlFor="recurring" className="flex items-center gap-2">
+                          <Repeat className="h-4 w-4" />
+                          Make this a recurring post
+                        </Label>
+                      </div>
+
+                      {isRecurring && (
+                        <div className="space-y-4 pl-6 border-l-2">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Repeat</Label>
+                              <Select value={recurrencePattern} onValueChange={(v) => setRecurrencePattern(v as RecurrencePattern)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="daily">Daily</SelectItem>
+                                  <SelectItem value="weekly">Weekly</SelectItem>
+                                  <SelectItem value="monthly">Monthly</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Every</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="30"
+                                value={recurrenceInterval}
+                                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                          </div>
+
+                          {recurrencePattern === 'weekly' && (
+                            <div className="space-y-2">
+                              <Label>Days of week</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                                  <Button
+                                    key={day}
+                                    type="button"
+                                    variant={recurrenceDaysOfWeek.includes(index) ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                      if (recurrenceDaysOfWeek.includes(index)) {
+                                        setRecurrenceDaysOfWeek(recurrenceDaysOfWeek.filter(d => d !== index));
+                                      } else {
+                                        setRecurrenceDaysOfWeek([...recurrenceDaysOfWeek, index].sort());
+                                      }
+                                    }}
+                                  >
+                                    {day.slice(0, 3)}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {recurrencePattern === 'monthly' && (
+                            <div className="space-y-2">
+                              <Label>Day of month</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="31"
+                                value={recurrenceDayOfMonth}
+                                onChange={(e) => setRecurrenceDayOfMonth(parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                          )}
+
+                          <div className="space-y-2">
+                            <Label>End date (optional)</Label>
+                            <Input
+                              type="date"
+                              value={recurrenceEndDate}
+                              onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                              min={scheduleDate || format(new Date(), "yyyy-MM-dd")}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -681,11 +1480,13 @@ function ComposeView() {
             <Button variant="outline" onClick={handleSaveDraft}>
               Save Draft
             </Button>
-            <Button
-              onClick={handlePublish}
-              disabled={!content.trim() || isOverLimit}
-            >
-              {isScheduled ? "Schedule Post" : "Publish Now"}
+              <Button
+                onClick={handlePublishWithRecurrence}
+                disabled={!canPublish || isSubmitting}
+              >
+              {isSubmitting 
+                ? (isScheduled ? "Scheduling..." : "Publishing...") 
+                : (isScheduled ? "Schedule Post" : "Publish Now")}
             </Button>
           </div>
         </div>
@@ -710,6 +1511,33 @@ function ComposeView() {
                 <p className="text-sm whitespace-pre-wrap">
                   {content || "Your post preview will appear here..."}
                 </p>
+                {/* Media Previews */}
+                {mediaUploadedItems.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {mediaUploadedItems.map((item: UploadedItem, idx: number) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border">
+                        {item.preview ? (
+                          <img
+                            src={item.preview}
+                            alt={item.file.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <Music className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleMediaFileRemove(idx)}
+                          className="absolute top-2 right-2 p-1 rounded-full bg-black/50 hover:bg-black/70 text-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -748,6 +1576,261 @@ function ComposeView() {
           </Card>
         </div>
       </div>
+
+      {/* Media Upload Dialog */}
+      <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Media</DialogTitle>
+            <DialogDescription>
+              Upload images or videos for your post. Max {platformConstraint.maxMediaCount} file(s) for {selectedPlatform}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <UploadDropzone
+              multiple={platformConstraint.maxMediaCount > 1}
+              accept={platformConstraint.supportedMediaTypes.includes('video') ? 'image/*,video/*' : 'image/*'}
+              maxFiles={platformConstraint.maxMediaCount}
+              maxSizeMB={50}
+              value={mediaUploadedItems}
+              onFilesSelected={handleMediaFilesSelected}
+              onFileRemove={handleMediaFileRemove}
+              title="Upload media files"
+              helperText="Drag and drop files or click to browse"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMediaDialogOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// Bulk Upload Content Component
+function ComposeBulkUploadContent({
+  campaigns,
+  socialAccounts,
+}: {
+  campaigns: Campaign[];
+  socialAccounts: SocialAccount[];
+}) {
+  const [csvText, setCsvText] = React.useState('');
+  const [parsedPosts, setParsedPosts] = React.useState<Array<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>>>([]);
+  const [uploadResults, setUploadResults] = React.useState<{ results: Array<{ success: boolean; post?: Post; error?: string; index: number }>; summary: { total: number; successful: number; failed: number } } | null>(null);
+  const bulkCreatePosts = useBulkCreatePosts();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const parseCSV = (text: string): Array<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>> => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const posts: Array<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>> = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] || '';
+      });
+
+      if (!row.content || !row.platform) continue;
+
+      const post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'> = {
+        content: row.content,
+        platform: row.platform as Platform,
+        status: (row.scheduledtime ? 'scheduled' : 'draft') as PostStatus,
+        scheduledTime: row.scheduledtime ? new Date(row.scheduledtime) : undefined,
+        authorId: 'user1',
+        campaignId: row.campaignid || undefined,
+        mediaUrls: row.mediaurls ? row.mediaurls.split(',').map(u => u.trim()).filter(Boolean) : undefined,
+        hashtags: row.hashtags ? row.hashtags.split(',').map(h => h.trim()).filter(Boolean) : undefined,
+      };
+
+      posts.push(post);
+    }
+
+    return posts;
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      setCsvText(text);
+      const parsed = parseCSV(text);
+      setParsedPosts(parsed);
+      setUploadResults(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleTextChange = (text: string) => {
+    setCsvText(text);
+    if (text.trim()) {
+      const parsed = parseCSV(text);
+      setParsedPosts(parsed);
+    } else {
+      setParsedPosts([]);
+    }
+    setUploadResults(null);
+  };
+
+  const handleSubmit = async () => {
+    if (parsedPosts.length === 0) {
+      toast.error('No posts to upload. Please provide CSV data.');
+      return;
+    }
+
+    try {
+      const result = await bulkCreatePosts.mutateAsync(parsedPosts);
+      setUploadResults(result);
+      toast.success(`Successfully created ${result.summary.successful} posts${result.summary.failed > 0 ? `, ${result.summary.failed} failed` : ''}`);
+      if (result.summary.successful > 0) {
+        setCsvText('');
+        setParsedPosts([]);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload posts');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Bulk Upload Posts</CardTitle>
+          <CardDescription>
+            Upload a CSV file or paste CSV data to create multiple posts at once.
+            <br />
+            <strong>CSV Format:</strong> content, platform, scheduledTime (optional), mediaUrls (optional, comma-separated), hashtags (optional, comma-separated), campaignId (optional)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Upload CSV File</Label>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="mt-2"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Or Paste CSV Data</Label>
+            <Textarea
+              placeholder="content, platform, scheduledTime&#10;Hello world, facebook, 2024-01-01T10:00:00Z&#10;Another post, instagram,"
+              value={csvText}
+              onChange={(e) => handleTextChange(e.target.value)}
+              className="min-h-[200px] font-mono text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {parsedPosts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Preview ({parsedPosts.length} posts)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Content</TableHead>
+                    <TableHead>Platform</TableHead>
+                    <TableHead>Scheduled</TableHead>
+                    <TableHead>Hashtags</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parsedPosts.map((post, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="max-w-md">
+                        <p className="truncate">{post.content}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{post.platform}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {post.scheduledTime ? format(new Date(post.scheduledTime), 'MMM d, yyyy h:mm a') : 'Draft'}
+                      </TableCell>
+                      <TableCell>
+                        {post.hashtags && post.hashtags.length > 0 ? (
+                          <div className="flex gap-1 flex-wrap">
+                            {post.hashtags.slice(0, 3).map((tag, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">{tag}</Badge>
+                            ))}
+                            {post.hashtags.length > 3 && <span className="text-xs text-muted-foreground">+{post.hashtags.length - 3}</span>}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {uploadResults && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Upload Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-2xl font-bold">{uploadResults.summary.total}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Successful</p>
+                  <p className="text-2xl font-bold text-green-600">{uploadResults.summary.successful}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Failed</p>
+                  <p className="text-2xl font-bold text-red-600">{uploadResults.summary.failed}</p>
+                </div>
+              </div>
+              {uploadResults.results.filter(r => !r.success).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="font-medium">Errors:</p>
+                  {uploadResults.results.filter(r => !r.success).map((result, idx) => (
+                    <Alert key={idx} variant="destructive">
+                      <AlertDescription>
+                        Row {result.index + 2}: {result.error}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSubmit}
+          disabled={parsedPosts.length === 0 || bulkCreatePosts.isPending}
+        >
+          {bulkCreatePosts.isPending ? 'Uploading...' : `Upload ${parsedPosts.length} Posts`}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -755,7 +1838,6 @@ function ComposeView() {
 // Calendar View
 function CalendarViewComponent() {
   const {
-    posts,
     calendarView,
     setCalendarView,
     selectedDate,
@@ -764,27 +1846,92 @@ function CalendarViewComponent() {
     setPlatformFilter,
   } = useAppStore();
 
-  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Calculate date range based on view
+  const getDateRange = () => {
+    if (calendarView === 'day') {
+      const dayStart = startOfDay(selectedDate);
+      const dayEnd = endOfDay(selectedDate);
+      return {
+        from: format(dayStart, 'yyyy-MM-dd'),
+        to: format(dayEnd, 'yyyy-MM-dd'),
+      };
+    } else if (calendarView === 'week') {
+      const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+      const weekEnd = addDays(weekStart, 6);
+      return {
+        from: format(weekStart, 'yyyy-MM-dd'),
+        to: format(weekEnd, 'yyyy-MM-dd'),
+      };
+    } else {
+      // month
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      return {
+        from: format(monthStart, 'yyyy-MM-dd'),
+        to: format(monthEnd, 'yyyy-MM-dd'),
+      };
+    }
+  };
 
-  const getPostsForDate = (date: Date) => {
-    return posts.filter((post) => {
-      const postDate = post.scheduledTime || post.publishedTime || post.createdAt;
-      return isSameDay(postDate, date) &&
-        (platformFilter === "all" || post.platform === platformFilter);
+  const dateRange = getDateRange();
+  const { data: calendarData, isLoading: calendarLoading } = useCalendar(dateRange);
+  const calendarItems = calendarData?.items || [];
+
+  // Filter items by platform (only for posts)
+  const filteredItems = calendarItems.filter(item => {
+    if (item.kind === 'business_event') return true;
+    if (item.kind === 'post') {
+      if (platformFilter === 'all') return true;
+      return item.platform === platformFilter;
+    }
+    return true;
+  });
+
+  // Navigation helpers
+  const navigate = (direction: number) => {
+    if (calendarView === 'day') {
+      setSelectedDate(addDays(selectedDate, direction));
+    } else if (calendarView === 'week') {
+      setSelectedDate(addDays(selectedDate, direction * 7));
+    } else {
+      setSelectedDate(addMonths(selectedDate, direction));
+    }
+  };
+
+  const getDisplayDate = () => {
+    if (calendarView === 'day') {
+      return format(selectedDate, 'EEEE, MMMM d, yyyy');
+    } else if (calendarView === 'week') {
+      const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+      const weekEnd = addDays(weekStart, 6);
+      return `${format(weekStart, 'MMMM d')} - ${format(weekEnd, 'MMMM d, yyyy')}`;
+    } else {
+      return format(selectedDate, 'MMMM yyyy');
+    }
+  };
+
+  // Get items for a specific date
+  const getItemsForDate = (date: Date) => {
+    return filteredItems.filter(item => {
+      const itemDate = new Date(item.startAt);
+      return isSameDay(itemDate, date);
     });
   };
 
-  const navigateWeek = (direction: number) => {
-    setSelectedDate(addDays(selectedDate, direction * 7));
+  // Get items for a specific day in month view
+  const getItemsCountForDate = (date: Date) => {
+    return getItemsForDate(date).length;
   };
+
+  // Social platforms only for filter
+  const socialPlatforms = PLATFORMS.filter(p => SOCIAL_PLATFORMS.includes(p.id));
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Content Calendar</h1>
-          <p className="text-muted-foreground">Schedule and manage your posts</p>
+          <p className="text-muted-foreground">Schedule and manage your posts and events</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as Platform | "all")}>
@@ -793,7 +1940,7 @@ function CalendarViewComponent() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Platforms</SelectItem>
-              {PLATFORMS.map((platform) => (
+              {socialPlatforms.map((platform) => (
                 <SelectItem key={platform.id} value={platform.id}>
                   {platform.label}
                 </SelectItem>
@@ -810,17 +1957,17 @@ function CalendarViewComponent() {
       {/* Calendar Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}>
+          <Button variant="outline" size="icon" onClick={() => navigate(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={() => setSelectedDate(new Date())}>
             Today
           </Button>
           <span className="font-medium ml-4">
-            {format(weekStart, "MMMM d")} - {format(addDays(weekStart, 6), "MMMM d, yyyy")}
+            {getDisplayDate()}
           </span>
         </div>
         <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarView)}>
@@ -832,62 +1979,243 @@ function CalendarViewComponent() {
         </Tabs>
       </div>
 
-      {/* Week View */}
-      <div className="grid grid-cols-7 gap-4">
-        {weekDays.map((day) => {
-          const dayPosts = getPostsForDate(day);
-          const isToday = isSameDay(day, new Date());
+      {/* Calendar Views */}
+      {calendarLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <LoadingSkeleton />
+        </div>
+      ) : calendarView === 'day' ? (
+        <DayView selectedDate={selectedDate} items={filteredItems} />
+      ) : calendarView === 'week' ? (
+        <WeekView selectedDate={selectedDate} items={filteredItems} />
+      ) : (
+        <MonthView selectedDate={selectedDate} items={filteredItems} onDayClick={(date) => {
+          setSelectedDate(date);
+          setCalendarView('day');
+        }} />
+      )}
+    </div>
+  );
+}
 
-          return (
-            <Card key={day.toISOString()} className={cn(isToday && "ring-2 ring-primary")}>
-              <CardHeader className="pb-2">
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">{format(day, "EEE")}</p>
-                  <p className={cn(
-                    "text-lg font-bold",
-                    isToday && "text-primary"
-                  )}>
-                    {format(day, "d")}
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="min-h-[200px]">
-                <div className="space-y-2">
-                  {dayPosts.map((post) => (
-                    <div
-                      key={post.id}
-                      className={cn(
-                        "p-2 rounded-md text-xs cursor-pointer hover:opacity-80",
-                        post.platform === "facebook" && "bg-blue-600/10 border-l-2 border-blue-600",
-                        post.platform === "instagram" && "bg-pink-500/10 border-l-2 border-pink-500",
-                        post.platform === "linkedin" && "bg-blue-700/10 border-l-2 border-blue-700",
-                        post.platform === "tiktok" && "bg-gray-900/10 border-l-2 border-gray-900",
-                        post.platform === "pinterest" && "bg-red-600/10 border-l-2 border-red-600"
+// Day View - Most detailed
+function DayView({ selectedDate, items }: { selectedDate: Date; items: any[] }) {
+  const dayItems = items.filter(item => {
+    const itemDate = new Date(item.startAt);
+    return isSameDay(itemDate, selectedDate);
+  });
+
+  // Sort by time
+  dayItems.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {dayItems.length === 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="No events scheduled"
+            description="This day has no posts or business events"
+          />
+        ) : (
+          <div className="space-y-3">
+            {dayItems.map((item) => (
+              <div
+                key={item.id}
+                className={cn(
+                  "p-4 rounded-lg border",
+                  item.kind === 'business_event' && "bg-blue-50 border-blue-200",
+                  item.kind === 'post' && "bg-gray-50 border-gray-200"
+                )}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant={item.kind === 'business_event' ? 'default' : 'secondary'}>
+                        {item.kind === 'business_event' ? 'Event' : 'Post'}
+                      </Badge>
+                      {item.kind === 'post' && item.platform && (
+                        <PlatformIcon platform={item.platform} className="h-4 w-4" />
                       )}
-                    >
-                      <div className="flex items-center gap-1 mb-1">
-                        <PlatformIcon platform={post.platform} className="h-3 w-3" />
-                        <StatusBadge status={post.status} />
-                      </div>
-                      <p className="line-clamp-2">{post.content}</p>
-                      {post.scheduledTime && (
-                        <p className="text-muted-foreground mt-1">
-                          {format(post.scheduledTime, "h:mm a")}
-                        </p>
-                      )}
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(item.startAt), 'h:mm a')}
+                        {item.endAt && ` - ${format(new Date(item.endAt), 'h:mm a')}`}
+                      </span>
                     </div>
-                  ))}
-                  {dayPosts.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      No posts
-                    </p>
-                  )}
+                    <p className="font-medium">{item.title}</p>
+                    {item.meta?.location && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        📍 {item.meta.location}
+                      </p>
+                    )}
+                    {item.meta?.notes && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {item.meta.notes}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Week View
+function WeekView({ selectedDate, items }: { selectedDate: Date; items: any[] }) {
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  return (
+    <div className="grid grid-cols-7 gap-4">
+      {weekDays.map((day) => {
+        const dayItems = items.filter(item => {
+          const itemDate = new Date(item.startAt);
+          return isSameDay(itemDate, day);
+        });
+        const isToday = isSameDay(day, new Date());
+
+        return (
+          <Card key={day.toISOString()} className={cn(isToday && "ring-2 ring-primary")}>
+            <CardHeader className="pb-2">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">{format(day, "EEE")}</p>
+                <p className={cn(
+                  "text-lg font-bold",
+                  isToday && "text-primary"
+                )}>
+                  {format(day, "d")}
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-[200px]">
+              <div className="space-y-2">
+                {dayItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "p-2 rounded-md text-xs cursor-pointer hover:opacity-80",
+                      item.kind === 'business_event' && "bg-blue-600/10 border-l-2 border-blue-600",
+                      item.kind === 'post' && item.platform === "facebook" && "bg-blue-600/10 border-l-2 border-blue-600",
+                      item.kind === 'post' && item.platform === "instagram" && "bg-pink-500/10 border-l-2 border-pink-500",
+                      item.kind === 'post' && item.platform === "linkedin" && "bg-blue-700/10 border-l-2 border-blue-700",
+                      item.kind === 'post' && item.platform === "tiktok" && "bg-gray-900/10 border-l-2 border-gray-900",
+                      item.kind === 'post' && item.platform === "pinterest" && "bg-red-600/10 border-l-2 border-red-600",
+                      item.kind === 'post' && item.platform === "reddit" && "bg-orange-500/10 border-l-2 border-orange-500"
+                    )}
+                  >
+                    <div className="flex items-center gap-1 mb-1">
+                      {item.kind === 'post' && item.platform && (
+                        <PlatformIcon platform={item.platform} className="h-3 w-3" />
+                      )}
+                      {item.kind === 'business_event' && (
+                        <Calendar className="h-3 w-3" />
+                      )}
+                      <Badge variant="outline" className="text-xs">
+                        {item.kind === 'business_event' ? 'Event' : 'Post'}
+                      </Badge>
+                    </div>
+                    <p className="line-clamp-2">{item.title}</p>
+                    <p className="text-muted-foreground mt-1">
+                      {format(new Date(item.startAt), "h:mm a")}
+                    </p>
+                  </div>
+                ))}
+                {dayItems.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No events
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// Month View
+function MonthView({ selectedDate, items, onDayClick }: { selectedDate: Date; items: any[]; onDayClick: (date: Date) => void }) {
+  const monthStart = startOfMonth(selectedDate);
+  const monthEnd = endOfMonth(selectedDate);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfMonth(monthStart);
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  const getItemsCountForDate = (date: Date) => {
+    return items.filter(item => {
+      const itemDate = new Date(item.startAt);
+      return isSameDay(itemDate, date);
+    }).length;
+  };
+
+  return (
+    <div className="grid grid-cols-7 gap-2">
+      {/* Day headers */}
+      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+        <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+          {day}
+        </div>
+      ))}
+      
+      {/* Calendar days */}
+      {days.map((day) => {
+        const isCurrentMonth = isSameMonth(day, selectedDate);
+        const isToday = isSameDay(day, new Date());
+        const itemCount = getItemsCountForDate(day);
+
+        return (
+          <Card
+            key={day.toISOString()}
+            className={cn(
+              "min-h-[100px] cursor-pointer hover:bg-muted/50 transition-colors",
+              !isCurrentMonth && "opacity-40",
+              isToday && "ring-2 ring-primary"
+            )}
+            onClick={() => onDayClick(day)}
+          >
+            <CardContent className="p-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className={cn(
+                  "text-sm font-medium",
+                  isToday && "text-primary"
+                )}>
+                  {format(day, "d")}
+                </span>
+                {itemCount > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {itemCount}
+                  </Badge>
+                )}
+              </div>
+              {itemCount > 0 && (
+                <div className="flex gap-1 mt-1">
+                  {items.filter(item => {
+                    const itemDate = new Date(item.startAt);
+                    return isSameDay(itemDate, day);
+                  }).slice(0, 3).map((item) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "h-1 w-1 rounded-full",
+                        item.kind === 'business_event' && "bg-blue-600",
+                        item.kind === 'post' && "bg-gray-600"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -1053,11 +2381,11 @@ function InboxView() {
               Select a conversation to view details
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 // Analytics View
 function AnalyticsView() {
@@ -1230,85 +2558,442 @@ function AnalyticsView() {
 }
 
 // Accounts View
+// Connect Account Buttons Dialog Component
+function ConnectAccountButtonsDialog({ currentBrandId, refetchAccounts, setDialogOpen }: { currentBrandId: string; refetchAccounts: () => void; setDialogOpen: (open: boolean) => void }) {
+  const [configStatus, setConfigStatus] = React.useState<{ google: { configured: boolean; missing: string[] }; meta: { configured: boolean; missing: string[] } } | null>(null);
+  const [configLoading, setConfigLoading] = React.useState(true);
+
+  // Fetch config status on mount
+  React.useEffect(() => {
+    fetch('/api/oauth/config-status')
+      .then(res => res.json())
+      .then(data => {
+        setConfigStatus(data);
+        setConfigLoading(false);
+      })
+      .catch(() => {
+        setConfigLoading(false);
+      });
+  }, []);
+
+  const handleConnectGoogle = async (purpose: 'youtube') => {
+    try {
+      if (!currentBrandId || currentBrandId === 'all') {
+        toast.error('Please select a specific brand first');
+        return;
+      }
+      const response = await fetch(`/api/oauth/google/start?brandId=${currentBrandId}&purpose=${purpose}`);
+      const data = await response.json();
+      
+      if (data.code === 'GOOGLE_NOT_CONFIGURED') {
+        toast.error(data.message || 'Google OAuth is not configured');
+        return;
+      }
+      
+      if (data.authUrl) {
+        const popup = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data.type === 'oauth:complete' && event.data.provider === 'google' && event.data.purpose === purpose) {
+            window.removeEventListener('message', handleMessage);
+            if (event.data.success) {
+              toast.success(`${purpose === 'youtube' ? 'YouTube' : 'Google'} connected successfully!`);
+              refetchAccounts();
+              setDialogOpen(false);
+            } else {
+              toast.error(event.data.error || `Failed to connect ${purpose === 'youtube' ? 'YouTube' : 'Google'}`);
+            }
+            if (popup) popup.close();
+          }
+        };
+        window.addEventListener('message', handleMessage);
+      } else {
+        toast.error(data.message || 'Failed to start OAuth flow');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to connect');
+    }
+  };
+
+  const handleConnectMeta = async (purpose: 'facebook' | 'instagram') => {
+    try {
+      if (!currentBrandId || currentBrandId === 'all') {
+        toast.error('Please select a specific brand first');
+        return;
+      }
+      const response = await fetch(`/api/oauth/meta/start?brandId=${currentBrandId}&purpose=${purpose}`);
+      const data = await response.json();
+      
+      if (data.code === 'META_NOT_CONFIGURED') {
+        toast.error(data.message || 'Meta OAuth is not configured');
+        return;
+      }
+      
+      if (data.authUrl) {
+        const popup = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data.type === 'oauth:complete' && event.data.provider === 'meta' && event.data.purpose === purpose) {
+            window.removeEventListener('message', handleMessage);
+            if (event.data.success) {
+              toast.success(`${purpose === 'facebook' ? 'Facebook Page' : 'Instagram Business Account'} connected successfully!`);
+              refetchAccounts();
+              setDialogOpen(false);
+            } else {
+              toast.error(event.data.error || `Failed to connect ${purpose === 'facebook' ? 'Facebook' : 'Instagram'}`);
+            }
+            if (popup) popup.close();
+          }
+        };
+        window.addEventListener('message', handleMessage);
+      } else {
+        toast.error(data.message || 'Failed to start OAuth flow');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to connect');
+    }
+  };
+
+  const googleConfigured = configStatus?.google.configured ?? false;
+  const metaConfigured = configStatus?.meta.configured ?? false;
+  const googleMissing = configStatus?.google.missing ?? [];
+  const metaMissing = configStatus?.meta.missing ?? [];
+
+  return (
+    <div className="grid gap-4 py-4">
+      {configLoading ? (
+        <div className="text-center py-4">
+          <p className="text-sm text-muted-foreground">Checking OAuth configuration...</p>
+        </div>
+      ) : (
+        <>
+          {/* Google OAuth (YouTube) */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="justify-start h-16 w-full"
+              disabled={!googleConfigured}
+              onClick={() => handleConnectGoogle('youtube')}
+            >
+              <PlatformIcon platform="youtube" className="h-6 w-6 mr-4" />
+              <div className="text-left flex-1">
+                <p className="font-medium">YouTube</p>
+                <p className="text-sm text-muted-foreground">Connect your YouTube channel</p>
+              </div>
+            </Button>
+            {!googleConfigured && (
+              <p className="text-xs text-muted-foreground px-2">
+                Not configured: missing {googleMissing.join(', ')}
+              </p>
+            )}
+          </div>
+
+          {/* Meta OAuth (Facebook) */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="justify-start h-16 w-full"
+              disabled={!metaConfigured}
+              onClick={() => handleConnectMeta('facebook')}
+            >
+              <PlatformIcon platform="facebook" className="h-6 w-6 mr-4" />
+              <div className="text-left flex-1">
+                <p className="font-medium">Facebook</p>
+                <p className="text-sm text-muted-foreground">Connect your Facebook Page</p>
+              </div>
+            </Button>
+            {!metaConfigured && (
+              <p className="text-xs text-muted-foreground px-2">
+                Not configured: missing {metaMissing.join(', ')}
+              </p>
+            )}
+          </div>
+
+          {/* Meta OAuth (Instagram) */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="justify-start h-16 w-full"
+              disabled={!metaConfigured}
+              onClick={() => handleConnectMeta('instagram')}
+            >
+              <PlatformIcon platform="instagram" className="h-6 w-6 mr-4" />
+              <div className="text-left flex-1">
+                <p className="font-medium">Instagram</p>
+                <p className="text-sm text-muted-foreground">Connect your Instagram Business Account</p>
+              </div>
+            </Button>
+            {!metaConfigured && (
+              <p className="text-xs text-muted-foreground px-2">
+                Not configured: missing {metaMissing.join(', ')}
+              </p>
+            )}
+          </div>
+
+          {/* Stub accounts for other platforms */}
+          {PLATFORMS.filter(p => !['youtube', 'facebook', 'instagram'].includes(p.id)).map((platform) => (
+            <Button
+              key={platform.id}
+              variant="outline"
+              className="justify-start h-16 opacity-50"
+              disabled
+            >
+              <PlatformIcon platform={platform.id as Platform} className="h-6 w-6 mr-4" />
+              <div className="text-left">
+                <p className="font-medium">{platform.label}</p>
+                <p className="text-sm text-muted-foreground">Coming soon</p>
+              </div>
+            </Button>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function AccountsView() {
-  const { socialAccounts } = useAppStore();
+  const activeBrandId = useAppStore((state) => state.activeBrandId);
+  const isAllBrandsMode = activeBrandId === 'all';
+  const { data: accountsData, isLoading: accountsLoading, refetch: refetchAccounts } = useSocialAccounts();
+  const createAccount = useCreateSocialAccount();
+  const deleteAccount = useDeleteSocialAccount();
   const [connectDialogOpen, setConnectDialogOpen] = React.useState(false);
+  const [stubDialogOpen, setStubDialogOpen] = React.useState(false);
+  const [stubPlatform, setStubPlatform] = React.useState<Platform>('facebook');
+  const [stubHandle, setStubHandle] = React.useState('');
+  const { data: googleIntegrationsData, refetch: refetchGoogleIntegrations } = useGoogleIntegrations();
+  const { mutate: deleteGoogleIntegration, isPending: isDeletingGoogle } = useDeleteGoogleIntegration();
+  const { data: currentBrandData } = useCurrentBrand();
+  const currentBrandId = currentBrandData?.id || activeBrandId || 'default';
+  
+  const socialAccounts = accountsData?.accounts || [];
+  const googleIntegrations = googleIntegrationsData?.integrations || [];
+
+  // Only show social platforms (not slack/notion)
+  const socialPlatforms = PLATFORMS.filter(p => 
+    ['facebook', 'instagram', 'linkedin', 'tiktok', 'pinterest', 'reddit', 'youtube'].includes(p.id)
+  );
+
+  const handleCreateStubAccount = async () => {
+    if (!stubHandle.trim()) {
+      toast.error('Please enter a handle');
+      return;
+    }
+
+    if (isAllBrandsMode) {
+      toast.error('Please select a specific brand to create accounts');
+      return;
+    }
+
+    try {
+      await createAccount.mutateAsync({
+        brandId: activeBrandId as string,
+        platform: stubPlatform,
+        username: stubHandle.trim(),
+        displayName: stubHandle.trim(),
+        isConnected: false,
+        status: 'stub',
+        organizationId: 'org1',
+      });
+      toast.success('Stub account created!');
+      setStubDialogOpen(false);
+      setStubHandle('');
+      setStubPlatform('facebook');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create stub account');
+    }
+  };
+
+  const handleDeleteAccount = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this account?')) {
+      return;
+    }
+
+    try {
+      await deleteAccount.mutateAsync(id);
+      toast.success('Account deleted');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete account');
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Social Accounts</h1>
-          <p className="text-muted-foreground">Manage your connected social media accounts</p>
+          <p className="text-muted-foreground">
+            {isAllBrandsMode 
+              ? 'Select a brand to view connected accounts'
+              : 'Manage your connected social media accounts'}
+          </p>
         </div>
-        <Button onClick={() => setConnectDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Connect Account
-        </Button>
+        {!isAllBrandsMode && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setStubDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Stub Account
+            </Button>
+            <Button onClick={() => setConnectDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Account
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {socialAccounts.map((account) => (
-          <Card key={account.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-3 rounded-full",
-                    account.platform === "facebook" && "bg-blue-600",
-                    account.platform === "instagram" && "bg-pink-500",
-                    account.platform === "linkedin" && "bg-blue-700",
-                    account.platform === "tiktok" && "bg-gray-900",
-                    account.platform === "pinterest" && "bg-red-600"
-                  )}>
-                    <PlatformIcon platform={account.platform} className="h-6 w-6 text-white" />
+      {isAllBrandsMode && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Please select a specific brand to view or manage social accounts.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {accountsLoading ? (
+        <LoadingList count={3} />
+      ) : socialAccounts.length === 0 ? (
+        <Card>
+          <CardContent className="p-12">
+            <EmptyState
+              icon={Users}
+              title="No social accounts connected"
+              description={isAllBrandsMode 
+                ? "Select a brand to view connected accounts"
+                : "Connect your social media accounts to start posting"}
+              actionLabel={isAllBrandsMode ? undefined : "Add Stub Account"}
+              onAction={isAllBrandsMode ? undefined : () => setStubDialogOpen(true)}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {socialAccounts.map((account) => (
+            <Card key={account.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "p-3 rounded-full",
+                      account.platform === "facebook" && "bg-blue-600",
+                      account.platform === "instagram" && "bg-pink-500",
+                      account.platform === "linkedin" && "bg-blue-700",
+                      account.platform === "tiktok" && "bg-gray-900",
+                      account.platform === "pinterest" && "bg-red-600",
+                      account.platform === "reddit" && "bg-orange-500"
+                    )}>
+                      <PlatformIcon platform={account.platform} className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle>{account.displayName}</CardTitle>
+                      <CardDescription>{account.username}</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle>{account.displayName}</CardTitle>
-                    <CardDescription>{account.username}</CardDescription>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>Refresh</DropdownMenuItem>
+                      <DropdownMenuItem>Settings</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={() => handleDeleteAccount(account.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge variant={
+                      account.status === 'stub' ? 'secondary' :
+                      account.isConnected ? "default" : "destructive"
+                    }>
+                      {account.status === 'stub' ? 'Stub' :
+                       account.isConnected ? "Connected" : "Disconnected"}
+                    </Badge>
                   </div>
+                  {account.followerCount !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Followers</span>
+                      <span className="font-medium">{account.followerCount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {account.lastSync && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Last Sync</span>
+                      <span className="text-sm">
+                        {format(account.lastSync, "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                  )}
+                  <Separator />
+                  <Button variant="outline" className="w-full">
+                    View Profile
+                  </Button>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Refresh</DropdownMenuItem>
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">Disconnect</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant={account.isConnected ? "default" : "destructive"}>
-                    {account.isConnected ? "Connected" : "Disconnected"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Followers</span>
-                  <span className="font-medium">{account.followerCount?.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last Sync</span>
-                  <span className="text-sm">
-                    {account.lastSync ? format(account.lastSync, "MMM d, h:mm a") : "Never"}
-                  </span>
-                </div>
-                <Separator />
-                <Button variant="outline" className="w-full">
-                  View Profile
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Stub Account Dialog */}
+      <Dialog open={stubDialogOpen} onOpenChange={setStubDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Stub Account</DialogTitle>
+            <DialogDescription>
+              Create a stub connection record for testing (dev mode)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Select value={stubPlatform} onValueChange={(v) => setStubPlatform(v as Platform)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {socialPlatforms.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>
+                      <div className="flex items-center gap-2">
+                        <PlatformIcon platform={platform.id} className="h-4 w-4" />
+                        {platform.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Handle/Username</Label>
+              <Input
+                placeholder="@username or username"
+                value={stubHandle}
+                onChange={(e) => setStubHandle(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStubDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateStubAccount}
+              disabled={!stubHandle.trim() || createAccount.isPending}
+            >
+              {createAccount.isPending ? 'Creating...' : 'Create Stub Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
         <DialogContent>
@@ -1318,27 +3003,447 @@ function AccountsView() {
               Choose a platform to connect to your SocialHub account
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {PLATFORMS.map((platform) => (
-              <Button
-                key={platform.id}
-                variant="outline"
-                className="justify-start h-16"
-                onClick={() => {
-                  toast.info(`Connecting to ${platform.label}...`);
-                  setConnectDialogOpen(false);
-                }}
-              >
-                <PlatformIcon platform={platform.id} className="h-6 w-6 mr-4" />
-                <div className="text-left">
-                  <p className="font-medium">{platform.label}</p>
-                  <p className="text-sm text-muted-foreground">Connect your {platform.label} account</p>
-                </div>
-              </Button>
-            ))}
-          </div>
+          <ConnectAccountButtonsDialog currentBrandId={currentBrandId} refetchAccounts={refetchAccounts} setDialogOpen={setConnectDialogOpen} />
         </DialogContent>
       </Dialog>
+
+      {/* Google Workspace Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold">Email (Google Workspace)</h2>
+            <p className="text-sm text-muted-foreground">Connect your Gmail inbox to triage messages</p>
+          </div>
+          {googleIntegrations.length === 0 && (
+            <Button
+              onClick={async () => {
+                try {
+                  const { initiateGoogleOAuthFlow } = await import('@/sdk/services/oauth-service');
+                  await initiateGoogleOAuthFlow(currentBrandId);
+                  refetchGoogleIntegrations();
+                  toast.success('Google Workspace connected successfully!');
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'Failed to connect Google Workspace');
+                }
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Google Workspace
+            </Button>
+          )}
+        </div>
+
+        {googleIntegrations.length === 0 ? (
+          <Card>
+            <CardContent className="p-6">
+              <EmptyState
+                icon={Inbox}
+                title="No Google Workspace connection"
+                description="Connect your Gmail inbox to triage messages and avoid missing clients"
+                actionLabel="Connect Google Workspace"
+                onAction={async () => {
+                  try {
+                    const { initiateGoogleOAuthFlow } = await import('@/sdk/services/oauth-service');
+                    await initiateGoogleOAuthFlow(currentBrandId);
+                    refetchGoogleIntegrations();
+                    toast.success('Google Workspace connected successfully!');
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : 'Failed to connect Google Workspace');
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {googleIntegrations.map((integration) => (
+              <Card key={integration.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-red-600">
+                        <Inbox className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle>Gmail</CardTitle>
+                        <CardDescription>{integration.email}</CardDescription>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to disconnect this Google Workspace account?')) {
+                              deleteGoogleIntegration(integration.id, {
+                                onSuccess: () => {
+                                  refetchGoogleIntegrations();
+                                  toast.success('Google Workspace disconnected');
+                                },
+                                onError: (error) => {
+                                  toast.error(error.message || 'Failed to disconnect');
+                                },
+                              });
+                            }
+                          }}
+                          disabled={isDeletingGoogle}
+                        >
+                          Disconnect
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant="default">Connected</Badge>
+                    </div>
+                    <Separator />
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => useAppStore.getState().setActiveView('email')}
+                    >
+                      View Inbox
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Email View
+function EmailView() {
+  const { data: currentBrandData } = useCurrentBrand();
+  const currentBrandId = currentBrandData?.id || 'default';
+  const currentBrandName = currentBrandData?.name || 'Current Brand';
+  
+  const [selectedMessageId, setSelectedMessageId] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<'all' | 'unread' | 'needs_reply' | 'follow_up'>('all');
+  
+  const { data: emailAccountsData } = useEmailAccounts();
+  const emailAccounts = emailAccountsData?.accounts || [];
+  const hasIntegration = emailAccounts.some(acc => acc.brandId === currentBrandId || currentBrandId === 'all');
+  
+  const { mutate: deleteEmailAccount } = useDeleteEmailAccount();
+  
+  const { data: threadsData, isLoading: threadsLoading, error: threadsError, refetch: refetchThreads } = useEmailThreads(
+    { limit: 50, unreadOnly: filter === 'unread' }
+  );
+  const threads = threadsData?.threads || [];
+  
+  const { data: messageData, isLoading: messageLoading } = useEmailMessage(selectedMessageId || '', {
+    queryKey: ['email', 'message', selectedMessageId],
+    enabled: !!selectedMessageId,
+  });
+  
+  const { mutate: setTriage, isPending: isSettingTriage } = useSetEmailTriage();
+  
+  // Detect if email is likely a lead based on keywords
+  const isLikelyLead = (thread: { subject: string; snippet: string }) => {
+    const text = `${thread.subject} ${thread.snippet}`.toLowerCase();
+    const leadKeywords = ['pricing', 'trial', 'membership', 'schedule', 'rates', 'cost', 'price', 'quote', 'inquiry', 'interested'];
+    return leadKeywords.some(keyword => text.includes(keyword));
+  };
+
+  // Filter threads by triage status
+  const filteredThreads = React.useMemo(() => {
+    if (filter === 'needs_reply') {
+      return threads.filter(t => t.triageStatus === 'needs_reply');
+    }
+    if (filter === 'follow_up') {
+      return threads.filter(t => t.triageStatus === 'follow_up');
+    }
+    return threads;
+  }, [threads, filter]);
+  
+  const handleSetTriage = (messageId: string, status: 'needs_reply' | 'follow_up' | 'done') => {
+    setTriage({ messageId, status }, {
+      onSuccess: () => {
+        refetchThreads();
+        if (selectedMessageId === messageId) {
+          // Refetch message if it's currently selected
+          setTimeout(() => refetchThreads(), 100);
+        }
+      },
+    });
+  };
+  
+  if (!hasIntegration && currentBrandId !== 'all') {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2">Email</h1>
+          <p className="text-muted-foreground">{currentBrandName}</p>
+        </div>
+        <EmptyState
+          icon={Mail}
+          title="No email account connected"
+          description="Connect your email account to triage messages and avoid missing leads and clients"
+          actionLabel="Connect Email Account"
+          onAction={() => {
+            useAppStore.getState().setActiveView('accounts');
+            toast.info('Navigate to Accounts page to connect Google Workspace');
+          }}
+        />
+      </div>
+    );
+  }
+  
+  if (currentBrandId === 'all') {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2">Email (Read-Only)</h1>
+          <p className="text-muted-foreground">Select a specific brand to view and manage emails</p>
+        </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Brand Selection Required</AlertTitle>
+          <AlertDescription>
+            Please select a specific brand from the brand switcher to view and manage emails.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with connected accounts */}
+      <div className="p-4 border-b space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Email</h1>
+            <p className="text-sm text-muted-foreground">{currentBrandName}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {emailAccounts.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Connected: {emailAccounts.map(acc => acc.email).join(', ')}</span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                useAppStore.getState().setActiveView('accounts');
+                toast.info('Navigate to Accounts page to connect email accounts');
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Email
+            </Button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-1 overflow-hidden">
+        {/* Email List */}
+        <div className="w-1/2 border-r flex flex-col">
+          <div className="p-4 border-b space-y-4">
+            {/* Filters */}
+            <div className="flex gap-2">
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === 'unread' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('unread')}
+              >
+                Unread
+              </Button>
+              <Button
+                variant={filter === 'needs_reply' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('needs_reply')}
+              >
+                Needs Reply
+              </Button>
+              <Button
+                variant={filter === 'follow_up' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('follow_up')}
+              >
+                Follow Up
+              </Button>
+            </div>
+          </div>
+        
+        <ScrollArea className="flex-1">
+          {threadsLoading ? (
+            <div className="p-4">
+              <LoadingList count={5} />
+            </div>
+          ) : threadsError ? (
+            <div className="p-4">
+              <ErrorDisplay
+                error={threadsError}
+                title="Failed to load emails"
+                onRetry={() => refetchThreads()}
+              />
+            </div>
+          ) : filteredThreads.length === 0 ? (
+            <div className="p-4">
+              <EmptyState
+                icon={Inbox}
+                title="No emails"
+                description={
+                  filter === 'unread' ? 'No unread emails' : 
+                  filter === 'needs_reply' ? 'No emails need reply' : 
+                  filter === 'follow_up' ? 'No emails need follow up' :
+                  'No emails found'
+                }
+              />
+            </div>
+          ) : (
+            <div className="divide-y">
+              {filteredThreads.map((thread) => (
+                <button
+                  key={thread.id}
+                  onClick={() => setSelectedMessageId(thread.id)}
+                  className={cn(
+                    "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                    selectedMessageId === thread.id && "bg-muted"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="text-sm font-medium truncate">{thread.from}</p>
+                        {thread.isUnread && (
+                          <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                        )}
+                        {isLikelyLead(thread) && (
+                          <Badge variant="default" className="text-xs bg-orange-500">
+                            Likely Lead
+                          </Badge>
+                        )}
+                        {thread.triageStatus && (
+                          <Badge variant="outline" className="text-xs">
+                            {thread.triageStatus === 'needs_reply' ? 'Needs Reply' : 
+                             thread.triageStatus === 'follow_up' ? 'Follow Up' : 'Done'}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold mb-1 truncate">{thread.subject}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{thread.snippet}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(thread.date), "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+      
+      {/* Email Detail */}
+      <div className="w-1/2 flex flex-col">
+        {selectedMessageId ? (
+          <>
+            {messageLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <LoadingSkeleton />
+              </div>
+            ) : messageData ? (
+              <>
+                <div className="p-4 border-b space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">{messageData.subject}</h2>
+                    <div className="flex items-center gap-2 mt-2">
+                      <p className="text-sm text-muted-foreground">From: {messageData.from}</p>
+                      {messageData.isUnread && (
+                        <Badge variant="default">Unread</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(new Date(messageData.date), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  </div>
+                  
+                  {/* Triage Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant={messageData.triageStatus === 'needs_reply' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSetTriage(messageData.id, 'needs_reply')}
+                      disabled={isSettingTriage}
+                    >
+                      Needs Reply
+                    </Button>
+                    <Button
+                      variant={messageData.triageStatus === 'follow_up' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSetTriage(messageData.id, 'follow_up')}
+                      disabled={isSettingTriage}
+                    >
+                      Follow Up
+                    </Button>
+                    <Button
+                      variant={messageData.triageStatus === 'done' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSetTriage(messageData.id, 'done')}
+                      disabled={isSettingTriage}
+                    >
+                      Done
+                    </Button>
+                  </div>
+                </div>
+                
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium mb-1">To:</p>
+                      <p className="text-sm text-muted-foreground">{messageData.to.join(', ')}</p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-sm whitespace-pre-wrap">{messageData.bodySnippet}</p>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <EmptyState
+                  icon={Inbox}
+                  title="Message not found"
+                  description="The selected message could not be loaded"
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState
+              icon={Inbox}
+              title="Select an email"
+              description="Choose an email from the list to view details"
+            />
+          </div>
+        )}
+      </div>
+      </div>
     </div>
   );
 }
@@ -1465,8 +3570,136 @@ function CampaignsView() {
   );
 }
 
-// Assets View (placeholder)
+// Assets View
 function AssetsView() {
+  const [activeTab, setActiveTab] = React.useState<AssetType>('image');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [uploadDialogOpen, setUploadDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [assetToDelete, setAssetToDelete] = React.useState<Asset | null>(null);
+  const [newAssetUrl, setNewAssetUrl] = React.useState('');
+  const [newAssetTags, setNewAssetTags] = React.useState('');
+  const [uploadedFiles, setUploadedFiles] = React.useState<UploadedItem[]>([]);
+  
+  const { data, isLoading, error } = useAssets({ 
+    type: activeTab, 
+    search: searchQuery || undefined 
+  });
+  const createAsset = useCreateAsset();
+  const uploadAssets = useUploadAssets();
+  const deleteAsset = useDeleteAsset();
+
+  const assets = data?.assets || [];
+
+  // Convert files to data URLs for upload
+  const handleFilesSelected = async (files: File[]) => {
+    const newItems: UploadedItem[] = files.map((file) => ({
+      file,
+      // Use object URL for preview to avoid base64 payload inflation
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+      status: 'pending',
+    }));
+    setUploadedFiles((prev) => [...prev, ...newItems]);
+  };
+
+  const handleFileRemove = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpload = async () => {
+    // Handle URL upload (legacy)
+    if (newAssetUrl.trim() && uploadedFiles.length === 0) {
+      createAsset.mutate({
+        type: activeTab,
+        url: newAssetUrl.trim(),
+        tags: newAssetTags.split(',').map(t => t.trim()).filter(Boolean),
+        organizationId: 'org1',
+        version: '1.0.0',
+      }, {
+        onSuccess: () => {
+          toast.success('Asset uploaded successfully');
+          setUploadDialogOpen(false);
+          setNewAssetUrl('');
+          setNewAssetTags('');
+        },
+        onError: (err) => {
+          toast.error(`Failed to upload asset: ${err.message}`);
+        },
+      });
+      return;
+    }
+
+    // Handle file uploads
+    if (uploadedFiles.length === 0) {
+      toast.error('Please select files or enter a URL');
+      return;
+    }
+
+    try {
+      // Upload multipart to backend
+      await uploadAssets.mutateAsync({
+        files: uploadedFiles.map((f) => f.file),
+        tags: newAssetTags.split(',').map(t => t.trim()).filter(Boolean),
+      });
+
+      // Mark all as success locally
+      setUploadedFiles((prev) => prev.map((f) => ({ ...f, status: 'success' as const })));
+      toast.success(`Successfully uploaded ${uploadedFiles.length} asset(s)`);
+      setUploadDialogOpen(false);
+      setUploadedFiles([]);
+      setNewAssetUrl('');
+      setNewAssetTags('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown upload error';
+      setUploadedFiles((prev) => prev.map((f) => ({ ...f, status: 'error' as const, error: message })));
+      toast.error(`Upload failed: ${message}`);
+    }
+  };
+
+  // Get accept string based on active tab
+  const getAcceptString = () => {
+    switch (activeTab) {
+      case 'image':
+        return 'image/*';
+      case 'video':
+        return 'video/*';
+      default:
+        return undefined;
+    }
+  };
+
+  const handleDelete = () => {
+    if (!assetToDelete) return;
+    
+    deleteAsset.mutate(assetToDelete.id, {
+      onSuccess: () => {
+        toast.success('Asset deleted successfully');
+        setDeleteDialogOpen(false);
+        setAssetToDelete(null);
+      },
+      onError: (err) => {
+        toast.error(`Failed to delete asset: ${err.message}`);
+      },
+    });
+  };
+
+  const getAssetTypeIcon = (type: AssetType) => {
+    switch (type) {
+      case 'image': return <Image className="h-5 w-5" />;
+      case 'video': return <Music className="h-5 w-5" />;
+      case 'template': return <FileEdit className="h-5 w-5" />;
+      case 'hashtags': return <Hash className="h-5 w-5" />;
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <ErrorDisplay error={error} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -1474,56 +3707,205 @@ function AssetsView() {
           <h1 className="text-2xl font-bold">Asset Library</h1>
           <p className="text-muted-foreground">Manage your media files and templates</p>
         </div>
-        <Button>
+        <Button onClick={() => setUploadDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Upload Asset
         </Button>
       </div>
 
-      <Tabs defaultValue="images">
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search assets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as AssetType)}>
         <TabsList>
-          <TabsTrigger value="images">Images</TabsTrigger>
-          <TabsTrigger value="videos">Videos</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="image">Images</TabsTrigger>
+          <TabsTrigger value="video">Videos</TabsTrigger>
+          <TabsTrigger value="template">Templates</TabsTrigger>
           <TabsTrigger value="hashtags">Hashtag Sets</TabsTrigger>
         </TabsList>
-        <TabsContent value="images" className="mt-4">
-          <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-              <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No images uploaded yet</p>
-              <p className="text-sm">Upload images to use in your posts</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="videos" className="mt-4">
-          <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-              <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No videos uploaded yet</p>
-              <p className="text-sm">Upload videos for your content</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="templates" className="mt-4">
-          <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-              <FileEdit className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No templates saved yet</p>
-              <p className="text-sm">Save caption templates for quick posting</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="hashtags" className="mt-4">
-          <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-              <Hash className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No hashtag sets created yet</p>
-              <p className="text-sm">Create hashtag groups for easy reuse</p>
-            </CardContent>
-          </Card>
+        <TabsContent value={activeTab} className="mt-4">
+          {isLoading ? (
+            <LoadingSkeleton />
+          ) : assets.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                {getAssetTypeIcon(activeTab)}
+                <p className="mt-4">No {activeTab === 'hashtags' ? 'hashtag sets' : `${activeTab}s`} uploaded yet</p>
+                <p className="text-sm">Upload {activeTab === 'hashtags' ? 'hashtag sets' : `${activeTab}s`} to use in your posts</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assets.map((asset) => (
+                <Card key={asset.id} className="overflow-hidden">
+                  <CardContent className="p-0">
+                    {asset.url && (activeTab === 'image' || activeTab === 'video') ? (
+                      <div className="aspect-video bg-muted flex items-center justify-center">
+                        {activeTab === 'image' ? (
+                          <img 
+                            src={asset.url} 
+                            alt={asset.id}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <Music className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm text-muted-foreground">Video</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-muted flex items-center justify-center">
+                        {getAssetTypeIcon(activeTab)}
+                      </div>
+                    )}
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{asset.url || 'Untitled'}</p>
+                          {asset.tags && asset.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {asset.tags.map((tag, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setAssetToDelete(asset);
+                            setDeleteDialogOpen(true);
+                          }}
+                          className="ml-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Added {format(new Date(asset.createdAt), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+        setUploadDialogOpen(open);
+        if (!open) {
+          setUploadedFiles([]);
+          setNewAssetUrl('');
+          setNewAssetTags('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Upload {activeTab === 'hashtags' ? 'Hashtag Set' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</DialogTitle>
+            <DialogDescription>
+              {activeTab === 'hashtags' 
+                ? 'Upload a hashtag set file'
+                : `Add ${activeTab}s to your library by dragging and dropping or selecting files`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* File Upload Dropzone */}
+            {(activeTab === 'image' || activeTab === 'video') && (
+              <UploadDropzone
+                multiple={true}
+                accept={getAcceptString()}
+                maxFiles={10}
+                maxSizeMB={50}
+                value={uploadedFiles}
+                onFilesSelected={handleFilesSelected}
+                onFileRemove={handleFileRemove}
+                title={`Upload ${activeTab === 'image' ? 'Images' : 'Videos'}`}
+                helperText={`Drag and drop ${activeTab}s here or click to browse`}
+                isUploading={uploadAssets.isPending}
+              />
+            )}
+
+            {/* URL Input (fallback/alternative) */}
+            <div className="space-y-2">
+              <Label>Or enter URL</Label>
+              <Input
+                placeholder="https://example.com/asset.jpg"
+                value={newAssetUrl}
+                onChange={(e) => setNewAssetUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                You can upload files above or paste a URL here
+              </p>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <Label>Tags (comma-separated)</Label>
+              <Input
+                placeholder="marketing, social, campaign"
+                value={newAssetTags}
+                onChange={(e) => setNewAssetTags(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setUploadDialogOpen(false);
+              setUploadedFiles([]);
+              setNewAssetUrl('');
+              setNewAssetTags('');
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpload} 
+              disabled={createAsset.isPending || (uploadedFiles.length === 0 && !newAssetUrl.trim())}
+            >
+              {createAsset.isPending ? 'Uploading...' : `Upload ${uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s)` : 'Asset'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Asset</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this asset? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteAsset.isPending}>
+              {deleteAsset.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1611,7 +3993,7 @@ function ListeningView() {
   );
 }
 
-// Settings View (placeholder)
+// Settings View
 function SettingsView() {
   return (
     <div className="p-6 space-y-6">
@@ -1620,68 +4002,90 @@ function SettingsView() {
         <p className="text-muted-foreground">Configure your SocialHub preferences</p>
       </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Manage your account settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Display Name</Label>
-              <Input defaultValue="Marketing Team" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input defaultValue="team@company.com" type="email" />
-            </div>
-            <Button>Save Changes</Button>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="brands" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="brands">Brands</TabsTrigger>
+          <TabsTrigger value="schedule">Business Schedule</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Configure how you receive notifications</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive email updates for important events</p>
-              </div>
-              <Checkbox defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Post Published</p>
-                <p className="text-sm text-muted-foreground">Get notified when posts are published</p>
-              </div>
-              <Checkbox defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">New Messages</p>
-                <p className="text-sm text-muted-foreground">Get notified for new inbox messages</p>
-              </div>
-              <Checkbox defaultChecked />
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="brands">
+          <BrandsSettingsView />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Team</CardTitle>
-            <CardDescription>Manage team members and permissions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline">
-              <Users className="h-4 w-4 mr-2" />
-              Manage Team
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="schedule">
+          <BusinessScheduleSettingsView />
+        </TabsContent>
+
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile</CardTitle>
+              <CardDescription>Manage your account settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Display Name</Label>
+                <Input defaultValue="Marketing Team" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input defaultValue="team@company.com" type="email" />
+              </div>
+              <Button>Save Changes</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifications</CardTitle>
+              <CardDescription>Configure how you receive notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Email Notifications</p>
+                  <p className="text-sm text-muted-foreground">Receive email updates for important events</p>
+                </div>
+                <Checkbox defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Post Published</p>
+                  <p className="text-sm text-muted-foreground">Get notified when posts are published</p>
+                </div>
+                <Checkbox defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">New Messages</p>
+                  <p className="text-sm text-muted-foreground">Get notified for new inbox messages</p>
+                </div>
+                <Checkbox defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="team">
+          <Card>
+            <CardHeader>
+              <CardTitle>Team</CardTitle>
+              <CardDescription>Manage team members and permissions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline">
+                <Users className="h-4 w-4 mr-2" />
+                Manage Team
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -1828,8 +4232,7 @@ function OperatingModeSelector() {
 // Autopilot Dashboard View
 function AutopilotView() {
   const {
-    autopilotSettings,
-    updateAutopilotSettings,
+    currentOrganization,
     scheduledSlots,
     weeklySchedule,
     lockWeek,
@@ -1838,13 +4241,102 @@ function AutopilotView() {
     brandProfile,
     autopilotNotifications,
     isAutopilotRunning,
+    activeBrandId,
   } = useAppStore();
+
+  // Use API hooks for autopilot settings
+  const organizationId = currentOrganization?.id || 'org1';
+  const { data: autopilotSettings, isLoading: settingsLoading } = useAutopilotSettings(organizationId);
+  const updateAutopilotSettingsMutation = useUpdateAutopilotSettings(organizationId);
+
+  // Use settings from API or fallback to store for immediate UI updates
+  const effectiveSettings = autopilotSettings || useAppStore.getState().autopilotSettings;
+
+  const handleUpdateAutopilotSettings = React.useCallback((updates: Partial<typeof effectiveSettings>) => {
+    updateAutopilotSettingsMutation.mutate(updates);
+  }, [updateAutopilotSettingsMutation, effectiveSettings]);
+
+  // Load brief (brand-scoped)
+  const { data: briefData, isLoading: briefLoading } = useAutopilotBrief();
+  const { data: brandsData } = useBrands();
+  const { data: currentBrand } = useCurrentBrand();
+  const [showEditForm, setShowEditForm] = React.useState(false);
+  const hasBrief = briefData && briefData.brandName && briefData.brandName.trim() !== '';
+  const isAllMode = activeBrandId === 'all';
+  const brands = brandsData?.brands || [];
+  const currentBrandData = isAllMode 
+    ? { id: 'all', name: 'All Brands' }
+    : (currentBrand || brands.find(b => b.id === activeBrandId) || null);
 
   const pendingApprovals = scheduledSlots.filter((s) => s.status === "pending_approval").length;
   const approvedPosts = scheduledSlots.filter((s) => s.status === "approved").length;
   const nextPost = scheduledSlots
     .filter((s) => s.status === "approved" || s.status === "pending_approval")
     .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];
+
+  // In "See All" mode, show brand list with completion status
+  if (isAllMode) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Bot className="h-6 w-6" />
+            Autopilot Control Center
+          </h1>
+          <p className="text-muted-foreground">Select a brand to view or configure Autopilot</p>
+        </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>All Brands View</AlertTitle>
+          <AlertDescription>
+            Please select a specific brand to set up or manage Autopilot. Each brand has its own Autopilot configuration.
+          </AlertDescription>
+        </Alert>
+        <Card>
+          <CardHeader>
+            <CardTitle>Brand Autopilot Status</CardTitle>
+            <CardDescription>Setup completion status for each brand</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {brands.map((brand) => (
+                <div key={brand.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>
+                        {brand.avatarUrl ? (
+                          <img src={brand.avatarUrl} alt={brand.name} className="h-full w-full object-cover" />
+                        ) : (
+                          brand.name.charAt(0).toUpperCase()
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{brand.name}</p>
+                      <p className="text-sm text-muted-foreground">Autopilot status</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">Not Configured</Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        useAppStore.getState().setActiveBrandId(brand.id);
+                        useAppStore.getState().setActiveView('dashboard');
+                      }}
+                    >
+                      Configure
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -1860,13 +4352,58 @@ function AutopilotView() {
         <OperatingModeSelector />
       </div>
 
+      {/* Autopilot Brief Onboarding */}
+      {!hasBrief && !briefLoading && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Set up Autopilot</CardTitle>
+            <CardDescription>Configure your brand profile to enable AI-powered content generation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AutopilotQuestionnaire />
+          </CardContent>
+        </Card>
+      )}
+
+      {hasBrief && (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Autopilot Brief</CardTitle>
+                  <CardDescription>{briefData.brandName} • {briefData.industry}</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setShowEditForm(!showEditForm)}>
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  {showEditForm ? 'Hide Edit' : 'Edit Brief'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AutopilotBriefSummary brief={briefData} />
+            </CardContent>
+          </Card>
+          {showEditForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit Autopilot Brief</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AutopilotBriefForm />
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
       {/* Status Banner */}
-      {autopilotSettings.isPaused && (
+      {effectiveSettings.isPaused && (
         <Alert variant="destructive">
           <Pause className="h-4 w-4" />
           <AlertTitle>Autopilot is Paused</AlertTitle>
           <AlertDescription>
-            {autopilotSettings.pauseReason || "No new posts will be generated or published until resumed."}
+            {effectiveSettings.pauseReason || "No new posts will be generated or published until resumed."}
           </AlertDescription>
         </Alert>
       )}
@@ -1889,14 +4426,14 @@ function AutopilotView() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Status</CardTitle>
-            <Zap className={cn("h-4 w-4", isAutopilotRunning && !autopilotSettings.isPaused ? "text-green-500" : "text-muted-foreground")} />
+            <Zap className={cn("h-4 w-4", isAutopilotRunning && !effectiveSettings.isPaused ? "text-green-500" : "text-muted-foreground")} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {autopilotSettings.isPaused ? "Paused" : autopilotSettings.operatingMode === "manual" ? "Manual" : "Active"}
+              {effectiveSettings.isPaused ? "Paused" : effectiveSettings.operatingMode === "manual" ? "Manual" : "Active"}
             </div>
             <p className="text-xs text-muted-foreground">
-              {OPERATING_MODES.find((m) => m.id === autopilotSettings.operatingMode)?.label}
+              {OPERATING_MODES.find((m) => m.id === effectiveSettings.operatingMode)?.label}
             </p>
           </CardContent>
         </Card>
@@ -1986,7 +4523,10 @@ function AutopilotView() {
                       slot.platform === "instagram" && "bg-pink-500/10",
                       slot.platform === "linkedin" && "bg-blue-700/10",
                       slot.platform === "tiktok" && "bg-gray-900/10",
-                      slot.platform === "pinterest" && "bg-red-600/10"
+                      slot.platform === "pinterest" && "bg-red-600/10",
+                      slot.platform === "reddit" && "bg-orange-500/10",
+                      slot.platform === "slack" && "bg-purple-600/10",
+                      slot.platform === "notion" && "bg-gray-900/10"
                     )}>
                       <PlatformIcon platform={slot.platform} className={cn(
                         "h-4 w-4",
@@ -1994,7 +4534,10 @@ function AutopilotView() {
                         slot.platform === "instagram" && "text-pink-500",
                         slot.platform === "linkedin" && "text-blue-700",
                         slot.platform === "tiktok" && "text-gray-900",
-                        slot.platform === "pinterest" && "text-red-600"
+                        slot.platform === "pinterest" && "text-red-600",
+                        slot.platform === "reddit" && "text-orange-500",
+                        slot.platform === "slack" && "text-purple-600",
+                        slot.platform === "notion" && "text-gray-900"
                       )} />
                     </div>
                     <div>
@@ -2025,8 +4568,8 @@ function AutopilotView() {
             <div className="space-y-2">
               <Label>Approval Window</Label>
               <Select
-                value={autopilotSettings.approvalWindow}
-                onValueChange={(v) => updateAutopilotSettings({ approvalWindow: v as typeof autopilotSettings.approvalWindow })}
+                value={effectiveSettings.approvalWindow}
+                onValueChange={(v) => handleUpdateAutopilotSettings({ approvalWindow: v as typeof effectiveSettings.approvalWindow })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -2049,8 +4592,8 @@ function AutopilotView() {
                   <p className="text-xs text-muted-foreground">Find trends & hashtags</p>
                 </div>
                 <Switch
-                  checked={autopilotSettings.enableWebResearch}
-                  onCheckedChange={(checked) => updateAutopilotSettings({ enableWebResearch: checked })}
+                  checked={effectiveSettings.enableWebResearch}
+                  onCheckedChange={(checked) => handleUpdateAutopilotSettings({ enableWebResearch: checked })}
                 />
               </div>
 
@@ -2060,8 +4603,8 @@ function AutopilotView() {
                   <p className="text-xs text-muted-foreground">AI-generated visuals</p>
                 </div>
                 <Switch
-                  checked={autopilotSettings.enableImageGeneration}
-                  onCheckedChange={(checked) => updateAutopilotSettings({ enableImageGeneration: checked })}
+                  checked={effectiveSettings.enableImageGeneration}
+                  onCheckedChange={(checked) => handleUpdateAutopilotSettings({ enableImageGeneration: checked })}
                 />
               </div>
             </div>
@@ -2070,7 +4613,7 @@ function AutopilotView() {
 
             <div className="space-y-2">
               <Label>Platform Cadence (posts/week)</Label>
-              {PLATFORMS.map((platform) => (
+              {PLATFORMS.filter((platform) => platform.id !== "slack" && platform.id !== "notion").map((platform) => (
                 <div key={platform.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <PlatformIcon platform={platform.id} className="h-4 w-4" />
@@ -2079,10 +4622,10 @@ function AutopilotView() {
                   <Input
                     type="number"
                     className="w-16 h-8 text-center"
-                    value={autopilotSettings.platformCadence[platform.id]}
-                    onChange={(e) => updateAutopilotSettings({
+                    value={effectiveSettings.platformCadence[platform.id]}
+                    onChange={(e) => handleUpdateAutopilotSettings({
                       platformCadence: {
-                        ...autopilotSettings.platformCadence,
+                        ...effectiveSettings.platformCadence,
                         [platform.id]: Number.parseInt(e.target.value) || 0,
                       },
                     })}
@@ -2095,6 +4638,17 @@ function AutopilotView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Events Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Events</CardTitle>
+          <CardDescription>Create events and generate scheduled draft posts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EventsPanel />
+        </CardContent>
+      </Card>
 
       {/* Recent Notifications */}
       <Card>
@@ -2143,6 +4697,1990 @@ function AutopilotView() {
                 )}
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Events Panel Component
+function EventsPanel() {
+  const [title, setTitle] = React.useState("");
+  const [eventDate, setEventDate] = React.useState("");
+  const [postWhen, setPostWhen] = React.useState<'same-day' | 'next-day'>('next-day');
+  const [notes, setNotes] = React.useState("");
+  const [selectedAssetIds, setSelectedAssetIds] = React.useState<string[]>([]);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+
+  const { data: assetsData } = useAssets();
+  const { data: eventsData } = useEvents();
+  const createEvent = useCreateEvent();
+  const generateDrafts = useGenerateEventDrafts();
+
+  const assets = assetsData?.assets || [];
+  const events = eventsData?.events || [];
+
+  const handleCreateEvent = async () => {
+    if (!title.trim() || !eventDate) {
+      toast.error("Please enter a title and event date");
+      return;
+    }
+
+    try {
+      await createEvent.mutateAsync({
+        title: title.trim(),
+        eventDate,
+        postWhen,
+        notes: notes.trim() || undefined,
+        assetIds: selectedAssetIds,
+      });
+      toast.success("Event created!");
+      setTitle("");
+      setEventDate("");
+      setPostWhen('next-day');
+      setNotes("");
+      setSelectedAssetIds([]);
+      setIsFormOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create event");
+    }
+  };
+
+  const handleGenerateDrafts = async (eventId: string) => {
+    try {
+      const result = await generateDrafts.mutateAsync(eventId);
+      toast.success(`Generated ${result.count} draft posts!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate drafts");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {!isFormOpen ? (
+        <Button onClick={() => setIsFormOpen(true)} className="w-full">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Event
+        </Button>
+      ) : (
+        <div className="space-y-4 p-4 border rounded-lg">
+          <div className="space-y-2">
+            <Label>Event Title</Label>
+            <Input
+              placeholder="e.g., Visiting BJJ gym class"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Event Date</Label>
+            <Input
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              min={format(new Date(), "yyyy-MM-dd")}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Post When</Label>
+            <Select value={postWhen} onValueChange={(v) => setPostWhen(v as 'same-day' | 'next-day')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="same-day">Same Day (9 AM)</SelectItem>
+                <SelectItem value="next-day">Next Day (9 AM)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notes (Optional)</Label>
+            <Textarea
+              placeholder="Additional details about the event..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {assets.length > 0 && (
+            <div className="space-y-2">
+              <Label>Assets (Optional)</Label>
+              <ScrollArea className="h-32 border rounded p-2">
+                <div className="space-y-2">
+                  {assets.map((asset) => (
+                    <div key={asset.id} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedAssetIds.includes(asset.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedAssetIds([...selectedAssetIds, asset.id]);
+                          } else {
+                            setSelectedAssetIds(selectedAssetIds.filter(id => id !== asset.id));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{asset.type} - {asset.url ? 'Has URL' : 'No URL'}</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={handleCreateEvent} disabled={createEvent.isPending}>
+              {createEvent.isPending ? "Creating..." : "Create Event"}
+            </Button>
+            <Button variant="outline" onClick={() => setIsFormOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {events.length > 0 && (
+        <div className="space-y-2">
+          <Label>Recent Events</Label>
+          <div className="space-y-2">
+            {events.slice(0, 5).map((event) => (
+              <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">{event.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(event.eventDate), "MMM d, yyyy")} • Post {event.postWhen === 'same-day' ? 'same day' : 'next day'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleGenerateDrafts(event.id)}
+                  disabled={generateDrafts.isPending}
+                >
+                  {generateDrafts.isPending ? "Generating..." : "Generate Drafts"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Autopilot Questionnaire Component (Step-based AI interview)
+function AutopilotQuestionnaire() {
+  const { data: existingBrief } = useAutopilotBrief();
+  const updateBrief = useUpdateAutopilotBrief();
+  const [currentStep, setCurrentStep] = React.useState(1);
+  const [brief, setBrief] = React.useState<Partial<AutopilotBrief>>({
+    brandName: existingBrief?.brandName || '',
+    subjectType: existingBrief?.subjectType || 'business',
+    industry: existingBrief?.industry || '',
+    primaryGoal: existingBrief?.primaryGoal || 'brand_awareness',
+    secondaryGoals: existingBrief?.secondaryGoals || [],
+    targetAudience: existingBrief?.targetAudience || '',
+    offer: existingBrief?.offer || '',
+    location: existingBrief?.location || '',
+    platforms: existingBrief?.platforms || [],
+    voice: existingBrief?.voice || { tone: '' },
+    brandAssets: existingBrief?.brandAssets || {},
+    constraints: existingBrief?.constraints || {},
+    successMetrics: existingBrief?.successMetrics || [],
+  });
+
+  const totalSteps = 6;
+
+  const steps = [
+    {
+      question: "What's your brand or business name?",
+      field: 'brandName',
+      placeholder: "e.g., Kinetic Grappling, TechFlow Solutions",
+      type: 'text' as const,
+    },
+    {
+      question: "What industry or niche are you in?",
+      field: 'industry',
+      placeholder: "e.g., BJJ gym, real estate, SaaS, restaurant",
+      type: 'text' as const,
+    },
+    {
+      question: "What's your primary goal with social media?",
+      field: 'primaryGoal',
+      placeholder: "Select your main objective",
+      type: 'select' as const,
+      options: [
+        { value: 'brand_awareness', label: 'Brand Awareness' },
+        { value: 'leads', label: 'Generate Leads' },
+        { value: 'sales', label: 'Drive Sales' },
+        { value: 'community', label: 'Build Community' },
+        { value: 'traffic', label: 'Drive Website Traffic' },
+        { value: 'bookings', label: 'Get Bookings/Appointments' },
+      ],
+    },
+    {
+      question: "Who is your target audience?",
+      field: 'targetAudience',
+      placeholder: "Describe your ideal customer or follower in a few sentences",
+      type: 'textarea' as const,
+    },
+    {
+      question: "What's your main offer or call-to-action?",
+      field: 'offer',
+      placeholder: "What do you want people to do? (e.g., 'Book a free trial', 'Download our app', 'Visit our gym')",
+      type: 'textarea' as const,
+    },
+    {
+      question: "What tone should your content have?",
+      field: 'voice',
+      placeholder: "e.g., professional, friendly, funny, inspirational",
+      type: 'tone' as const,
+    },
+  ];
+
+  const currentStepData = steps[currentStep - 1];
+
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleSave();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateBrief.mutateAsync(brief);
+      toast.success("Autopilot setup complete! Generating your strategy plan...");
+      // Optionally generate plan automatically
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save brief");
+    }
+  };
+
+  const updateField = (field: string, value: any) => {
+    if (field === 'voice') {
+      setBrief({ ...brief, voice: { ...brief.voice, tone: value } });
+    } else {
+      setBrief({ ...brief, [field]: value });
+    }
+  };
+
+  const getFieldValue = (field: string) => {
+    if (field === 'voice') {
+      return brief.voice?.tone || '';
+    }
+    return (brief as any)[field] || '';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Progress Indicator */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Step {currentStep} of {totalSteps}</span>
+          <span className="text-muted-foreground">{Math.round((currentStep / totalSteps) * 100)}%</span>
+        </div>
+        <Progress value={(currentStep / totalSteps) * 100} />
+      </div>
+
+      {/* Question Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{currentStepData.question}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {currentStepData.type === 'text' && (
+            <Input
+              value={getFieldValue(currentStepData.field)}
+              onChange={(e) => updateField(currentStepData.field, e.target.value)}
+              placeholder={currentStepData.placeholder}
+              className="text-lg"
+            />
+          )}
+          {currentStepData.type === 'textarea' && (
+            <Textarea
+              value={getFieldValue(currentStepData.field)}
+              onChange={(e) => updateField(currentStepData.field, e.target.value)}
+              placeholder={currentStepData.placeholder}
+              rows={4}
+              className="text-lg"
+            />
+          )}
+          {currentStepData.type === 'select' && (
+            <Select
+              value={getFieldValue(currentStepData.field)}
+              onValueChange={(v) => updateField(currentStepData.field, v)}
+            >
+              <SelectTrigger className="text-lg">
+                <SelectValue placeholder={currentStepData.placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {currentStepData.options?.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {currentStepData.type === 'tone' && (
+            <div className="space-y-2">
+              <Input
+                value={getFieldValue(currentStepData.field)}
+                onChange={(e) => updateField(currentStepData.field, e.target.value)}
+                placeholder={currentStepData.placeholder}
+                className="text-lg"
+              />
+              <p className="text-sm text-muted-foreground">
+                Examples: Professional, Friendly, Funny, Inspirational, Casual, Authoritative
+              </p>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 1}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={!getFieldValue(currentStepData.field)}
+          >
+            {currentStep === totalSteps ? 'Complete Setup' : 'Next'}
+            {currentStep < totalSteps && <ChevronRight className="h-4 w-4 ml-2" />}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+// Autopilot Brief Form Component
+function AutopilotBriefForm() {
+  const { data: existingBrief } = useAutopilotBrief();
+  const updateBrief = useUpdateAutopilotBrief();
+  const generatePlan = useGenerateStrategyPlan();
+  const [planData, setPlanData] = React.useState<StrategyPlan | null>(null);
+
+  const [brief, setBrief] = React.useState<Partial<AutopilotBrief>>({
+    brandName: existingBrief?.brandName || '',
+    subjectType: existingBrief?.subjectType || 'business',
+    industry: existingBrief?.industry || '',
+    primaryGoal: existingBrief?.primaryGoal || 'brand_awareness',
+    secondaryGoals: existingBrief?.secondaryGoals || [],
+    targetAudience: existingBrief?.targetAudience || '',
+    offer: existingBrief?.offer || '',
+    location: existingBrief?.location || '',
+    platforms: existingBrief?.platforms || [],
+    voice: existingBrief?.voice || { tone: '' },
+    brandAssets: existingBrief?.brandAssets || {},
+    constraints: existingBrief?.constraints || {},
+    successMetrics: existingBrief?.successMetrics || [],
+  });
+
+  const [strategyPlan, setStrategyPlan] = React.useState<StrategyPlan | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = React.useState(false);
+
+  const handleSave = async () => {
+    try {
+      await updateBrief.mutateAsync(brief);
+      toast.success("Brief saved successfully!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save brief");
+    }
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!brief.brandName || !brief.industry) {
+      toast.error("Please fill in brand name and industry first");
+      return;
+    }
+
+    setIsGeneratingPlan(true);
+    try {
+      const plan = await generatePlan.mutateAsync();
+      setStrategyPlan(plan);
+      toast.success("Strategy plan generated!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate plan");
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  const addPlatform = () => {
+    setBrief({
+      ...brief,
+      platforms: [
+        ...(brief.platforms || []),
+        { platform: 'instagram', priority: 2, postingCadencePerWeek: 3 },
+      ],
+    });
+  };
+
+  const updatePlatform = (index: number, updates: Partial<PlatformConfig>) => {
+    const platforms = [...(brief.platforms || [])];
+    platforms[index] = { ...platforms[index], ...updates };
+    setBrief({ ...brief, platforms });
+  };
+
+  const removePlatform = (index: number) => {
+    const platforms = [...(brief.platforms || [])];
+    platforms.splice(index, 1);
+    setBrief({ ...brief, platforms });
+  };
+
+  return (
+    <div id="autopilot-brief-edit-form" className="space-y-6">
+      {/* Section 1: Business/Creator Basics */}
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold">Business/Creator Basics</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Brand Name</Label>
+            <Input
+              value={brief.brandName}
+              onChange={(e) => setBrief({ ...brief, brandName: e.target.value })}
+              placeholder="Your brand or name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Subject Type</Label>
+            <Select
+              value={brief.subjectType}
+              onValueChange={(v) => setBrief({ ...brief, subjectType: v as SubjectType })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="creator">Creator</SelectItem>
+                <SelectItem value="mixed">Mixed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Industry</Label>
+            <Input
+              value={brief.industry}
+              onChange={(e) => setBrief({ ...brief, industry: e.target.value })}
+              placeholder="e.g., BJJ gym, realtor, restaurant"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Location (Optional)</Label>
+            <Input
+              value={brief.location || ''}
+              onChange={(e) => setBrief({ ...brief, location: e.target.value })}
+              placeholder="City, State"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2: Goals + Offer */}
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold">Goals + Offer</h3>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Primary Goal</Label>
+            <Select
+              value={brief.primaryGoal}
+              onValueChange={(v) => setBrief({ ...brief, primaryGoal: v as PrimaryGoal })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="brand_awareness">Brand Awareness</SelectItem>
+                <SelectItem value="leads">Leads</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="community">Community</SelectItem>
+                <SelectItem value="traffic">Traffic</SelectItem>
+                <SelectItem value="bookings">Bookings</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Offer</Label>
+            <Textarea
+              value={brief.offer}
+              onChange={(e) => setBrief({ ...brief, offer: e.target.value })}
+              placeholder="What do you want people to do/buy/book?"
+              rows={2}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3: Audience + Location */}
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold">Audience</h3>
+        <div className="space-y-2">
+          <Label>Target Audience</Label>
+          <Textarea
+            value={brief.targetAudience}
+            onChange={(e) => setBrief({ ...brief, targetAudience: e.target.value })}
+            placeholder="Describe your target audience in a short paragraph"
+            rows={3}
+          />
+        </div>
+      </div>
+
+      {/* Section 4: Platforms + Cadence */}
+      <div className="space-y-4 p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Platforms + Cadence</h3>
+          <Button variant="outline" size="sm" onClick={addPlatform}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Platform
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {brief.platforms?.map((platform, index) => (
+            <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+              <Select
+                value={platform.platform}
+                onValueChange={(v) => updatePlatform(index, { platform: v as PlatformConfig['platform'] })}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="instagram">Instagram</SelectItem>
+                  <SelectItem value="tiktok">TikTok</SelectItem>
+                  <SelectItem value="facebook">Facebook</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                  <SelectItem value="youtube_shorts">YouTube Shorts</SelectItem>
+                  <SelectItem value="x">X (Twitter)</SelectItem>
+                  <SelectItem value="pinterest">Pinterest</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={String(platform.priority)}
+                onValueChange={(v) => updatePlatform(index, { priority: Number(v) as 1 | 2 | 3 })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Priority 1</SelectItem>
+                  <SelectItem value="2">Priority 2</SelectItem>
+                  <SelectItem value="3">Priority 3</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                className="w-24"
+                value={platform.postingCadencePerWeek}
+                onChange={(e) => updatePlatform(index, { postingCadencePerWeek: Number(e.target.value) || 0 })}
+                placeholder="Posts/week"
+                min={0}
+                max={21}
+              />
+              <Button variant="ghost" size="icon" onClick={() => removePlatform(index)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          {(!brief.platforms || brief.platforms.length === 0) && (
+            <p className="text-sm text-muted-foreground">No platforms added yet. Click "Add Platform" to get started.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Section 5: Voice + Constraints */}
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold">Voice + Constraints</h3>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tone</Label>
+            <Input
+              value={brief.voice?.tone || ''}
+              onChange={(e) => setBrief({ ...brief, voice: { ...brief.voice, tone: e.target.value } })}
+              placeholder="e.g., confident, friendly, funny"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Do Say (Optional)</Label>
+              <Textarea
+                value={brief.voice?.doSay?.join(', ') || ''}
+                onChange={(e) => setBrief({
+                  ...brief,
+                  voice: { 
+                    tone: brief.voice?.tone || '',
+                    doSay: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+                    dontSay: brief.voice?.dontSay || [],
+                  },
+                })}
+                placeholder="Keywords/phrases to use"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Don't Say (Optional)</Label>
+              <Textarea
+                value={brief.voice?.dontSay?.join(', ') || ''}
+                onChange={(e) => setBrief({
+                  ...brief,
+                  voice: { 
+                    tone: brief.voice?.tone || '',
+                    doSay: brief.voice?.doSay || [],
+                    dontSay: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+                  },
+                })}
+                placeholder="Words/topics to avoid"
+                rows={2}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Compliance Notes (Optional)</Label>
+            <Textarea
+              value={brief.constraints?.complianceNotes || ''}
+              onChange={(e) => setBrief({
+                ...brief,
+                constraints: { ...brief.constraints, complianceNotes: e.target.value },
+              })}
+              placeholder="Any compliance requirements"
+              rows={2}
+            />
+          </div>
+          <div className="flex gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={brief.constraints?.noFaceKids || false}
+                onCheckedChange={(checked) => setBrief({
+                  ...brief,
+                  constraints: { ...brief.constraints, noFaceKids: checked === true },
+                })}
+              />
+              <Label className="text-sm">No faces of kids</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={brief.constraints?.noClientNames || false}
+                onCheckedChange={(checked) => setBrief({
+                  ...brief,
+                  constraints: { ...brief.constraints, noClientNames: checked === true },
+                })}
+              />
+              <Label className="text-sm">No client names</Label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button onClick={handleSave} disabled={updateBrief.isPending}>
+          {updateBrief.isPending ? "Saving..." : "Save Brief"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleGeneratePlan}
+          disabled={isGeneratingPlan || !brief.brandName || !brief.industry}
+        >
+          {isGeneratingPlan ? "Generating..." : "Generate Plan"}
+        </Button>
+      </div>
+
+      {/* Strategy Plan Display */}
+      {strategyPlan && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Strategy Plan</CardTitle>
+            <CardDescription>Generated from your brief</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h4 className="font-semibold mb-2">Content Pillars</h4>
+              <div className="space-y-2">
+                {strategyPlan.contentPillars.map((pillar, i) => (
+                  <div key={i} className="p-3 border rounded-lg">
+                    <p className="font-medium">{pillar.name}</p>
+                    <p className="text-sm text-muted-foreground">{pillar.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {pillar.examples.map((ex, j) => (
+                        <Badge key={j} variant="secondary" className="text-xs">{ex}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Weekly Cadence</h4>
+              <div className="space-y-2">
+                {strategyPlan.weeklyCadence.map((cadence, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 border rounded">
+                    <span className="font-medium">{cadence.platform}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {cadence.postsPerWeek} posts/week • {cadence.postTypes.join(', ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">CTA Guidance</h4>
+              <p className="text-sm">{strategyPlan.ctaGuidance}</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">30-Day Starter Plan (First 10)</h4>
+              <ScrollArea className="h-64 border rounded p-2">
+                <div className="space-y-2">
+                  {strategyPlan.thirtyDayStarterPlan.slice(0, 10).map((item, i) => (
+                    <div key={i} className="p-2 border rounded text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{format(new Date(item.date), "MMM d")}</span>
+                        <Badge variant="outline">{item.platform}</Badge>
+                      </div>
+                      <p className="text-muted-foreground mt-1">{item.postIdea}</p>
+                      {item.assetSuggestion && (
+                        <p className="text-xs text-muted-foreground mt-1">Asset: {item.assetSuggestion}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// Autopilot Brief Summary Component
+function AutopilotBriefSummary({ brief }: { brief: AutopilotBrief }) {
+  const generatePlan = useGenerateStrategyPlan();
+  const generateAutopilot = useAutopilotGenerate();
+  const createPost = useCreatePost();
+  const { activeBrandId } = useAppStore();
+  const isAllMode = activeBrandId === 'all';
+  const [strategyPlan, setStrategyPlan] = React.useState<StrategyPlan | null>(null);
+  const [autopilotOutputs, setAutopilotOutputs] = React.useState<AutopilotGenerateResponse | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = React.useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+
+  const handleGeneratePlan = async () => {
+    setIsGeneratingPlan(true);
+    try {
+      const plan = await generatePlan.mutateAsync();
+      setStrategyPlan(plan);
+      toast.success("Strategy plan generated!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate plan");
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  const handleGenerateNextWeek = async () => {
+    if (isAllMode) {
+      toast.error("Please select a specific brand to generate Autopilot outputs");
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const from = new Date().toISOString().split('T')[0];
+      const to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const outputs = await generateAutopilot.mutateAsync({ from, to });
+      setAutopilotOutputs(outputs);
+      toast.success("Autopilot outputs generated!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate outputs");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSendDraftToQueue = async (draft: AutopilotDraftPost) => {
+    if (isAllMode) {
+      toast.error("Please select a specific brand to send drafts");
+      return;
+    }
+    
+    try {
+      await createPost.mutateAsync({
+        content: draft.caption,
+        platform: draft.platform,
+        status: 'draft',
+        hashtags: draft.hashtags,
+        authorId: 'user1',
+      });
+      toast.success(`Draft sent to Queue for ${draft.platform}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send draft");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span className="text-muted-foreground">Industry:</span> {brief.industry}
+        </div>
+        <div>
+          <span className="text-muted-foreground">Primary Goal:</span> {brief.primaryGoal.replace('_', ' ')}
+        </div>
+        <div>
+          <span className="text-muted-foreground">Platforms:</span> {brief.platforms.length}
+        </div>
+        <div>
+          <span className="text-muted-foreground">Tone:</span> {brief.voice.tone || 'Not set'}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button onClick={handleGeneratePlan} disabled={isGeneratingPlan}>
+          {isGeneratingPlan ? "Generating..." : "Generate Plan"}
+        </Button>
+        <Button onClick={handleGenerateNextWeek} disabled={isGenerating || isAllMode} variant="default">
+          {isGenerating ? "Generating..." : "Generate Next Week"}
+        </Button>
+      </div>
+
+      {autopilotOutputs && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+          {/* Plan Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Plan Summary</CardTitle>
+              <Badge variant="outline" className="mt-2">Platform rules applied</Badge>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm">{autopilotOutputs.plan.overview}</p>
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Content Pillars</h4>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {autopilotOutputs.plan.pillars.map((pillar, i) => (
+                    <li key={i}>{pillar}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Cadence</h4>
+                {autopilotOutputs.plan.cadence.map((cad, i) => (
+                  <div key={i} className="text-sm">
+                    <PlatformIcon platform={cad.platform} className="h-3 w-3 inline mr-1" />
+                    {cad.platform}: {cad.postsPerWeek} posts/week
+                    {cad.notes && <span className="text-muted-foreground"> • {cad.notes}</span>}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Drafts List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Draft Posts</CardTitle>
+              <CardDescription>{autopilotOutputs.drafts.length} drafts generated</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-3">
+                  {autopilotOutputs.drafts.map((draft) => (
+                    <div key={draft.id} className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <PlatformIcon platform={draft.platform} className="h-4 w-4" />
+                          <Badge variant="outline">{draft.platform}</Badge>
+                          <Badge variant="secondary" className="text-xs">Platform rules applied</Badge>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendDraftToQueue(draft)}
+                          disabled={isAllMode}
+                        >
+                          Send to Queue
+                        </Button>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{draft.caption}</p>
+                      {draft.hashtags && draft.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {draft.hashtags.map((tag, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
+                          ))}
+                        </div>
+                      )}
+                      {draft.notes && (
+                        <p className="text-xs text-muted-foreground">{draft.notes}</p>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Length: {draft.caption.length} chars
+                        {draft.caption.length <= 280 && draft.caption.length > 200 && ` (short format)`}
+                        {draft.platform === 'linkedin' && ` (recommended 300-1300)`}
+                        {draft.platform === 'instagram' && ` (recommended 80-400)`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {strategyPlan && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Strategy Plan</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">Content Pillars</h4>
+              <div className="space-y-2">
+                {strategyPlan.contentPillars.map((pillar, i) => (
+                  <div key={i} className="p-2 border rounded text-sm">
+                    <p className="font-medium">{pillar.name}</p>
+                    <p className="text-muted-foreground">{pillar.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">Weekly Cadence</h4>
+              {strategyPlan.weeklyCadence.map((cadence, i) => (
+                <div key={i} className="text-sm">
+                  {cadence.platform}: {cadence.postsPerWeek} posts/week
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// Brand Switcher Component
+function BrandSwitcher() {
+  const { data: brandsData, isLoading } = useBrands();
+  const { activeBrandId, setActiveBrandId, setActiveView } = useAppStore();
+  const queryClient = useQueryClient();
+
+  const brands = brandsData?.brands || [];
+  const isAllMode = activeBrandId === 'all';
+  
+  // Get current brand from store/localStorage
+  const brand = isAllMode 
+    ? { id: 'all', name: 'All Brands', avatarUrl: undefined } 
+    : brands.find(b => b.id === activeBrandId) || brands[0] || null;
+
+  const handleSwitchBrand = async (brandId: string | 'all') => {
+    try {
+      // Update Zustand store (which persists to localStorage)
+      setActiveBrandId(brandId);
+      
+      // Invalidate all queries to refresh data for new brand
+      await queryClient.invalidateQueries();
+      
+      // Always navigate to Dashboard on brand switch
+      setActiveView('dashboard');
+      
+      const brandName = brandId === 'all' ? 'All Brands' : brands.find(b => b.id === brandId)?.name || 'brand';
+      toast.success(`Switched to ${brandName}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to switch brand");
+    }
+  };
+
+  if (isLoading && !isAllMode && !brand) {
+    return (
+      <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="text-xs">
+              {isAllMode ? (
+                <Layers className="h-4 w-4" />
+              ) : brand?.avatarUrl ? (
+                <img src={brand.avatarUrl} alt={brand.name} className="h-full w-full object-cover" />
+              ) : (
+                brand?.name?.charAt(0).toUpperCase() || '?'
+              )}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium">{brand?.name || 'Loading...'}</span>
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="p-2 border-b">
+          <p className="text-xs text-muted-foreground mb-1">Active Brand</p>
+          <p className="text-sm font-medium">{brand?.name || 'Loading...'}</p>
+        </div>
+        <ScrollArea className="max-h-64">
+          {/* "See All" option */}
+          <DropdownMenuItem
+            onClick={() => handleSwitchBrand('all')}
+            className={cn(
+              "flex items-center gap-2 cursor-pointer",
+              isAllMode && "bg-muted"
+            )}
+          >
+            <Layers className="h-4 w-4" />
+            <span className="flex-1">See All</span>
+            {isAllMode && <CheckCircle2 className="h-4 w-4 text-primary" />}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* Individual brands */}
+          {brands.slice(0, 6).map((b) => (
+            <DropdownMenuItem
+              key={b.id}
+              onClick={() => handleSwitchBrand(b.id)}
+              className={cn(
+                "flex items-center gap-2 cursor-pointer",
+                !isAllMode && activeBrandId === b.id && "bg-muted"
+              )}
+            >
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="text-xs">
+                  {b.avatarUrl ? (
+                    <img src={b.avatarUrl} alt={b.name} className="h-full w-full object-cover" />
+                  ) : (
+                    b.name.charAt(0).toUpperCase()
+                  )}
+                </AvatarFallback>
+              </Avatar>
+              <span className="flex-1">{b.name}</span>
+              {!isAllMode && activeBrandId === b.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
+            </DropdownMenuItem>
+          ))}
+        </ScrollArea>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => setActiveView("settings")}
+          className="cursor-pointer"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Manage Brands
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Brands Settings View
+// Business Schedule Settings View
+function BusinessScheduleSettingsView() {
+  const { data: templatesData } = useScheduleTemplates();
+  const createTemplate = useCreateScheduleTemplate();
+  const updateTemplate = useUpdateScheduleTemplate();
+  const deleteTemplate = useDeleteScheduleTemplate();
+
+  const templates = templatesData?.templates || [];
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [newTemplate, setNewTemplate] = React.useState({
+    title: '',
+    daysOfWeek: [] as number[],
+    startTime: '09:00',
+    durationMinutes: 60,
+    location: '',
+    notes: '',
+  });
+
+  const daysOfWeekOptions = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' },
+  ];
+
+  const handleCreate = async () => {
+    if (!newTemplate.title.trim() || newTemplate.daysOfWeek.length === 0) {
+      toast.error('Title and at least one day of week are required');
+      return;
+    }
+
+    try {
+      await createTemplate.mutateAsync(newTemplate);
+      toast.success('Schedule template created!');
+      setNewTemplate({
+        title: '',
+        daysOfWeek: [],
+        startTime: '09:00',
+        durationMinutes: 60,
+        location: '',
+        notes: '',
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create template');
+    }
+  };
+
+  const handleUpdate = async (id: string, updates: Partial<typeof newTemplate>) => {
+    try {
+      await updateTemplate.mutateAsync({ id, updates });
+      toast.success('Template updated!');
+      setEditingId(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update template');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this schedule template?')) {
+      return;
+    }
+
+    try {
+      await deleteTemplate.mutateAsync(id);
+      toast.success('Template deleted!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete template');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create Schedule Template</CardTitle>
+          <CardDescription>
+            Create recurring business events (e.g., gym classes) that will appear in your calendar
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input
+              placeholder="e.g., Kids Class"
+              value={newTemplate.title}
+              onChange={(e) => setNewTemplate({ ...newTemplate, title: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Days of Week</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {daysOfWeekOptions.map((day) => (
+                <div key={day.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={newTemplate.daysOfWeek.includes(day.value)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setNewTemplate({
+                          ...newTemplate,
+                          daysOfWeek: [...newTemplate.daysOfWeek, day.value],
+                        });
+                      } else {
+                        setNewTemplate({
+                          ...newTemplate,
+                          daysOfWeek: newTemplate.daysOfWeek.filter(d => d !== day.value),
+                        });
+                      }
+                    }}
+                  />
+                  <Label className="text-sm font-normal">{day.label}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Start Time</Label>
+              <Input
+                type="time"
+                value={newTemplate.startTime}
+                onChange={(e) => setNewTemplate({ ...newTemplate, startTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Duration (minutes)</Label>
+              <Input
+                type="number"
+                min="15"
+                step="15"
+                value={newTemplate.durationMinutes}
+                onChange={(e) => setNewTemplate({ ...newTemplate, durationMinutes: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Location (Optional)</Label>
+            <Input
+              placeholder="e.g., Main Studio"
+              value={newTemplate.location}
+              onChange={(e) => setNewTemplate({ ...newTemplate, location: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notes (Optional)</Label>
+            <Textarea
+              placeholder="Additional notes about this event"
+              value={newTemplate.notes}
+              onChange={(e) => setNewTemplate({ ...newTemplate, notes: e.target.value })}
+              rows={2}
+            />
+          </div>
+
+          <Button onClick={handleCreate} disabled={createTemplate.isPending}>
+            {createTemplate.isPending ? 'Creating...' : 'Create Template'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Existing Templates */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Schedule Templates</CardTitle>
+          <CardDescription>Manage your recurring business events</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {templates.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="No schedule templates"
+              description="Create a template to add recurring events to your calendar"
+            />
+          ) : (
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <div key={template.id} className="p-4 border rounded-lg">
+                  {editingId === template.id ? (
+                    <EditTemplateForm
+                      template={template}
+                      onSave={(updates) => handleUpdate(template.id, updates)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{template.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {template.daysOfWeek
+                              .sort()
+                              .map(d => daysOfWeekOptions[d].label)
+                              .join(', ')}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {template.startTime} ({template.durationMinutes} min)
+                            {template.location && ` • ${template.location}`}
+                          </p>
+                          {template.notes && (
+                            <p className="text-sm text-muted-foreground mt-1">{template.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingId(template.id)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(template.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Edit Template Form Component
+function EditTemplateForm({
+  template,
+  onSave,
+  onCancel,
+}: {
+  template: any;
+  onSave: (updates: any) => void;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = React.useState({
+    title: template.title,
+    daysOfWeek: template.daysOfWeek,
+    startTime: template.startTime,
+    durationMinutes: template.durationMinutes,
+    location: template.location || '',
+    notes: template.notes || '',
+  });
+
+  const daysOfWeekOptions = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Title</Label>
+        <Input
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Days of Week</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {daysOfWeekOptions.map((day) => (
+            <div key={day.value} className="flex items-center space-x-2">
+              <Checkbox
+                checked={formData.daysOfWeek.includes(day.value)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setFormData({
+                      ...formData,
+                      daysOfWeek: [...formData.daysOfWeek, day.value],
+                    });
+                  } else {
+                    setFormData({
+                      ...formData,
+                      daysOfWeek: formData.daysOfWeek.filter((d: number) => d !== day.value),
+                    });
+                  }
+                }}
+              />
+              <Label className="text-sm font-normal">{day.label}</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Start Time</Label>
+          <Input
+            type="time"
+            value={formData.startTime}
+            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Duration (minutes)</Label>
+          <Input
+            type="number"
+            min="15"
+            step="15"
+            value={formData.durationMinutes}
+            onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Location (Optional)</Label>
+        <Input
+          value={formData.location}
+          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Notes (Optional)</Label>
+        <Textarea
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          rows={2}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button onClick={() => onSave(formData)}>Save</Button>
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+function BrandsSettingsView() {
+  const { data: brandsData } = useBrands();
+  const { activeBrandId, setActiveBrandId, setActiveView } = useAppStore();
+  const createBrand = useCreateBrand();
+  const updateBrand = useUpdateBrand();
+  const deleteBrand = useDeleteBrand();
+  const uploadAvatar = useUploadBrandAvatar();
+  const deleteAvatar = useDeleteBrandAvatar();
+  const queryClient = useQueryClient();
+
+  const brands = brandsData?.brands || [];
+  const maxBrands = 6;
+  const canCreateMore = brands.length < maxBrands;
+  const [editingBrandId, setEditingBrandId] = React.useState<string | null>(null);
+  const [editingBrandName, setEditingBrandName] = React.useState("");
+  const [editingBrandAvatarUrl, setEditingBrandAvatarUrl] = React.useState("");
+  const [newBrandName, setNewBrandName] = React.useState("");
+  const [newBrandAvatarUrl, setNewBrandAvatarUrl] = React.useState("");
+  const [newBrandUploadedFiles, setNewBrandUploadedFiles] = React.useState<UploadedItem[]>([]);
+  const [editingBrandUploadedFiles, setEditingBrandUploadedFiles] = React.useState<Record<string, UploadedItem[]>>({});
+
+  const handleCreateBrand = async () => {
+    if (!newBrandName.trim()) {
+      toast.error("Brand name is required");
+      return;
+    }
+
+    if (brands.length >= maxBrands) {
+      toast.error(`Maximum of ${maxBrands} brands allowed`);
+      return;
+    }
+
+    try {
+      // Create brand first
+      const brand = await createBrand.mutateAsync({
+        name: newBrandName.trim(),
+        slug: newBrandName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        avatarUrl: newBrandAvatarUrl.startsWith('data:') ? undefined : (newBrandAvatarUrl.trim() || undefined),
+      });
+      
+      // If there's an uploaded file (not a URL), upload it
+      if (newBrandUploadedFiles.length > 0 && newBrandUploadedFiles[0].file) {
+        try {
+          const { avatarUrl } = await uploadAvatar.mutateAsync({
+            id: brand.id,
+            file: newBrandUploadedFiles[0].file,
+          });
+          // Avatar URL will be updated via query invalidation
+        } catch (uploadError: any) {
+          if (uploadError?.statusCode === 413) {
+            toast.error('Upload failed: file too large (max 5MB)');
+          } else {
+            toast.error(uploadError instanceof Error ? uploadError.message : 'Failed to upload avatar');
+          }
+        }
+      }
+      
+      toast.success("Brand created!");
+      setNewBrandName("");
+      setNewBrandAvatarUrl("");
+      setNewBrandUploadedFiles([]);
+    } catch (error: any) {
+      if (error?.statusCode === 409) {
+        toast.error(`Maximum of ${maxBrands} brands allowed`);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to create brand");
+      }
+    }
+  };
+
+  const handleUpdateBrand = async (id: string, updates: Partial<Brand>) => {
+    try {
+      // Only update name (avatar is handled separately via upload endpoint)
+      await updateBrand.mutateAsync({ 
+        id, 
+        updates: { 
+          name: updates.name,
+          // Don't update avatarUrl here - it's handled by upload/delete endpoints
+        } 
+      });
+      toast.success("Brand updated!");
+      setEditingBrandId(null);
+      setEditingBrandName("");
+      setEditingBrandAvatarUrl("");
+      setEditingBrandUploadedFiles({});
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update brand");
+    }
+  };
+
+  // Handle file upload for new brand
+  const handleNewBrandFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0]; // Single file for brand icon
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setNewBrandAvatarUrl(dataUrl);
+      
+      // Update uploaded files state for preview
+      setNewBrandUploadedFiles([{
+        file,
+        preview: dataUrl,
+        status: 'success',
+      }]);
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleNewBrandFileRemove = () => {
+    setNewBrandAvatarUrl("");
+    setNewBrandUploadedFiles([]);
+  };
+
+  // Handle file upload for editing brand
+  const handleEditBrandFilesSelected = async (files: File[], brandId: string) => {
+    if (files.length === 0) return;
+    
+    const file = files[0]; // Single file for brand icon
+    
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('File too large. Max size is 5MB.');
+      return;
+    }
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setEditingBrandAvatarUrl(dataUrl);
+      
+      // Update uploaded files state for preview
+      setEditingBrandUploadedFiles(prev => ({
+        ...prev,
+        [brandId]: [{
+          file,
+          preview: dataUrl,
+          status: 'uploading',
+        }],
+      }));
+      
+      // Upload immediately
+      uploadAvatar.mutate(
+        { id: brandId, file },
+        {
+          onSuccess: ({ avatarUrl }) => {
+            setEditingBrandAvatarUrl(avatarUrl);
+            setEditingBrandUploadedFiles(prev => ({
+              ...prev,
+              [brandId]: [{
+                file,
+                preview: dataUrl,
+                status: 'success',
+              }],
+            }));
+            toast.success('Avatar uploaded successfully!');
+          },
+          onError: (error: any) => {
+            if (error?.statusCode === 413) {
+              toast.error('Upload failed: file too large (max 5MB)');
+            } else {
+              toast.error(error instanceof Error ? error.message : 'Failed to upload avatar');
+            }
+            setEditingBrandUploadedFiles(prev => {
+              const newState = { ...prev };
+              delete newState[brandId];
+              return newState;
+            });
+          },
+        }
+      );
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditBrandFileRemove = async (brandId: string) => {
+    try {
+      await deleteAvatar.mutateAsync(brandId);
+      setEditingBrandAvatarUrl("");
+      setEditingBrandUploadedFiles(prev => {
+        const newState = { ...prev };
+        delete newState[brandId];
+        return newState;
+      });
+      toast.success('Avatar removed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove avatar');
+    }
+  };
+
+  const handleDeleteBrand = async (id: string) => {
+    if (brands.length === 1) {
+      toast.error("Cannot delete the last brand");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this brand? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await deleteBrand.mutateAsync(id);
+      // If deleted brand was active, switch to first available
+      if (activeBrandId === id) {
+        const remainingBrands = brands.filter(b => b.id !== id);
+        if (remainingBrands.length > 0) {
+          setActiveBrandId(remainingBrands[0].id);
+        } else {
+          setActiveBrandId(null);
+        }
+      }
+      toast.success("Brand deleted!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete brand");
+    }
+  };
+
+  const handleSetCurrent = (id: string) => {
+    setActiveBrandId(id);
+    queryClient.invalidateQueries();
+    setActiveView('dashboard');
+    toast.success("Brand switched!");
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Brands</h1>
+        <p className="text-muted-foreground">Manage your brands and switch between them</p>
+      </div>
+
+      {/* Create New Brand */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Brand</CardTitle>
+          <CardDescription>
+            {canCreateMore 
+              ? `Create up to ${maxBrands} brands (${brands.length}/${maxBrands} used)`
+              : `Maximum of ${maxBrands} brands reached`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Brand Name</Label>
+            <Input
+              placeholder="e.g., Kinetic Grappling"
+              value={newBrandName}
+              onChange={(e) => setNewBrandName(e.target.value)}
+              disabled={!canCreateMore}
+            />
+          </div>
+          <div className="flex items-start gap-4">
+            {/* Icon Preview */}
+            <div className="space-y-2">
+              <Label>Brand Icon Preview</Label>
+              <Avatar className="h-16 w-16">
+                <AvatarImage 
+                  src={newBrandAvatarUrl || undefined} 
+                  alt={newBrandName}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <AvatarFallback className="text-lg font-medium">
+                  {newBrandName.trim() 
+                    ? (() => {
+                        const words = newBrandName.trim().split(/\s+/);
+                        return words.length >= 2
+                          ? (words[0][0] + words[1][0]).toUpperCase()
+                          : newBrandName.charAt(0).toUpperCase();
+                      })()
+                    : "?"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            
+            {/* Form Fields */}
+            <div className="flex-1 space-y-4">
+              <div className="space-y-2">
+                <Label>Brand Icon (Optional)</Label>
+                <UploadDropzone
+                  multiple={false}
+                  accept="image/*"
+                  maxSizeMB={5}
+                  value={newBrandUploadedFiles}
+                  onFilesSelected={handleNewBrandFilesSelected}
+                  onFileRemove={handleNewBrandFileRemove}
+                  title="Upload brand icon"
+                  helperText="Drag and drop an image or click to browse (max 5MB)"
+                  disabled={!canCreateMore}
+                />
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or</span>
+                  </div>
+                </div>
+                <Input
+                  placeholder="https://example.com/avatar.png"
+                  value={newBrandAvatarUrl.startsWith('data:') ? '' : newBrandAvatarUrl}
+                  onChange={(e) => {
+                    setNewBrandAvatarUrl(e.target.value);
+                    // Clear uploaded files if URL is entered
+                    if (e.target.value.trim()) {
+                      setNewBrandUploadedFiles([]);
+                    }
+                  }}
+                  disabled={!canCreateMore}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload an image file or enter a URL. Max size: 5MB. The icon will be displayed in a circular frame.
+                </p>
+              </div>
+            </div>
+          </div>
+          <Button 
+            onClick={handleCreateBrand} 
+            disabled={createBrand.isPending || !newBrandName.trim() || !canCreateMore}
+          >
+            {createBrand.isPending ? "Creating..." : "Create Brand"}
+          </Button>
+          {!canCreateMore && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You've reached the maximum of {maxBrands} brands. Delete a brand to create a new one.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Brands List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Brands</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {brands.map((brand) => {
+              const isEditing = editingBrandId === brand.id;
+              const getInitials = (name: string) => {
+                const words = name.trim().split(/\s+/);
+                if (words.length >= 2) {
+                  return (words[0][0] + words[1][0]).toUpperCase();
+                }
+                return name.charAt(0).toUpperCase();
+              };
+
+              return (
+                <div key={brand.id} className="space-y-3">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage 
+                          src={brand.avatarUrl || undefined} 
+                          alt={brand.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        <AvatarFallback className="text-sm font-medium">
+                          {getInitials(brand.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{brand.name}</p>
+                        <p className="text-sm text-muted-foreground">{brand.slug}</p>
+                      </div>
+                      {activeBrandId === brand.id && (
+                        <Badge variant="default">Active</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {activeBrandId !== brand.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSetCurrent(brand.id)}
+                        >
+                          Select
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (editingBrandId === brand.id) {
+                            setEditingBrandId(null);
+                            setEditingBrandName("");
+                            setEditingBrandAvatarUrl("");
+                          } else {
+                            setEditingBrandId(brand.id);
+                            setEditingBrandName(brand.name);
+                            setEditingBrandAvatarUrl(brand.avatarUrl || "");
+                          }
+                        }}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      {brands.length > 1 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteBrand(brand.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Edit Form */}
+                  {isEditing && (
+                    <Card className="ml-4 border-primary/20 bg-primary/5">
+                      <CardHeader>
+                        <CardTitle className="text-base">Edit Brand</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-start gap-4">
+                          {/* Icon Preview */}
+                          <div className="space-y-2">
+                            <Label>Brand Icon Preview</Label>
+                            <Avatar className="h-16 w-16">
+                              <AvatarImage 
+                                src={editingBrandAvatarUrl || undefined} 
+                                alt={editingBrandName}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                              <AvatarFallback className="text-lg font-medium">
+                                {getInitials(editingBrandName || brand.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                          
+                          {/* Form Fields */}
+                          <div className="flex-1 space-y-4">
+                            <div className="space-y-2">
+                              <Label>Brand Name</Label>
+                              <Input
+                                value={editingBrandName}
+                                onChange={(e) => setEditingBrandName(e.target.value)}
+                                placeholder="Brand name"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Brand Icon (Optional)</Label>
+                              <UploadDropzone
+                                multiple={false}
+                                accept="image/*"
+                                maxSizeMB={5}
+                                value={editingBrandUploadedFiles[brand.id] || []}
+                                onFilesSelected={(files) => handleEditBrandFilesSelected(files, brand.id)}
+                                onFileRemove={() => handleEditBrandFileRemove(brand.id)}
+                                title="Upload brand icon"
+                                helperText="Drag and drop an image or click to browse (max 5MB)"
+                              />
+                              <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                  <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                </div>
+                              </div>
+                              <Input
+                                value={editingBrandAvatarUrl.startsWith('data:') ? '' : editingBrandAvatarUrl}
+                                onChange={(e) => {
+                                  setEditingBrandAvatarUrl(e.target.value);
+                                  // Clear uploaded files if URL is entered
+                                  if (e.target.value.trim()) {
+                                    setEditingBrandUploadedFiles(prev => {
+                                      const newState = { ...prev };
+                                      delete newState[brand.id];
+                                      return newState;
+                                    });
+                                  }
+                                }}
+                                placeholder="https://example.com/avatar.png"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Upload an image file or enter a URL. Max size: 5MB. The icon will be displayed in a circular frame.
+                              </p>
+                              {brand.avatarUrl && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditBrandFileRemove(brand.id)}
+                                  disabled={deleteAvatar.isPending}
+                                >
+                                  {deleteAvatar.isPending ? "Removing..." : "Remove Avatar"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => {
+                              handleUpdateBrand(brand.id, {
+                                name: editingBrandName,
+                                // avatarUrl is handled separately via upload/delete endpoints
+                              });
+                            }}
+                            disabled={!editingBrandName.trim() || updateBrand.isPending}
+                          >
+                            {updateBrand.isPending ? "Saving..." : "Save Changes"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingBrandId(null);
+                              setEditingBrandName("");
+                              setEditingBrandAvatarUrl("");
+                              setEditingBrandUploadedFiles({});
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -2214,7 +6752,10 @@ function QueueView() {
                   slot.platform === "instagram" && "bg-pink-500/10",
                   slot.platform === "linkedin" && "bg-blue-700/10",
                   slot.platform === "tiktok" && "bg-gray-900/10",
-                  slot.platform === "pinterest" && "bg-red-600/10"
+                  slot.platform === "pinterest" && "bg-red-600/10",
+                  slot.platform === "reddit" && "bg-orange-500/10",
+                  slot.platform === "slack" && "bg-purple-600/10",
+                  slot.platform === "notion" && "bg-gray-900/10"
                 )}>
                   <PlatformIcon platform={slot.platform} className={cn(
                     "h-5 w-5",
@@ -2222,7 +6763,10 @@ function QueueView() {
                     slot.platform === "instagram" && "text-pink-500",
                     slot.platform === "linkedin" && "text-blue-700",
                     slot.platform === "tiktok" && "text-gray-900",
-                    slot.platform === "pinterest" && "text-red-600"
+                    slot.platform === "pinterest" && "text-red-600",
+                    slot.platform === "reddit" && "text-orange-500",
+                    slot.platform === "slack" && "text-purple-600",
+                    slot.platform === "notion" && "text-gray-900"
                   )} />
                 </div>
 
@@ -3113,8 +7657,7 @@ function AuditLogView() {
 
 // Main App component
 function App() {
-  const { activeView, sidebarCollapsed, setSidebarCollapsed, autopilotNotifications, autopilotSettings } = useAppStore();
-  const pendingApprovals = autopilotNotifications.filter((n) => n.type === "pending_approval" && !n.isActioned).length;
+  const { activeView, setActiveView } = useAppStore();
 
   const renderView = () => {
     switch (activeView) {
@@ -3132,6 +7675,8 @@ function App() {
         return <NotificationsView />;
       case "inbox":
         return <InboxView />;
+      case "email":
+        return <EmailView />;
       case "analytics":
         return <AnalyticsView />;
       case "brand":
@@ -3146,125 +7691,42 @@ function App() {
         return <AuditLogView />;
       case "settings":
         return <SettingsView />;
+      case "vertical-slice":
+        return <PostsVerticalSlice />;
       default:
         return <DashboardView />;
     }
   };
 
+  // Map activeView to page title and create button
+  const getPageConfig = () => {
+    const configs: Record<string, { title: string; createLabel?: string; onCreate?: () => void }> = {
+      dashboard: { title: "Dashboard" },
+      autopilot: { title: "Autopilot" },
+      compose: { title: "Compose", createLabel: "New Post", onCreate: () => setActiveView("compose") },
+      queue: { title: "Queue" },
+      calendar: { title: "Calendar" },
+      inbox: { title: "Inbox" },
+      analytics: { title: "Analytics" },
+      campaigns: { title: "Campaigns", createLabel: "New Campaign" },
+      assets: { title: "Assets", createLabel: "Upload Asset" },
+      accounts: { title: "Accounts" },
+      settings: { title: "Settings" },
+    };
+    return configs[activeView] || { title: "Dashboard" };
+  };
+
+  const pageConfig = getPageConfig();
+  const isRiskyPage = ["compose", "autopilot", "queue"].includes(activeView);
+
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-14 border-b flex items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
-
-            {/* Autopilot Status Indicator */}
-            {autopilotSettings.operatingMode !== "manual" && (
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm",
-                autopilotSettings.isPaused
-                  ? "bg-yellow-500/10 text-yellow-600"
-                  : "bg-green-500/10 text-green-600"
-              )}>
-                <div className={cn(
-                  "h-2 w-2 rounded-full animate-pulse",
-                  autopilotSettings.isPaused ? "bg-yellow-500" : "bg-green-500"
-                )} />
-                <Bot className="h-4 w-4" />
-                <span className="font-medium">
-                  {autopilotSettings.isPaused
-                    ? "Paused"
-                    : autopilotSettings.operatingMode === "autopilot"
-                      ? "Autopilot Active"
-                      : "Approval Mode"}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                className="pl-9 w-64"
-              />
-            </div>
-
-            {/* Notifications with Badge */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-4 w-4" />
-                  {pendingApprovals > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                      {pendingApprovals}
-                    </span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <div className="flex items-center justify-between p-2 border-b">
-                  <span className="font-medium">Notifications</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => useAppStore.getState().setActiveView("notifications")}
-                  >
-                    View All
-                  </Button>
-                </div>
-                <ScrollArea className="h-64">
-                  {autopilotNotifications.slice(0, 5).map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={cn(
-                        "p-3 border-b hover:bg-muted/50 cursor-pointer",
-                        !notif.isRead && "bg-blue-500/5"
-                      )}
-                      onClick={() => {
-                        useAppStore.getState().markNotificationRead(notif.id);
-                        useAppStore.getState().setActiveView("notifications");
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <PlatformIcon platform={notif.platform} className="h-3 w-3" />
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {notif.type.replace("_", " ")}
-                        </span>
-                        {!notif.isRead && <div className="h-2 w-2 rounded-full bg-blue-500" />}
-                      </div>
-                      <p className="text-sm line-clamp-2">{notif.caption}</p>
-                    </div>
-                  ))}
-                  {autopilotNotifications.length === 0 && (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      No notifications
-                    </div>
-                  )}
-                </ScrollArea>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Avatar className="h-8 w-8">
-              <AvatarFallback>MT</AvatarFallback>
-            </Avatar>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          {renderView()}
-        </main>
-      </div>
-    </div>
+    <AppShell
+      pageTitle={pageConfig.title}
+      showBrandBanner={isRiskyPage}
+      createButtonLabel={pageConfig.createLabel}
+      onCreateClick={pageConfig.onCreate}
+    >
+      {renderView()}
+    </AppShell>
   );
 }

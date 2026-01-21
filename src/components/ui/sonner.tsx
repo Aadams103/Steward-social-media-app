@@ -2,7 +2,14 @@ import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-	const { theme = "system" } = useTheme();
+	let theme = "system";
+	try {
+		const themeHook = useTheme();
+		theme = themeHook?.theme || "system";
+	} catch (error) {
+		// ThemeProvider not set up, use default
+		console.warn("[Toaster] ThemeProvider not found, using default theme");
+	}
 
 	return (
 		<Sonner

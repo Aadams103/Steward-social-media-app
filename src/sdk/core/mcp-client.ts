@@ -9,8 +9,6 @@
 import { MCP_SERVERS, type McpServerId } from "../constants/mcp-server";
 import { getAuthTokenAsync, isAuthenticatedSync } from "./auth";
 import { APP_CONFIG } from "./global";
-import { reportToParentWindow } from "./internal/creao-shell";
-import type { IFrameMessage } from "./internal/internal-types";
 import { platformRequest } from "./request";
 
 const API_BASE_PATH = import.meta.env.VITE_MCP_API_BASE_PATH;
@@ -53,33 +51,33 @@ async function internalCallService(
 	request: MCPRequest,
 	transportType = "streamable_http",
 ): Promise<unknown> {
+	// #region agent log
+	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:48',message:'MCP call start',data:{mcpId,method:request.method},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+	// #endregion
 	const token = await getAuthTokenAsync();
 	const isAuthenticated = isAuthenticatedSync();
 
+	// #region agent log
+	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:55',message:'MCP auth check',data:{hasToken:!!token,isAuthenticated},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+	// #endregion
 	if (!isAuthenticated) {
+		// #region agent log
+		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:58',message:'MCP call failed - not authenticated',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+		// #endregion
 		throw new Error("User not authenticated");
 	}
-
-	// Base object with common fields for reporting
-	const baseReportData = {
-		serverUrl,
-		method: request.method,
-		params: request.params,
-		url: `${API_BASE_PATH}/execute-mcp/v2`,
-		transportType,
-	};
 
 	try {
 		// Build headers object, conditionally adding task and project IDs when they're not null
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
 			Authorization: `Bearer ${token}`,
-			"X-CREAO-MCP-ID": mcpId,
+			"X-MCP-ID": mcpId,
 		};
 
 		const { taskId, projectId } = APP_CONFIG;
-		if (taskId) headers["X-CREAO-API-TASK-ID"] = taskId;
-		if (projectId) headers["X-CREAO-API-PROJECT-ID"] = projectId;
+		if (taskId) headers["X-API-TASK-ID"] = taskId;
+		if (projectId) headers["X-API-PROJECT-ID"] = projectId;
 
 		const response = await platformRequest("/execute-mcp/v2", {
 			method: "POST",
@@ -91,22 +89,14 @@ async function internalCallService(
 			}),
 		});
 
+		// #region agent log
+		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:83',message:'MCP response received',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+		// #endregion
 		if (!response.ok) {
 			const errorMessage = `HTTP error! status: ${response.status}`;
-			// Report error response to parent window
-			reportToParentWindow({
-				type: "mcp",
-				subType: "http-error",
-				success: false,
-				payload: {
-					...baseReportData,
-					error: {
-						message: errorMessage,
-						type: "http",
-						status: response.status,
-					},
-				},
-			} as IFrameMessage);
+			// #region agent log
+			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:85',message:'MCP response error',data:{status:response.status,errorMessage},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 			throw new Error(errorMessage);
 		}
 
@@ -114,51 +104,30 @@ async function internalCallService(
 
 		if (data.error) {
 			const errorMessage = data.error.message || "MCP request failed";
-			// Report MCP error to parent window
-			reportToParentWindow({
-				type: "mcp",
-				subType: "data-error",
-				success: false,
-				payload: {
-					...baseReportData,
-					error: {
-						message: errorMessage,
-						type: "mcp-data",
-						code: data.error.code,
-						data: data.error.data,
-					},
-				},
-			} as IFrameMessage);
+			// #region agent log
+			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:92',message:'MCP data error',data:{errorMessage,errorCode:data.error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 			throw new Error(errorMessage);
 		}
 
-		// Report successful response to parent window
-		reportToParentWindow({
-			type: "mcp",
-			subType: "response-success",
-			success: true,
-			payload: {
-				...baseReportData,
-				response: data,
-			},
-		} as IFrameMessage);
-
+		// #region agent log
+		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:95',message:'MCP call success',data:{hasResult:!!data.result},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+		// #endregion
 		return data.result;
 	} catch (error) {
-		// Report any unexpected errors
+		// Log error but don't report to parent window (legacy integration removed)
 		if (error instanceof Error) {
-			reportToParentWindow({
-				type: "mcp",
-				subType: "runtime-error",
-				success: false,
-				payload: {
-					...baseReportData,
-					error: {
-						message: error.message,
-						type: "runtime",
-					},
-				},
-			} as IFrameMessage);
+			// #region agent log
+			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:99',message:'MCP call exception',data:{error:error.message,method:request.method},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
+			console.error("MCP request error:", {
+				message: error.message,
+				serverUrl,
+				method: request.method,
+				params: request.params,
+				url: `${API_BASE_PATH}/execute-mcp/v2`,
+				transportType,
+			});
 		}
 		throw error;
 	}

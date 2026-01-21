@@ -21,7 +21,7 @@ export const APPROVAL_WINDOWS: { id: ApprovalWindow; label: string; minutes: num
 ];
 
 // Platform types
-export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'pinterest';
+export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'pinterest' | 'reddit' | 'slack' | 'notion' | 'youtube' | 'x' | 'google_business_profile';
 
 export const PLATFORMS: { id: Platform; label: string; color: string }[] = [
   { id: 'facebook', label: 'Facebook', color: 'bg-blue-600' },
@@ -29,6 +29,12 @@ export const PLATFORMS: { id: Platform; label: string; color: string }[] = [
   { id: 'linkedin', label: 'LinkedIn', color: 'bg-blue-700' },
   { id: 'tiktok', label: 'TikTok', color: 'bg-black' },
   { id: 'pinterest', label: 'Pinterest', color: 'bg-red-600' },
+  { id: 'reddit', label: 'Reddit', color: 'bg-orange-500' },
+  { id: 'youtube', label: 'YouTube', color: 'bg-red-500' },
+  { id: 'x', label: 'X (Twitter)', color: 'bg-black' },
+  { id: 'google_business_profile', label: 'Google Business', color: 'bg-blue-500' },
+  { id: 'slack', label: 'Slack', color: 'bg-purple-600' },
+  { id: 'notion', label: 'Notion', color: 'bg-gray-900' },
 ];
 
 // Post status types
@@ -76,7 +82,22 @@ export const PLATFORM_LIMITS: Record<Platform, { maxChars: number; maxMedia: num
   linkedin: { maxChars: 3000, maxMedia: 9, videoAllowed: true },
   tiktok: { maxChars: 2200, maxMedia: 1, videoAllowed: true },
   pinterest: { maxChars: 500, maxMedia: 5, videoAllowed: true },
+  reddit: { maxChars: 40000, maxMedia: 1, videoAllowed: false },
+  slack: { maxChars: 4000, maxMedia: 0, videoAllowed: false },
+  notion: { maxChars: 20000, maxMedia: 0, videoAllowed: false },
 };
+
+// Recurring schedule configuration
+export type RecurrencePattern = 'daily' | 'weekly' | 'monthly';
+
+export interface RecurrenceSchedule {
+  pattern: RecurrencePattern;
+  interval: number; // e.g., every 2 days, every 3 weeks
+  startDate: Date;
+  endDate?: Date; // Optional end date for recurring posts
+  daysOfWeek?: number[]; // For weekly: 0=Sunday, 1=Monday, ..., 6=Saturday
+  dayOfMonth?: number; // For monthly: day of month (1-31)
+}
 
 // Post interface for UI
 export interface Post {
@@ -92,6 +113,8 @@ export interface Post {
   mediaUrls?: string[];
   hashtags?: string[];
   metrics?: PostMetrics;
+  recurrenceSchedule?: RecurrenceSchedule; // Recurring schedule configuration
+  brandId?: string; // Brand scoping
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +128,77 @@ export interface PostMetrics {
   comments: number;
   shares: number;
   views?: number;
+}
+
+// Hashtag Recommendations
+export interface HashtagRecommendation {
+  hashtag: string;
+  relevance: number; // 0-1 score
+  category?: string;
+  popularity?: number;
+}
+
+// Best Time to Post
+export interface BestTimeToPost {
+  platform: Platform;
+  dayOfWeek: number; // 0-6 (Sunday-Saturday)
+  hour: number; // 0-23
+  score: number; // 0-1 engagement score
+  engagementRate?: number;
+}
+
+// RSS Feed
+export interface RSSFeed {
+  id: string;
+  name: string;
+  url: string;
+  platform: Platform;
+  autoImport: boolean;
+  lastFetched?: Date;
+  lastItemCount?: number;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RSSFeedItem {
+  id: string;
+  feedId: string;
+  title: string;
+  description: string;
+  link: string;
+  publishedAt: Date;
+  author?: string;
+  categories?: string[];
+  imported: boolean;
+  createdAt: Date;
+}
+
+// Content Recycling
+export interface RecycledPost {
+  id: string;
+  originalPostId: string;
+  content: string;
+  platform: Platform;
+  scheduledTime?: Date;
+  publishedTime?: Date;
+  recycleCount: number; // How many times this has been recycled
+  lastRecycledAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Time Zone Optimization
+export interface TimeZoneOptimization {
+  platform: Platform;
+  timezone: string;
+  optimalTimes: Array<{
+    dayOfWeek: number;
+    hour: number;
+    score: number;
+  }>;
+  audienceTimezone?: string;
+  recommendedSchedule?: Date[];
 }
 
 // Campaign interface
@@ -123,13 +217,44 @@ export interface Campaign {
 // Social account interface
 export interface SocialAccount {
   id: string;
+  brandId?: string; // Brand scoping
   platform: Platform;
   username: string;
   displayName: string;
   avatarUrl?: string;
   isConnected: boolean;
+  status?: 'connected' | 'disconnected' | 'error' | 'stub'; // Status field
   lastSync?: Date;
   followerCount?: number;
+  organizationId?: string;
+  // OAuth connection fields (tokens never returned to client)
+  providerAccountId?: string; // External provider account ID (e.g., YouTube channel ID, FB Page ID)
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Asset Library types
+export type AssetType = 'image' | 'video' | 'template' | 'hashtags';
+
+export interface Asset {
+  id: string;
+  type: AssetType;
+  brandId?: string;
+  url?: string;
+  metadata?: {
+    filename?: string;
+    width?: number;
+    height?: number;
+    duration?: number;
+    size?: number;
+    mimeType?: string;
+    [key: string]: unknown;
+  };
+  version: string;
+  tags?: string[];
+  organizationId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Conversation interface
@@ -319,6 +444,142 @@ export interface AutopilotNotification {
 }
 
 export type NotificationAction = 'approve' | 'deny' | 'edit' | 'post_now' | 'reschedule' | 'dismiss';
+
+// Event interface for event-based post generation
+export interface Event {
+  id: string;
+  title: string;
+  eventDate: string; // YYYY-MM-DD
+  postWhen: 'same-day' | 'next-day' | string; // ISO datetime if custom
+  notes?: string;
+  assetIds: string[];
+  organizationId: string;
+  brandId?: string; // Brand scoping
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  avatarUrl?: string;
+  color?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Autopilot Brief types
+export type SubjectType = 'business' | 'creator' | 'mixed';
+export type PrimaryGoal = 'brand_awareness' | 'leads' | 'sales' | 'community' | 'traffic' | 'bookings';
+
+export interface PlatformConfig {
+  platform: 'instagram' | 'tiktok' | 'facebook' | 'linkedin' | 'youtube_shorts' | 'x' | 'pinterest';
+  priority: 1 | 2 | 3;
+  postingCadencePerWeek: number;
+}
+
+export interface VoiceConfig {
+  tone: string;
+  doSay?: string[];
+  dontSay?: string[];
+}
+
+export interface BrandAssets {
+  colors?: string[];
+  handles?: Record<string, string>;
+  hashtags?: string[];
+}
+
+export interface Constraints {
+  complianceNotes?: string;
+  noFaceKids?: boolean;
+  noClientNames?: boolean;
+}
+
+export interface AutopilotBrief {
+  id: string;
+  orgId: string;
+  brandId?: string; // Brand scoping
+  brandName: string;
+  subjectType: SubjectType;
+  industry: string;
+  primaryGoal: PrimaryGoal;
+  secondaryGoals: string[];
+  targetAudience: string;
+  offer: string;
+  location?: string;
+  platforms: PlatformConfig[];
+  voice: VoiceConfig;
+  brandAssets: BrandAssets;
+  constraints: Constraints;
+  successMetrics: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContentPillar {
+  name: string;
+  description: string;
+  examples: string[];
+}
+
+export interface WeeklyCadence {
+  platform: string;
+  postTypes: string[];
+  postsPerWeek: number;
+}
+
+export interface StarterPlanItem {
+  date: string; // YYYY-MM-DD
+  platform: string;
+  postIdea: string;
+  assetSuggestion?: string;
+}
+
+export interface StrategyPlan {
+  contentPillars: ContentPillar[];
+  weeklyCadence: WeeklyCadence[];
+  recommendedPostTypes: string[];
+  ctaGuidance: string;
+  thirtyDayStarterPlan: StarterPlanItem[];
+}
+
+// Autopilot Generate Response Types
+export interface AutopilotDraftPost {
+  id: string;
+  platform: Platform;
+  contentType: string;
+  caption: string;
+  hashtags?: string[];
+  notes?: string;
+  recommendedTime?: string;
+}
+
+export interface AutopilotCalendarSuggestion {
+  id: string;
+  date: string; // YYYY-MM-DD
+  platform: Platform;
+  title: string;
+  summary: string;
+  contentType: string;
+}
+
+export interface AutopilotPlanSummary {
+  overview: string;
+  pillars: string[];
+  cadence: {
+    platform: Platform;
+    postsPerWeek: number;
+    notes?: string;
+  }[];
+}
+
+export interface AutopilotGenerateResponse {
+  plan: AutopilotPlanSummary;
+  calendar: AutopilotCalendarSuggestion[];
+  drafts: AutopilotDraftPost[];
+}
 
 // Audit Log Entry
 export interface AuditLogEntry {
@@ -668,6 +929,7 @@ export interface PublishJob {
   // Rate limit tracking
   rateLimitResetAt?: Date;
   rateLimitRemaining?: number;
+  brandId?: string; // Brand scoping
 
   // Result
   publishedPostId?: string;
@@ -752,4 +1014,52 @@ export interface QuotaWarning {
   triggeredAt: Date;
   acknowledgedAt?: Date;
   acknowledgedByUserId?: string;
+}
+
+// ==========================================
+// GOOGLE WORKSPACE / EMAIL TYPES
+// ==========================================
+
+export interface GoogleIntegration {
+  id: string;
+  brandId: string;
+  provider: 'google';
+  email: string;
+  scopes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailThread {
+  id: string;
+  from: string;
+  subject: string;
+  snippet: string;
+  date: Date;
+  isUnread: boolean;
+  triageStatus?: 'needs_reply' | 'follow_up' | 'done';
+}
+
+export interface EmailMessage {
+  id: string;
+  threadId?: string;
+  from: string;
+  to: string[];
+  subject: string;
+  date: Date;
+  bodySnippet: string;
+  isUnread: boolean;
+  triageStatus?: 'needs_reply' | 'follow_up' | 'done';
+}
+
+export type TriageStatus = 'needs_reply' | 'follow_up' | 'done';
+
+// Email account interface
+export interface EmailAccount {
+  id: string;
+  email: string;
+  provider: 'google' | 'microsoft' | 'other';
+  status: 'connected' | 'disconnected';
+  brandId?: string;
+  createdAt?: Date;
 }

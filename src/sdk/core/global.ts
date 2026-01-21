@@ -7,12 +7,18 @@ declare global {
 	}
 }
 
-export const APP_CONFIG = initializeCreaoSDK();
+export const APP_CONFIG = initializeAppConfig();
 
-function initializeCreaoSDK() {
+function initializeAppConfig() {
+	// #region agent log
+	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'global.ts:12',message:'Config initialization start',data:{currentUrl:window.location.href},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'A'})}).catch(()=>{});
+	// #endregion
 	const config = parseCurrentUrl();
 	window.APP_CONFIG = config;
 
+	// #region agent log
+	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'global.ts:15',message:'Config parsed',data:{userId:config.userId,projectId:config.projectId,taskId:config.taskId,isValidBuildUrl:config.isValidBuildUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'A'})}).catch(()=>{});
+	// #endregion
 	console.log("App Configuration:", {
 		userId: config.userId,
 		projectId: config.projectId,
@@ -25,6 +31,9 @@ function initializeCreaoSDK() {
 	});
 
 	Promise.resolve().then(() => {
+		// #region agent log
+		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'global.ts:28',message:'Auth integration init start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'A'})}).catch(()=>{});
+		// #endregion
 		initializeAuthIntegration();
 	});
 

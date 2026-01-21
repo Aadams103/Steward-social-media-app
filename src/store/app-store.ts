@@ -25,6 +25,7 @@ import {
   type QuotaUsage,
   type QuotaWarning,
   type BillingPlan,
+  type Brand,
   PLAN_QUOTAS,
 } from '@/types/app';
 
@@ -203,6 +204,17 @@ interface AppState {
   canPublish: (connectionId: string) => boolean;
   isQuotaExceeded: (orgId: string, metric: QuotaUsage['metric']) => boolean;
   getQuotaPercentage: (orgId: string, metric: QuotaUsage['metric']) => number;
+
+  // ==========================================
+  // BRAND MANAGEMENT STATE
+  // ==========================================
+  activeBrandId: string | 'all' | null;
+  setActiveBrandId: (brandId: string | 'all' | null) => void;
+  brands: Brand[];
+  setBrands: (brands: Brand[]) => void;
+  addBrand: (brand: Brand) => void;
+  updateBrand: (id: string, updates: Partial<Brand>) => void;
+  removeBrand: (id: string) => void;
 }
 
 // Generate sample data
@@ -448,6 +460,9 @@ const generateDefaultAutopilotSettings = (): AutopilotSettings => ({
     linkedin: 3,
     tiktok: 5,
     pinterest: 3,
+    reddit: 3,
+    slack: 5,
+    notion: 2,
   },
 
   enableWebResearch: true,
@@ -963,10 +978,19 @@ const generateSampleQuotaWarnings = (): QuotaWarning[] => [
   },
 ];
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => {
+	// #region agent log
+	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-store.ts:966',message:'Store initialization start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
+	// #endregion
+	return {
   // Navigation
   activeView: 'dashboard',
-  setActiveView: (view) => set({ activeView: view }),
+  setActiveView: (view) => {
+		// #region agent log
+		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-store.ts:969',message:'Store state update - activeView',data:{view},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+		// #endregion
+		set({ activeView: view });
+	},
 
   // Calendar
   calendarView: 'week',
@@ -1428,12 +1452,89 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   // Helper Functions - these access state via get() parameter
-  getConnectionsByOrg: (orgId: string) => [],
-  getConnectionCapabilities: (connectionId: string) => [] as string[],
-  canPublish: (connectionId: string) => false,
-  isQuotaExceeded: (orgId: string, metric: QuotaUsage['metric']) => false,
-  getQuotaPercentage: (orgId: string, metric: QuotaUsage['metric']) => 0,
-}));
+  getConnectionsByOrg: (orgId: string) => {
+    const state = get();
+    return state.oauthConnections.filter((c: OAuthConnection) => c.organizationId === orgId);
+  },
+  getConnectionCapabilities: (connectionId: string) => {
+    const state = get();
+    const connection = state.oauthConnections.find((c: OAuthConnection) => c.id === connectionId);
+    return connection?.capabilities || [];
+  },
+  canPublish: (connectionId: string) => {
+    const state = get();
+    const connection = state.oauthConnections.find((c: OAuthConnection) => c.id === connectionId);
+    if (!connection) return false;
+    return (
+      connection.status === 'active' &&
+      connection.capabilities.includes('publish_post')
+    );
+  },
+  isQuotaExceeded: (orgId: string, metric: QuotaUsage['metric']) => {
+    const state = get();
+    const quota = state.quotaUsage.find(
+      (q: QuotaUsage) => q.organizationId === orgId && q.metric === metric
+    );
+    if (!quota) return false;
+    if (quota.limit === -1) return false; // unlimited
+    return quota.used >= quota.limit;
+  },
+  getQuotaPercentage: (orgId: string, metric: QuotaUsage['metric']) => {
+    const state = get();
+    const quota = state.quotaUsage.find(
+      (q: QuotaUsage) => q.organizationId === orgId && q.metric === metric
+    );
+    if (!quota) return 0;
+    if (quota.limit === -1) return 0; // unlimited
+    return Math.min(100, Math.round((quota.used / quota.limit) * 100));
+  },
+
+  // ==========================================
+  // BRAND MANAGEMENT STATE IMPLEMENTATION
+  // ==========================================
+  activeBrandId: (() => {
+    // Load from localStorage on initialization
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hostess_active_brand_id');
+      return stored || null;
+    }
+    return null;
+  })(),
+  setActiveBrandId: (brandId) => {
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      if (brandId === null) {
+        localStorage.removeItem('hostess_active_brand_id');
+      } else {
+        localStorage.setItem('hostess_active_brand_id', brandId);
+      }
+    }
+    set({ activeBrandId: brandId });
+  },
+  brands: [],
+  setBrands: (brands) => set({ brands }),
+  addBrand: (brand) => set((state) => ({ brands: [...state.brands, brand] })),
+  updateBrand: (id, updates) => set((state) => ({
+    brands: state.brands.map((b) => (b.id === id ? { ...b, ...updates, updatedAt: new Date() } : b)),
+  })),
+  removeBrand: (id) => set((state) => {
+    const newBrands = state.brands.filter((b) => b.id !== id);
+    // If removed brand was active, switch to first available or null
+    let newActiveBrandId = state.activeBrandId;
+    if (state.activeBrandId === id) {
+      newActiveBrandId = newBrands.length > 0 ? newBrands[0].id : null;
+      if (typeof window !== 'undefined') {
+        if (newActiveBrandId) {
+          localStorage.setItem('hostess_active_brand_id', newActiveBrandId);
+        } else {
+          localStorage.removeItem('hostess_active_brand_id');
+        }
+      }
+    }
+    return { brands: newBrands, activeBrandId: newActiveBrandId };
+  }),
+};
+});
 
 // Helper functions that work with the store (called externally)
 export const getConnectionsByOrg = (orgId: string): OAuthConnection[] => {
