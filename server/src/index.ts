@@ -135,7 +135,7 @@ wss.on('connection', (ws: WebSocket) => {
     clients.delete(ws);
   });
 
-  ws.on('error', (error) => {
+  ws.on('error', (error: unknown) => {
     console.error('WebSocket error:', error);
   });
 });
@@ -2394,7 +2394,8 @@ app.delete('/api/brands/:id', (req, res) => {
 
 // POST /api/brands/:id/avatar (multipart upload)
 app.post('/api/brands/:id/avatar', upload.single('file'), (req: ExpressRequest, res) => {
-  const brand = brands.get(req.params.id);
+  const brandId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const brand = brands.get(brandId);
   if (!brand) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Brand not found' });
   }
@@ -2443,83 +2444,8 @@ app.post('/api/brands/:id/avatar', upload.single('file'), (req: ExpressRequest, 
 
 // DELETE /api/brands/:id/avatar
 app.delete('/api/brands/:id/avatar', (req, res) => {
-  const brand = brands.get(req.params.id);
-  if (!brand) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Brand not found' });
-  }
-
-  // Delete avatar file if exists
-  if (brand.avatarUrl) {
-    const avatarPath = path.join(uploadsDir, path.basename(brand.avatarUrl));
-    if (fs.existsSync(avatarPath)) {
-      fs.unlinkSync(avatarPath);
-    }
-  }
-
-  // Update brand
-  const updated: Brand = {
-    ...brand,
-    avatarUrl: undefined,
-    updatedAt: new Date(),
-  };
-
-  brands.set(brand.id, updated);
-  broadcast({ type: 'brand_updated', data: updated });
-  res.json({ avatarUrl: undefined });
-});
-
-// POST /api/brands/:id/avatar (multipart upload)
-app.post('/api/brands/:id/avatar', upload.single('file'), (req: ExpressRequest, res) => {
-  const brand = brands.get(req.params.id);
-  if (!brand) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Brand not found' });
-  }
-
-  const file = (req as ExpressRequest & { file?: Express.Multer.File }).file;
-  if (!file) {
-    return res.status(400).json({ code: 'INVALID_REQUEST', message: 'No file uploaded' });
-  }
-
-  // Validate file type
-  if (!file.mimetype.startsWith('image/')) {
-    // Delete uploaded file
-    fs.unlinkSync(file.path);
-    return res.status(400).json({ code: 'INVALID_FILE_TYPE', message: 'File must be an image' });
-  }
-
-  // Validate file size (5MB)
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  if (file.size > maxSize) {
-    fs.unlinkSync(file.path);
-    return res.status(413).json({ code: 'FILE_TOO_LARGE', message: 'File too large. Max size is 5MB.' });
-  }
-
-  // Delete old avatar if exists
-  if (brand.avatarUrl) {
-    const oldAvatarPath = path.join(uploadsDir, path.basename(brand.avatarUrl));
-    if (fs.existsSync(oldAvatarPath)) {
-      fs.unlinkSync(oldAvatarPath);
-    }
-  }
-
-  // Generate avatar URL
-  const avatarUrl = `/uploads/${file.filename}`;
-
-  // Update brand
-  const updated: Brand = {
-    ...brand,
-    avatarUrl,
-    updatedAt: new Date(),
-  };
-
-  brands.set(brand.id, updated);
-  broadcast({ type: 'brand_updated', data: updated });
-  res.json({ avatarUrl });
-});
-
-// DELETE /api/brands/:id/avatar
-app.delete('/api/brands/:id/avatar', (req, res) => {
-  const brand = brands.get(req.params.id);
+  const brandId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const brand = brands.get(brandId);
   if (!brand) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Brand not found' });
   }

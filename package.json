@@ -12,12 +12,14 @@
     "check:safe": "node -e \"const {spawn}=require('child_process');const proc=spawn('npm',['run','check'],{shell:true});let timeout=setTimeout(()=>{proc.kill();process.exit(1);},20000);proc.on('exit',(c)=>{clearTimeout(timeout);process.exit(c||0);});proc.stdout.pipe(process.stdout);proc.stderr.pipe(process.stderr);\"",
     "format": "biome check --write --unsafe",
     "format:quiet": "biome check --write --unsafe --log-level=warn",
-    "lint:radix": "grep -l -r '<SelectItem' src | xargs eslint --config config/eslint/eslint.radix.config.js",
+    "lint:radix": "eslint src --config config/eslint/eslint.radix.config.js",
     "lint:mcp": "eslint src --config config/eslint/eslint.mcp.config.js",
     "lint:validate": "node config/eslint/validate-configs.js",
     "prepare": "echo Skipping git hooks setup"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "ws": "^8.14.2",
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
     "@fortawesome/free-brands-svg-icons": "^7.0.0",
     "@fortawesome/react-fontawesome": "^0.2.3",
@@ -82,6 +84,8 @@
     "multer": "^1.4.5-lts.2"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/ws": "^8.5.10",
     "@babel/plugin-syntax-typescript": "^7.27.1",
     "@babel/plugin-transform-react-jsx": "^7.27.1",
     "@babel/plugin-transform-react-jsx-development": "^7.27.1",

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" fill="none" aria-hidden="true">
+  <!-- Steward mark: flowing S-like shape (light mark for dark UI). Fill #f5f0e8 -->
+  <g fill="#f5f0e8">
+    <path d="M20 8c-3 0-6 2-8 5-2 3-2 7 0 10 2 2 5 4 8 4 2 0 4-1 5-3 1-2 0-4-2-5-1 0-2 0-3 1-1 1-1 2 0 3 1 1 3 1 4 0 2-1 2-3 1-5-1-2-4-3-6-3-4 0-7 2-9 5s-2 6 0 9c2 3 5 5 9 5 3 0 6-1 8-4 1-2 1-4 0-6-1-1-2-2-4-2-1 0-2 0-2 1s0 2 1 2c2 1 4 0 5-1 1-2 2-4 1-6-1-3-3-5-6-6-4-1-7 0-10 2-2 2-4 5-4 8z"/>
+  </g>
+  <text x="46" y="32" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#f5f0e8" letter-spacing="0.06em">STEWARD</text>
+</svg>

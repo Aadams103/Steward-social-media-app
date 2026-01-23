@@ -8,7 +8,10 @@ import svgr from "vite-plugin-svgr";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-	base: process.env.NODE_ENV === "production" && process.env.TENANT_ID ? `/${process.env.TENANT_ID}/` : "/", // Force base="/" in development
+	base:
+		process.env.NODE_ENV === "production" && process.env.TENANT_ID
+			? `/${process.env.TENANT_ID}/`
+			: "/", // Force base="/" in development
 	define: {
 		"import.meta.env.TENANT_ID": JSON.stringify(process.env.TENANT_ID || ""),
 	},
@@ -40,15 +43,15 @@ export default defineConfig({
 			interval: 300, // ms; tune if CPU gets high
 		},
 		proxy: {
-			'/api': {
-				target: 'http://localhost:8080',
+			"/api": {
+				target: "http://localhost:8080",
 				changeOrigin: true,
 				secure: false,
-				},
-				'/uploads': {
-					target: 'http://localhost:8080',
-					changeOrigin: true,
-					secure: false,
+			},
+			"/uploads": {
+				target: "http://localhost:8080",
+				changeOrigin: true,
+				secure: false,
 			},
 		},
 	},

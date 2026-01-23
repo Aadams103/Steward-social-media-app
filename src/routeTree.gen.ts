@@ -11,33 +11,88 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as AppImport } from './routes/app'
+import { Route as MarketingImport } from './routes/_marketing'
 import { Route as AuthenticatedImport } from './routes/_authenticated'
-import { Route as IndexImport } from './routes/index'
+import { Route as AppIndexImport } from './routes/app/index'
+import { Route as MarketingIndexImport } from './routes/_marketing.index'
+import { Route as MarketingSecurityPrivacyImport } from './routes/_marketing.security-privacy'
+import { Route as MarketingProductImport } from './routes/_marketing.product'
+import { Route as MarketingPricingImport } from './routes/_marketing.pricing'
+import { Route as MarketingHowItWorksImport } from './routes/_marketing.how-it-works'
+import { Route as MarketingDocsImport } from './routes/_marketing.docs'
+import { Route as MarketingContactImport } from './routes/_marketing.contact'
 
 // Create/Update Routes
+
+const AppRoute = AppImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const MarketingRoute = MarketingImport.update({
+  id: '/_marketing',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const AuthenticatedRoute = AuthenticatedImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRoute,
 } as any)
 
-const IndexRoute = IndexImport.update({
+const AppIndexRoute = AppIndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => AppRoute,
+} as any)
+
+const MarketingIndexRoute = MarketingIndexImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingSecurityPrivacyRoute = MarketingSecurityPrivacyImport.update({
+  id: '/security-privacy',
+  path: '/security-privacy',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingProductRoute = MarketingProductImport.update({
+  id: '/product',
+  path: '/product',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingPricingRoute = MarketingPricingImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingHowItWorksRoute = MarketingHowItWorksImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingDocsRoute = MarketingDocsImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingContactRoute = MarketingContactImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => MarketingRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -45,44 +100,205 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedImport
       parentRoute: typeof rootRoute
     }
+    '/_marketing': {
+      id: '/_marketing'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof MarketingImport
+      parentRoute: typeof rootRoute
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppImport
+      parentRoute: typeof rootRoute
+    }
+    '/_marketing/contact': {
+      id: '/_marketing/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof MarketingContactImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/docs': {
+      id: '/_marketing/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof MarketingDocsImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/how-it-works': {
+      id: '/_marketing/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof MarketingHowItWorksImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/pricing': {
+      id: '/_marketing/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof MarketingPricingImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/product': {
+      id: '/_marketing/product'
+      path: '/product'
+      fullPath: '/product'
+      preLoaderRoute: typeof MarketingProductImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/security-privacy': {
+      id: '/_marketing/security-privacy'
+      path: '/security-privacy'
+      fullPath: '/security-privacy'
+      preLoaderRoute: typeof MarketingSecurityPrivacyImport
+      parentRoute: typeof MarketingImport
+    }
+    '/_marketing/': {
+      id: '/_marketing/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof MarketingIndexImport
+      parentRoute: typeof MarketingImport
+    }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexImport
+      parentRoute: typeof AppImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface MarketingRouteChildren {
+  MarketingContactRoute: typeof MarketingContactRoute
+  MarketingDocsRoute: typeof MarketingDocsRoute
+  MarketingHowItWorksRoute: typeof MarketingHowItWorksRoute
+  MarketingPricingRoute: typeof MarketingPricingRoute
+  MarketingProductRoute: typeof MarketingProductRoute
+  MarketingSecurityPrivacyRoute: typeof MarketingSecurityPrivacyRoute
+  MarketingIndexRoute: typeof MarketingIndexRoute
+}
+
+const MarketingRouteChildren: MarketingRouteChildren = {
+  MarketingContactRoute: MarketingContactRoute,
+  MarketingDocsRoute: MarketingDocsRoute,
+  MarketingHowItWorksRoute: MarketingHowItWorksRoute,
+  MarketingPricingRoute: MarketingPricingRoute,
+  MarketingProductRoute: MarketingProductRoute,
+  MarketingSecurityPrivacyRoute: MarketingSecurityPrivacyRoute,
+  MarketingIndexRoute: MarketingIndexRoute,
+}
+
+const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
+  MarketingRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '': typeof AuthenticatedRoute
+  '': typeof MarketingRouteWithChildren
+  '/app': typeof AppRouteWithChildren
+  '/contact': typeof MarketingContactRoute
+  '/docs': typeof MarketingDocsRoute
+  '/how-it-works': typeof MarketingHowItWorksRoute
+  '/pricing': typeof MarketingPricingRoute
+  '/product': typeof MarketingProductRoute
+  '/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/': typeof MarketingIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '': typeof AuthenticatedRoute
+  '/contact': typeof MarketingContactRoute
+  '/docs': typeof MarketingDocsRoute
+  '/how-it-works': typeof MarketingHowItWorksRoute
+  '/pricing': typeof MarketingPricingRoute
+  '/product': typeof MarketingProductRoute
+  '/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/': typeof MarketingIndexRoute
+  '/app': typeof AppIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRoute
+  '/_marketing': typeof MarketingRouteWithChildren
+  '/app': typeof AppRouteWithChildren
+  '/_marketing/contact': typeof MarketingContactRoute
+  '/_marketing/docs': typeof MarketingDocsRoute
+  '/_marketing/how-it-works': typeof MarketingHowItWorksRoute
+  '/_marketing/pricing': typeof MarketingPricingRoute
+  '/_marketing/product': typeof MarketingProductRoute
+  '/_marketing/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/_marketing/': typeof MarketingIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | ''
+  fullPaths:
+    | ''
+    | '/app'
+    | '/contact'
+    | '/docs'
+    | '/how-it-works'
+    | '/pricing'
+    | '/product'
+    | '/security-privacy'
+    | '/'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | ''
-  id: '__root__' | '/' | '/_authenticated'
+  to:
+    | ''
+    | '/contact'
+    | '/docs'
+    | '/how-it-works'
+    | '/pricing'
+    | '/product'
+    | '/security-privacy'
+    | '/'
+    | '/app'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/_marketing'
+    | '/app'
+    | '/_marketing/contact'
+    | '/_marketing/docs'
+    | '/_marketing/how-it-works'
+    | '/_marketing/pricing'
+    | '/_marketing/product'
+    | '/_marketing/security-privacy'
+    | '/_marketing/'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRoute
+  MarketingRoute: typeof MarketingRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRoute,
+  MarketingRoute: MarketingRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
 }
 
 export const routeTree = rootRoute
@@ -95,15 +311,63 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
-        "/_authenticated"
+        "/_authenticated",
+        "/_marketing",
+        "/app"
       ]
-    },
-    "/": {
-      "filePath": "index.tsx"
     },
     "/_authenticated": {
       "filePath": "_authenticated.tsx"
+    },
+    "/_marketing": {
+      "filePath": "_marketing.tsx",
+      "children": [
+        "/_marketing/contact",
+        "/_marketing/docs",
+        "/_marketing/how-it-works",
+        "/_marketing/pricing",
+        "/_marketing/product",
+        "/_marketing/security-privacy",
+        "/_marketing/"
+      ]
+    },
+    "/app": {
+      "filePath": "app.tsx",
+      "children": [
+        "/app/"
+      ]
+    },
+    "/_marketing/contact": {
+      "filePath": "_marketing.contact.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/docs": {
+      "filePath": "_marketing.docs.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/how-it-works": {
+      "filePath": "_marketing.how-it-works.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/pricing": {
+      "filePath": "_marketing.pricing.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/product": {
+      "filePath": "_marketing.product.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/security-privacy": {
+      "filePath": "_marketing.security-privacy.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/": {
+      "filePath": "_marketing.index.tsx",
+      "parent": "/_marketing"
+    },
+    "/app/": {
+      "filePath": "app/index.tsx",
+      "parent": "/app"
     }
   }
 }

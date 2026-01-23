@@ -463,6 +463,9 @@ const generateDefaultAutopilotSettings = (): AutopilotSettings => ({
     reddit: 3,
     slack: 5,
     notion: 2,
+    youtube: 4,
+    x: 5,
+    google_business_profile: 3,
   },
 
   enableWebResearch: true,

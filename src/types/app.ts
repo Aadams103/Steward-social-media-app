@@ -85,6 +85,9 @@ export const PLATFORM_LIMITS: Record<Platform, { maxChars: number; maxMedia: num
   reddit: { maxChars: 40000, maxMedia: 1, videoAllowed: false },
   slack: { maxChars: 4000, maxMedia: 0, videoAllowed: false },
   notion: { maxChars: 20000, maxMedia: 0, videoAllowed: false },
+  youtube: { maxChars: 5000, maxMedia: 1, videoAllowed: true },
+  x: { maxChars: 4000, maxMedia: 4, videoAllowed: true },
+  google_business_profile: { maxChars: 1500, maxMedia: 10, videoAllowed: true },
 };
 
 // Recurring schedule configuration

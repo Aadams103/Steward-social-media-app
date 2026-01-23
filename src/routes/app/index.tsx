@@ -102,6 +102,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useAppStore } from "@/store/app-store";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
+import { StewardLogo } from "@/components/StewardLogo";
+import { APP_NAME } from "@/config/brand";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePosts, useCampaigns, useSocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useAssets, useCreateAsset, useUploadAssets, useUpdateAsset, useDeleteAsset, useCreatePost, useBulkCreatePosts, useHashtagRecommendations, useBestTimeToPost, useRSSFeeds, useCreateRSSFeed, useDeleteRSSFeed, useImportRSSFeed, useRSSFeedItems, useTimezoneOptimization, useRecyclePost, useRecycledPosts, useAutopilotSettings, useUpdateAutopilotSettings, useEvents, useCreateEvent, useGenerateEventDrafts, useAutopilotBrief, useUpdateAutopilotBrief, useGenerateStrategyPlan, useAutopilotGenerate, useBrands, useCurrentBrand, useCreateBrand, useUpdateBrand, useDeleteBrand, useUploadBrandAvatar, useDeleteBrandAvatar, useSetCurrentBrand, useCalendar, useScheduleTemplates, useCreateScheduleTemplate, useUpdateScheduleTemplate, useDeleteScheduleTemplate, useGoogleIntegrations, useDeleteGoogleIntegration, useEmailAccounts, useDeleteEmailAccount, useEmailThreads, useEmailMessage, useSetEmailTriage } from "@/hooks/use-api";
 import { UploadDropzone, type UploadedItem } from "@/components/uploads/UploadDropzone";
@@ -150,7 +152,7 @@ import {
   type PlatformConstraint 
 } from "@/config/platform-constraints";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/app/")({
   component: App,
 });
 
@@ -238,14 +240,11 @@ function Sidebar() {
       "flex flex-col h-full bg-zinc-900 text-white transition-all duration-300",
       sidebarCollapsed ? "w-16" : "w-64"
     )}>
-      <div className="p-4 border-b border-zinc-800">
-        <h1 className={cn("font-bold text-xl", sidebarCollapsed && "hidden")}>
-          SocialHub
-        </h1>
-        {sidebarCollapsed && (
-          <div className="flex justify-center">
-            <Megaphone className="h-6 w-6" />
-          </div>
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-center">
+        {sidebarCollapsed ? (
+          <StewardLogo variant="mark" height={28} />
+        ) : (
+          <StewardLogo variant="full" height={28} />
         )}
       </div>
       <ScrollArea className="flex-1">
@@ -3000,7 +2999,7 @@ function AccountsView() {
           <DialogHeader>
             <DialogTitle>Connect Social Account</DialogTitle>
             <DialogDescription>
-              Choose a platform to connect to your SocialHub account
+              Choose a platform to connect to your {APP_NAME} account
             </DialogDescription>
           </DialogHeader>
           <ConnectAccountButtonsDialog currentBrandId={currentBrandId} refetchAccounts={refetchAccounts} setDialogOpen={setConnectDialogOpen} />
@@ -3999,7 +3998,7 @@ function SettingsView() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Configure your SocialHub preferences</p>
+        <p className="text-muted-foreground">Configure your {APP_NAME} preferences</p>
       </div>
 
       <Tabs defaultValue="brands" className="space-y-6">

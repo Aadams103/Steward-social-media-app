@@ -19,7 +19,6 @@ import {
   LogOut,
   User,
   CreditCard,
-  Building2,
   Plus,
   AlertCircle,
   ChevronLeft,
@@ -46,6 +45,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppStore } from "@/store/app-store";
 import { useBrands, useCurrentBrand, useSetCurrentBrand } from "@/hooks/use-api";
+import { APP_NAME } from "@/config/brand";
+import { StewardLogo } from "@/components/StewardLogo";
+import { BackButton } from "@/components/BackButton";
 
 interface NavItem {
   id: string;
@@ -167,15 +169,14 @@ export function AppShell({
         )}
       >
         {/* Logo/Brand */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex h-16 items-center justify-between border-b px-4 gap-2">
           {sidebarCollapsed ? (
-            <div className="flex items-center justify-center w-full">
-              <Building2 className="h-6 w-6 text-primary" />
+            <div className="flex flex-1 items-center justify-center min-w-0">
+              <StewardLogo variant="mark" height={28} />
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Building2 className="h-6 w-6 text-primary" />
-              <h1 className="font-bold text-lg">Hostess</h1>
+            <div className="flex flex-1 items-center min-w-0">
+              <StewardLogo variant="full" height={28} />
             </div>
           )}
           <Button
@@ -268,6 +269,7 @@ export function AppShell({
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-6">
+          <BackButton />
           {/* Brand Switcher */}
           <div className="flex items-center gap-4 flex-1">
             <DropdownMenu>
