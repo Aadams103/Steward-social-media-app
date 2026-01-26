@@ -1,44 +1,46 @@
 # Railway Deployment Guide
 
-Quick steps to deploy Hostess backend to Railway.
+**Quick reference** - For complete deployment guide, see [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md)
 
-## Prerequisites
+## Quick Start
 
-- Railway account (sign up at https://railway.app)
-- GitHub repository with Hostess code
+1. **Go to Railway**: https://railway.app/new
+2. **Deploy from GitHub repo** → Select your Hostess repository
+3. **Configure:**
+   - **Root Directory**: `server`
+   - **Start Command**: (auto-detected) `npm start`
+4. **Set Environment Variables:**
+   - `NODE_ENV=production`
+5. **Deploy** - Railway handles the rest!
 
-## Deployment Steps
+## Verify Deployment
 
-1. **Create Railway project from GitHub repo**
-   - Go to https://railway.app/new
-   - Select "Deploy from GitHub repo"
-   - Choose your Hostess repository
+```bash
+curl https://your-service.up.railway.app/api/health
+# Should return: {"ok":true,"time":"...","version":"1.0.0"}
+```
 
-2. **Configure service**
-   - Set **Root Directory** = `server`
-   - Set **Start Command** (if needed) = `npm start`
-   - Railway will auto-detect `package.json` scripts
+## Add Postgres Database (For Real Data)
 
-3. **Set environment variables**
-   - In Railway dashboard, go to Variables tab
-   - Add: `NODE_ENV=production`
-   - Add OAuth secrets later as needed (GOOGLE_CLIENT_ID, META_APP_ID, etc.)
+1. In Railway dashboard → **"+ New"** → **"Database"** → **"Add Postgres"**
+2. Railway automatically sets `DATABASE_URL` environment variable
+3. **Note**: Backend code still uses in-memory storage - you'll need to update it to use Postgres
 
-4. **Deploy**
-   - Railway will automatically:
-     - Run `npm ci` to install dependencies
-     - Run `npm run build` (if configured)
-     - Run `npm start` to start the server
-   - Railway provides `PORT` automatically (no need to set it)
+## Frontend Deployment
 
-5. **Verify deployment**
-   - Open the service URL provided by Railway
-   - Test health endpoint: `https://<service-url>/api/health`
-   - Should return: `{"ok":true,"time":"...","version":"1.0.0"}`
+Deploy frontend separately:
+- **Vercel** (recommended): https://vercel.com/new
+- **Railway Static**: Add new service → Static Site
 
-## Notes
+Set environment variables:
+- `VITE_API_BASE_PATH=https://your-backend-url.up.railway.app/api`
+- `VITE_WS_BASE_URL=wss://your-backend-url.up.railway.app/ws`
 
-- Railway automatically sets `PORT` environment variable
-- Backend binds to `0.0.0.0` to accept external connections
-- Default port fallback is 8080 (only used if PORT not set)
-- For production, add all required OAuth credentials in Variables tab
+## Full Documentation
+
+See [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) for:
+- Complete step-by-step instructions
+- Render, Vercel, Supabase alternatives
+- Database setup with Prisma
+- Troubleshooting guide
+- Environment variables reference

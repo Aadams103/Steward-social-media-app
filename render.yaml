@@ -1,0 +1,42 @@
+# Render deployment configuration
+# For full-stack deployment on Render
+
+services:
+  # Backend API Service
+  - type: web
+    name: hostess-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Add your OAuth credentials here or in Render dashboard
+      # - key: GOOGLE_CLIENT_ID
+      #   value: your_google_client_id
+      # - key: GOOGLE_CLIENT_SECRET
+      #   value: your_google_client_secret
+      # - key: META_APP_ID
+      #   value: your_meta_app_id
+      # - key: META_APP_SECRET
+      #   value: your_meta_app_secret
+
+  # Frontend Static Site
+  - type: web
+    name: hostess-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Update these with your backend URL after deployment
+      - key: VITE_API_BASE_PATH
+        value: https://hostess-backend.onrender.com/api
+      - key: VITE_WS_BASE_URL
+        value: wss://hostess-backend.onrender.com/ws
+
+  # PostgreSQL Database (optional - add when ready for real data)
+  # - type: pspg
+  #   name: hostess-db
+  #   databaseName: hostess
+  #   user: hostess_user
