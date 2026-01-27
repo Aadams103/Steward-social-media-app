@@ -25,7 +25,7 @@ export type PlatformRules = {
   id: PlatformId;
   displayName: string;
 
-  // What we support in Hostess (MVP)
+  // What we support in Steward (MVP)
   supportedContentTypes: ContentType[];
 
   // Practical constraints (MVP; not exhaustive)

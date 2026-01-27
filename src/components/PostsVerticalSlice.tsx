@@ -299,7 +299,7 @@ export function PostsVerticalSlice() {
                     )}
                     {job.publishedUrl && (
                       <p>
-                        <a href={job.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                        <a href={job.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                           View Published Post →
                         </a>
                       </p>

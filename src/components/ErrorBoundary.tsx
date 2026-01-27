@@ -2,6 +2,8 @@ import { reportError } from "@/sdk/core/internal/app-shell";
 import { AlertTriangle } from "lucide-react";
 import React, { useReducer, type JSX } from "react";
 import { ScrollArea } from "./ui/scroll-area";
+import { AppLogo } from "./AppLogo";
+import { APP_NAME } from "@/config/brand";
 
 interface ErrorBoundaryState {
 	hasError: boolean;
@@ -95,15 +97,19 @@ function ErrorMask(props: {
 				className={`fixed z-10000 inset-0 flex items-center justify-center p-8 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 transition-opacity ${!isCollapsed ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
 			>
 				<div className="text-white text-center flex flex-col gap-4 p-4 max-w-lg rounded-lg bg-black/70">
-					<AlertTriangle className="w-10 h-10 mx-auto" />
+					<div className="flex justify-center gap-3 items-center">
+						<AppLogo variant="mark" theme="light" size={32} />
+						<AlertTriangle className="w-10 h-10 shrink-0" />
+					</div>
 					<h1 className="text-2xl font-bold">Something went wrong</h1>
+					<p className="text-sm text-white/80">We&apos;re sorry. {APP_NAME} hit an error.</p>
 
 					<div className="text-sm whitespace-pre-wrap">
 						{props.error?.message}
 					</div>
 
 					<ScrollArea className="h-40 w-full">
-						<pre className="text-sm whitespace-pre-wrap text-red-500 text-left">
+						<pre className="text-sm whitespace-pre-wrap text-destructive text-left">
 							{props.errorInfo?.componentStack || props.error?.stack}
 						</pre>
 					</ScrollArea>
@@ -132,9 +138,10 @@ function ErrorMask(props: {
 			<div
 				className={`fixed left-0 top-0 w-full flex items-center gap-4 flex-wrap bg-black/70 p-4 ${isCollapsed ? "translate-y-0" : "translate-y-[-100%]"} transition-all duration-200`}
 			>
-				<div className="text-yellow-300 font-bold flex items-center gap-2">
+				<AppLogo variant="mark" theme="light" size={24} />
+				<div className="text-warning font-bold flex items-center gap-2">
 					<AlertTriangle className="w-6 h-6" />
-					Page is not working
+					{APP_NAME} — Page is not working
 				</div>
 				<div className="text-white"> {props.error?.message} </div>
 				<button

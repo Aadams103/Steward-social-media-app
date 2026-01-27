@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+  <!-- Steward mark only: two flowing S strokes. Light #f5f0e8 for dark UI -->
+  <g stroke="#f5f0e8" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 14 C 24 6 36 10 36 18 C 36 24 24 22 12 18" />
+    <path d="M12 22 C 24 26 36 24 36 30 C 36 38 24 34 12 30" />
+  </g>
+</svg>
+

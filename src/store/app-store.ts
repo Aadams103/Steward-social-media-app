@@ -9,6 +9,7 @@ import {
   type Conversation,
   type Alert,
   type BrandProfile,
+  type StewardPersona,
   type AutopilotSettings,
   type ScheduledSlot,
   type AutopilotNotification,
@@ -26,6 +27,10 @@ import {
   type QuotaWarning,
   type BillingPlan,
   type Brand,
+  type UserProfile,
+  type UserPreferences,
+  type ActiveSession,
+  type DeviceHistory,
   PLAN_QUOTAS,
 } from '@/types/app';
 
@@ -94,10 +99,15 @@ interface AppState {
   // AUTOPILOT STATE
   // ==========================================
 
-  // Brand Profile
+  // Brand Profile (My Brand)
   brandProfile: BrandProfile | null;
   setBrandProfile: (profile: BrandProfile) => void;
   updateBrandProfile: (updates: Partial<BrandProfile>) => void;
+
+  // Steward Persona (My Steward)
+  stewardPersona: StewardPersona;
+  setStewardPersona: (persona: StewardPersona) => void;
+  updateStewardPersona: (updates: Partial<StewardPersona>) => void;
 
   // Autopilot Settings
   autopilotSettings: AutopilotSettings;
@@ -215,6 +225,25 @@ interface AppState {
   addBrand: (brand: Brand) => void;
   updateBrand: (id: string, updates: Partial<Brand>) => void;
   removeBrand: (id: string) => void;
+
+  // ==========================================
+  // USER PROFILE STATE (The Human Identity)
+  // ==========================================
+  userProfile: UserProfile | null;
+  setUserProfile: (profile: UserProfile) => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
+
+  userPreferences: UserPreferences;
+  setUserPreferences: (preferences: UserPreferences) => void;
+  updateUserPreferences: (updates: Partial<UserPreferences>) => void;
+
+  activeSessions: ActiveSession[];
+  setActiveSessions: (sessions: ActiveSession[]) => void;
+  removeSession: (sessionId: string) => void;
+  signOutAllDevices: () => void;
+
+  deviceHistory: DeviceHistory[];
+  setDeviceHistory: (history: DeviceHistory[]) => void;
 }
 
 // Generate sample data
@@ -389,59 +418,124 @@ const generateSampleAlerts = (): Alert[] => [
   },
 ];
 
-// Sample Brand Profile
-const generateSampleBrandProfile = (): BrandProfile => ({
-  id: 'brand1',
-  brandName: 'TechFlow Solutions',
-  industry: 'Technology / SaaS',
-  audience: 'Small to medium business owners, marketing managers, and entrepreneurs looking to streamline their social media presence',
-  location: 'United States, Canada, UK',
-
-  brandVoice: 'Professional yet approachable. We speak with confidence and clarity, using simple language to explain complex topics. Friendly but not overly casual.',
-  writingDos: [
-    'Use active voice',
-    'Include clear CTAs',
-    'Share actionable tips',
-    'Be encouraging and supportive',
-    'Use data when possible',
-  ],
-  writingDonts: [
-    'Use jargon without explanation',
-    'Be condescending',
-    'Make unrealistic promises',
-    'Use excessive exclamation marks',
-    'Be negative about competitors',
-  ],
-
-  offers: ['Free trial', '20% off annual plans', 'Free consultation'],
-  services: ['Social media scheduling', 'AI content generation', 'Analytics dashboard', 'Team collaboration'],
-  prices: 'Starting at $29/month',
-  ctaLinks: [
-    { label: 'Start Free Trial', url: 'https://example.com/trial' },
-    { label: 'Book a Demo', url: 'https://example.com/demo' },
-    { label: 'Learn More', url: 'https://example.com/features' },
-  ],
-
-  primaryColors: ['#3B82F6', '#1E40AF'],
-  secondaryColors: ['#10B981', '#F59E0B'],
-  visualVibe: 'Modern, clean, tech-forward with gradients and soft shadows',
-  doNotUseImagery: ['Stock photos with fake smiles', 'Cluttered backgrounds', 'Overly corporate imagery'],
-
-  postingGoals: ['growth', 'leads', 'awareness'],
-  contentPillars: [
-    'Product tips & tutorials',
-    'Industry insights & trends',
-    'Customer success stories',
-    'Behind the scenes & team culture',
-    'Thought leadership',
-  ],
-
-  bannedWords: ['guarantee', 'best', '#1', 'unlimited'],
-  bannedClaims: ['Results guaranteed', 'Get rich quick', 'No effort required'],
-  complianceNotes: 'Always include disclaimers for promotional claims. Never promise specific ROI numbers.',
-
+// Sample Steward Persona
+const generateDefaultStewardPersona = (): StewardPersona => ({
+  id: 'steward1',
+  name: 'Steward',
+  voiceIdentity: 'neutral',
+  personalityStyle: 'calm_formal',
   updatedAt: new Date(),
 });
+
+// Sample Brand Profile (updated to new structure)
+const generateSampleBrandProfile = (): BrandProfile => {
+  const now = new Date();
+  return {
+    id: 'brand1',
+    brandName: 'TechFlow Solutions',
+    industry: 'Technology / SaaS',
+    location: 'United States, Canada, UK',
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+
+    // New structured brand system
+    brandStrategy: {
+      purpose: 'To empower businesses to build authentic, engaging social media presence without the complexity',
+      mission: 'Provide intelligent, automated social media management that respects brand voice and drives meaningful engagement',
+      vision: 'A world where every business can maintain a consistent, professional social media presence effortlessly',
+      coreValues: ['Authenticity', 'Transparency', 'Excellence', 'Innovation', 'Customer Success'],
+      brandArchetype: 'The Sage - Wise, knowledgeable, trusted advisor',
+    },
+    marketPositioning: {
+      targetPersonas: [
+        {
+          name: 'Small Business Owner',
+          description: 'Time-constrained entrepreneur managing multiple responsibilities',
+          demographics: 'Ages 30-55, running businesses with 5-50 employees',
+          psychographics: 'Values efficiency, authenticity, and professional growth',
+        },
+        {
+          name: 'Marketing Manager',
+          description: 'Mid-level marketing professional juggling multiple channels',
+          demographics: 'Ages 28-45, working in companies with 50-500 employees',
+          psychographics: 'Data-driven, seeks tools that demonstrate ROI',
+        },
+      ],
+      competitiveLandscape: 'Competing with manual scheduling tools and generic AI content generators. Differentiation: brand-aware AI that maintains consistency.',
+      uniqueValueProposition: 'The only AI that truly understands and maintains your brand voice across all platforms',
+      positioningStatement: 'For businesses that value authentic brand voice, TechFlow Solutions is the AI-powered social media manager that maintains brand consistency while automating content creation and publishing.',
+    },
+    brandIdentity: {
+      visualDirection: {
+        colorIntent: ['Blue (#3B82F6) - Trust and professionalism', 'Navy (#1E40AF) - Depth and reliability'],
+        typographyIntent: 'Modern, clean sans-serif that conveys clarity and approachability',
+      },
+      verbalIdentity: {
+        tone: 'Professional yet approachable. Confident and clear, using simple language to explain complex topics.',
+        vocabulary: ['empower', 'streamline', 'authentic', 'intelligent', 'meaningful'],
+        messagingRules: [
+          'Use active voice',
+          'Include clear CTAs',
+          'Share actionable tips',
+          'Be encouraging and supportive',
+          'Use data when possible',
+          'Avoid jargon without explanation',
+          'Never make unrealistic promises',
+        ],
+      },
+      tagline: 'Your Brand, Automated Intelligently',
+    },
+    brandExperience: {
+      customerJourney: [
+        {
+          stage: 'Discovery',
+          description: 'Learning about social media automation',
+          touchpoints: ['Website', 'Blog posts', 'Social media ads'],
+        },
+        {
+          stage: 'Onboarding',
+          description: 'Setting up brand profile and connecting accounts',
+          touchpoints: ['Welcome email', 'Setup wizard', 'Onboarding calls'],
+        },
+        {
+          stage: 'Active Use',
+          description: 'Daily interaction with the platform',
+          touchpoints: ['Dashboard', 'Approval notifications', 'Analytics reports'],
+        },
+      ],
+      touchpoints: ['Website', 'App dashboard', 'Email notifications', 'Social media posts', 'Support chat'],
+      consistencyRules: [
+        'Always maintain professional yet approachable tone',
+        'Use brand colors consistently across all visuals',
+        'Ensure all content aligns with core values',
+        'Never compromise on authenticity',
+      ],
+    },
+
+    // Legacy fields for backward compatibility
+    audience: 'Small to medium business owners, marketing managers, and entrepreneurs',
+    brandVoice: 'Professional yet approachable. We speak with confidence and clarity, using simple language to explain complex topics.',
+    writingDos: ['Use active voice', 'Include clear CTAs', 'Share actionable tips'],
+    writingDonts: ['Use jargon without explanation', 'Make unrealistic promises'],
+    offers: ['Free trial', '20% off annual plans'],
+    services: ['Social media scheduling', 'AI content generation'],
+    prices: 'Starting at $29/month',
+    ctaLinks: [
+      { label: 'Start Free Trial', url: 'https://example.com/trial' },
+      { label: 'Book a Demo', url: 'https://example.com/demo' },
+    ],
+    primaryColors: ['#3B82F6', '#1E40AF'],
+    secondaryColors: ['#10B981', '#F59E0B'],
+    visualVibe: 'Modern, clean, tech-forward',
+    doNotUseImagery: ['Stock photos with fake smiles'],
+    postingGoals: ['growth', 'leads', 'awareness'],
+    contentPillars: ['Product tips', 'Industry insights', 'Customer success stories'],
+    bannedWords: ['guarantee', 'best', '#1'],
+    bannedClaims: ['Results guaranteed'],
+    complianceNotes: 'Always include disclaimers for promotional claims.',
+  };
+};
 
 // Sample Autopilot Settings
 const generateDefaultAutopilotSettings = (): AutopilotSettings => ({
@@ -1065,11 +1159,27 @@ export const useAppStore = create<AppState>((set, get) => {
   // AUTOPILOT STATE IMPLEMENTATION
   // ==========================================
 
-  // Brand Profile
+  // Brand Profile (My Brand)
   brandProfile: generateSampleBrandProfile(),
   setBrandProfile: (profile) => set({ brandProfile: profile }),
   updateBrandProfile: (updates) => set((state) => ({
-    brandProfile: state.brandProfile ? { ...state.brandProfile, ...updates, updatedAt: new Date() } : null,
+    brandProfile: state.brandProfile ? { 
+      ...state.brandProfile, 
+      ...updates, 
+      version: (state.brandProfile.version || 1) + 1,
+      updatedAt: new Date() 
+    } : null,
+  })),
+
+  // Steward Persona (My Steward)
+  stewardPersona: generateDefaultStewardPersona(),
+  setStewardPersona: (persona) => set({ stewardPersona: persona }),
+  updateStewardPersona: (updates) => set((state) => ({
+    stewardPersona: { 
+      ...state.stewardPersona, 
+      ...updates, 
+      updatedAt: new Date() 
+    },
   })),
 
   // Autopilot Settings
@@ -1536,6 +1646,80 @@ export const useAppStore = create<AppState>((set, get) => {
     }
     return { brands: newBrands, activeBrandId: newActiveBrandId };
   }),
+
+  // ==========================================
+  // USER PROFILE STATE IMPLEMENTATION
+  // ==========================================
+  userProfile: {
+    id: 'user1',
+    email: 'user@example.com',
+    fullName: 'John Doe',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    locale: navigator.language || 'en-US',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  setUserProfile: (profile) => set({ userProfile: profile }),
+  updateUserProfile: (updates) => set((state) => ({
+    userProfile: state.userProfile
+      ? { ...state.userProfile, ...updates, updatedAt: new Date() }
+      : null,
+  })),
+
+  userPreferences: {
+    notifications: {
+      email: true,
+      inApp: true,
+      criticalAlertsOnly: false,
+    },
+    accessibility: {
+      reducedMotion: false,
+      highContrast: false,
+      fontScaling: 1.0,
+    },
+    keyboardShortcuts: true,
+    dateTimeFormat: {
+      dateFormat: 'MM/DD/YYYY',
+      timeFormat: '12h',
+    },
+  },
+  setUserPreferences: (preferences) => set({ userPreferences: preferences }),
+  updateUserPreferences: (updates) => set((state) => ({
+    userPreferences: { ...state.userPreferences, ...updates },
+  })),
+
+  activeSessions: [
+    {
+      id: 'session1',
+      deviceName: 'Chrome on Windows',
+      deviceType: 'desktop',
+      browser: 'Chrome',
+      location: 'New York, US',
+      ipAddress: '192.168.1.1',
+      lastActiveAt: new Date(),
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      isCurrent: true,
+    },
+  ],
+  setActiveSessions: (sessions) => set({ activeSessions: sessions }),
+  removeSession: (sessionId) => set((state) => ({
+    activeSessions: state.activeSessions.filter((s) => s.id !== sessionId),
+  })),
+  signOutAllDevices: () => set((state) => ({
+    activeSessions: state.activeSessions.filter((s) => s.isCurrent),
+  })),
+
+  deviceHistory: [
+    {
+      id: 'dev1',
+      deviceName: 'Chrome on Windows',
+      deviceType: 'desktop',
+      browser: 'Chrome',
+      lastSeenAt: new Date(),
+      action: 'login',
+    },
+  ],
+  setDeviceHistory: (history) => set({ deviceHistory: history }),
 };
 });
 

@@ -1,5 +1,5 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { StewardLogo } from "@/components/StewardLogo";
+import { AppLogo } from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/config/brand";
 
@@ -19,7 +19,7 @@ export function MarketingLayout() {
       <header className="sticky top-0 z-50 border-b border-sidebar-border bg-sidebar">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <StewardLogo variant="full" height={32} />
+            <AppLogo variant="lockup" theme="light" size={32} />
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {NAV.map(({ to, label }) => (

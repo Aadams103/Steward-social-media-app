@@ -56,20 +56,40 @@ export async function apiRequest<T = unknown>(
   options: RequestInit = {},
   retryConfig: RetryConfig = {},
 ): Promise<T> {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:54',message:'API request start',data:{url,method:options.method||'GET',hasBody:!!options.body},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:62',message:'API request attempt',data:{url,attempt:attempt+1,maxRetries:config.maxRetries+1},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const response = await platformRequest(url, options);
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:66',message:'API response received',data:{url,ok:response.ok,status:response.status,contentType:response.headers.get('content-type')},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // Handle successful responses (platformRequest only returns ok responses)
       const contentType = response.headers.get('content-type');
       if (contentType?.includes('application/json')) {
-        return await response.json();
+        const jsonData = await response.json();
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:69',message:'API response parsed',data:{url,hasData:!!jsonData,dataType:typeof jsonData},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return jsonData;
       }
-      return (await response.text()) as T;
+      const textData = await response.text();
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:75',message:'API response text',data:{url,textLength:textData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return textData as T;
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:78',message:'API request error',data:{url,errorType:error instanceof Error?error.constructor.name:'unknown',errorMessage:error instanceof Error?error.message:String(error),attempt:attempt+1},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       // Convert PlatformRequestError to ApiRequestError for consistent handling
       if (error instanceof PlatformRequestError) {
         const apiError: ApiError = {
@@ -83,6 +103,9 @@ export async function apiRequest<T = unknown>(
         // Check if error is retryable
         if (error.statusCode && attempt < config.maxRetries && isRetryableError(error.statusCode, config.retryableStatusCodes)) {
           const delay = calculateRetryDelay(attempt, config.retryDelay, config.exponentialBackoff);
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:91',message:'API retry scheduled',data:{url,statusCode:error.statusCode,delay,attempt:attempt+1},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           console.warn(
             `API request failed (attempt ${attempt + 1}/${config.maxRetries + 1}): ${error.statusCode}. Retrying in ${delay}ms...`,
           );
@@ -117,6 +140,9 @@ export async function apiRequest<T = unknown>(
     }
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-client.ts:120',message:'API request failed after retries',data:{url,hasError:!!lastError,errorMessage:lastError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   throw lastError || new Error('Request failed after retries');
 }
 

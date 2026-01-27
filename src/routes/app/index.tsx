@@ -102,7 +102,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useAppStore } from "@/store/app-store";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
-import { StewardLogo } from "@/components/StewardLogo";
+import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/config/brand";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePosts, useCampaigns, useSocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useAssets, useCreateAsset, useUploadAssets, useUpdateAsset, useDeleteAsset, useCreatePost, useBulkCreatePosts, useHashtagRecommendations, useBestTimeToPost, useRSSFeeds, useCreateRSSFeed, useDeleteRSSFeed, useImportRSSFeed, useRSSFeedItems, useTimezoneOptimization, useRecyclePost, useRecycledPosts, useAutopilotSettings, useUpdateAutopilotSettings, useEvents, useCreateEvent, useGenerateEventDrafts, useAutopilotBrief, useUpdateAutopilotBrief, useGenerateStrategyPlan, useAutopilotGenerate, useBrands, useCurrentBrand, useCreateBrand, useUpdateBrand, useDeleteBrand, useUploadBrandAvatar, useDeleteBrandAvatar, useSetCurrentBrand, useCalendar, useScheduleTemplates, useCreateScheduleTemplate, useUpdateScheduleTemplate, useDeleteScheduleTemplate, useGoogleIntegrations, useDeleteGoogleIntegration, useEmailAccounts, useDeleteEmailAccount, useEmailThreads, useEmailMessage, useSetEmailTriage } from "@/hooks/use-api";
@@ -155,6 +155,11 @@ import {
 export const Route = createFileRoute("/app/")({
   component: App,
 });
+
+// #region agent log
+// Log route creation
+fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:155',message:'Route /app/ created',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'A'})}).catch(()=>{});
+// #endregion
 
 // Platform icon component
 function PlatformIcon({ platform, className }: { platform: Platform; className?: string }) {
@@ -242,9 +247,9 @@ function Sidebar() {
     )}>
       <div className="p-4 border-b border-zinc-800 flex items-center justify-center">
         {sidebarCollapsed ? (
-          <StewardLogo variant="mark" height={28} />
+          <AppLogo variant="mark" theme="light" size={28} />
         ) : (
-          <StewardLogo variant="full" height={28} />
+          <AppLogo variant="lockup" theme="light" size={28} />
         )}
       </div>
       <ScrollArea className="flex-1">
@@ -292,10 +297,17 @@ function Sidebar() {
 
 // Dashboard View
 function DashboardView() {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:294',message:'DashboardView render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   // API Hooks
-  const { data: postsData, isLoading: postsLoading, error: postsError, refetch: refetchPosts } = usePosts();
-  const { data: campaignsData, isLoading: campaignsLoading, error: campaignsError } = useCampaigns();
-  const { data: accountsData, isLoading: accountsLoading, error: accountsError } = useSocialAccounts();
+  const { data: postsData, isLoading: postsLoading, isError: postsIsError, error: postsError, refetch: refetchPosts } = usePosts();
+  const { data: campaignsData, isLoading: campaignsLoading, isError: campaignsIsError, error: campaignsError } = useCampaigns();
+  const { data: accountsData, isLoading: accountsLoading, isError: accountsIsError, error: accountsError } = useSocialAccounts();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:300',message:'Dashboard hooks state',data:{postsLoading,postsIsError,campaignsLoading,campaignsIsError,accountsLoading,accountsIsError,postsError:!!postsError,campaignsError:!!campaignsError,accountsError:!!accountsError,postsCount:postsData?.posts?.length||0,campaignsCount:campaignsData?.campaigns?.length||0,accountsCount:accountsData?.accounts?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   
   // Get data from store for autopilot (still using mock for now)
   const { conversations, autopilotSettings, scheduledSlots, autopilotNotifications } = useAppStore();
@@ -305,9 +317,17 @@ function DashboardView() {
   const campaigns = campaignsData?.campaigns || [];
   const socialAccounts = accountsData?.accounts || [];
 
-  // Loading states
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:306',message:'Dashboard data extracted',data:{postsCount:posts.length,campaignsCount:campaigns.length,socialAccountsCount:socialAccounts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+
+  // Loading states - use isError from React Query for more reliable error detection
   const isLoading = postsLoading || campaignsLoading || accountsLoading;
-  const hasError = postsError || campaignsError || accountsError;
+  const hasError = postsIsError || campaignsIsError || accountsIsError || postsError || campaignsError || accountsError;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:312',message:'Dashboard state check',data:{isLoading,hasError,postsIsError,campaignsIsError,accountsIsError},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   // Calculate metrics
   const metrics = {
@@ -520,7 +540,7 @@ function DashboardView() {
             <EmptyState
               icon={Users}
               title="No connected accounts"
-              description="Connect your social media accounts to start posting"
+              description={`Connect your social media accounts to start posting with ${APP_NAME}`}
               actionLabel="Connect Account"
               onAction={() => useAppStore.getState().setActiveView("accounts")}
             />
@@ -1211,7 +1231,7 @@ function ComposeSinglePostContent({
           <EmptyState
             icon={Users}
             title="No social accounts connected"
-            description="Connect a platform account to start posting. You can also create a stub account for testing."
+            description={`Connect a platform account to start posting with ${APP_NAME}. You can also create a stub account for testing.`}
             actionLabel="Go to Accounts"
             onAction={() => useAppStore.getState().setActiveView('accounts')}
           />
@@ -2858,7 +2878,7 @@ function AccountsView() {
               title="No social accounts connected"
               description={isAllBrandsMode 
                 ? "Select a brand to view connected accounts"
-                : "Connect your social media accounts to start posting"}
+                : `Connect your social media accounts to start posting with ${APP_NAME}`}
               actionLabel={isAllBrandsMode ? undefined : "Add Stub Account"}
               onAction={isAllBrandsMode ? undefined : () => setStubDialogOpen(true)}
             />
@@ -3038,7 +3058,7 @@ function AccountsView() {
               <EmptyState
                 icon={Inbox}
                 title="No Google Workspace connection"
-                description="Connect your Gmail inbox to triage messages and avoid missing clients"
+                description={`Connect your Gmail inbox to triage messages and avoid missing clients in ${APP_NAME}`}
                 actionLabel="Connect Google Workspace"
                 onAction={async () => {
                   try {
@@ -3190,7 +3210,7 @@ function EmailView() {
         <EmptyState
           icon={Mail}
           title="No email account connected"
-          description="Connect your email account to triage messages and avoid missing leads and clients"
+          description={`Connect your email account to triage messages and avoid missing leads and clients in ${APP_NAME}`}
           actionLabel="Connect Email Account"
           onAction={() => {
             useAppStore.getState().setActiveView('accounts');
@@ -7211,13 +7231,13 @@ function BrandProfileView() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {brandProfile.writingDos.map((item, index) => (
+                  {(brandProfile.writingDos || []).map((item, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
                       <Input
                         value={item}
                         onChange={(e) => {
-                          const newDos = [...brandProfile.writingDos];
+                          const newDos = [...(brandProfile.writingDos || [])];
                           newDos[index] = e.target.value;
                           updateBrandProfile({ writingDos: newDos });
                         }}
@@ -7225,7 +7245,7 @@ function BrandProfileView() {
                     </div>
                   ))}
                   <Button variant="outline" size="sm" className="w-full" onClick={() => {
-                    updateBrandProfile({ writingDos: [...brandProfile.writingDos, ""] });
+                    updateBrandProfile({ writingDos: [...(brandProfile.writingDos || []), ""] });
                   }}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Do
@@ -7241,13 +7261,13 @@ function BrandProfileView() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {brandProfile.writingDonts.map((item, index) => (
+                  {(brandProfile.writingDonts || []).map((item, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                       <Input
                         value={item}
                         onChange={(e) => {
-                          const newDonts = [...brandProfile.writingDonts];
+                          const newDonts = [...(brandProfile.writingDonts || [])];
                           newDonts[index] = e.target.value;
                           updateBrandProfile({ writingDonts: newDonts });
                         }}
@@ -7255,7 +7275,7 @@ function BrandProfileView() {
                     </div>
                   ))}
                   <Button variant="outline" size="sm" className="w-full" onClick={() => {
-                    updateBrandProfile({ writingDonts: [...brandProfile.writingDonts, ""] });
+                    updateBrandProfile({ writingDonts: [...(brandProfile.writingDonts || []), ""] });
                   }}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Don't
@@ -7277,12 +7297,12 @@ function BrandProfileView() {
               <div className="space-y-2">
                 <Label>Banned Words</Label>
                 <div className="flex flex-wrap gap-2">
-                  {brandProfile.bannedWords.map((word, index) => (
+                  {(brandProfile.bannedWords || []).map((word, index) => (
                     <Badge key={index} variant="destructive" className="gap-1">
                       {word}
                       <button onClick={() => {
                         updateBrandProfile({
-                          bannedWords: brandProfile.bannedWords.filter((_, i) => i !== index),
+                          bannedWords: (brandProfile.bannedWords || []).filter((_, i) => i !== index),
                         });
                       }}>
                         <XCircle className="h-3 w-3" />
@@ -7294,12 +7314,12 @@ function BrandProfileView() {
               <div className="space-y-2">
                 <Label>Banned Claims</Label>
                 <div className="flex flex-wrap gap-2">
-                  {brandProfile.bannedClaims.map((claim, index) => (
+                  {(brandProfile.bannedClaims || []).map((claim, index) => (
                     <Badge key={index} variant="destructive" className="gap-1">
                       {claim}
                       <button onClick={() => {
                         updateBrandProfile({
-                          bannedClaims: brandProfile.bannedClaims.filter((_, i) => i !== index),
+                          bannedClaims: (brandProfile.bannedClaims || []).filter((_, i) => i !== index),
                         });
                       }}>
                         <XCircle className="h-3 w-3" />
@@ -7329,7 +7349,7 @@ function BrandProfileView() {
               <div className="space-y-2">
                 <Label>Services Offered</Label>
                 <div className="flex flex-wrap gap-2">
-                  {brandProfile.services.map((service, index) => (
+                  {(brandProfile.services || []).map((service, index) => (
                     <Badge key={index} variant="secondary" className="gap-1">
                       {service}
                     </Badge>
@@ -7339,7 +7359,7 @@ function BrandProfileView() {
               <div className="space-y-2">
                 <Label>Current Offers</Label>
                 <div className="flex flex-wrap gap-2">
-                  {brandProfile.offers.map((offer, index) => (
+                  {(brandProfile.offers || []).map((offer, index) => (
                     <Badge key={index} variant="outline" className="gap-1">
                       {offer}
                     </Badge>
@@ -7364,12 +7384,12 @@ function BrandProfileView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {brandProfile.ctaLinks.map((link, index) => (
+                {(brandProfile.ctaLinks || []).map((link, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <Input
                       value={link.label}
                       onChange={(e) => {
-                        const newLinks = [...brandProfile.ctaLinks];
+                        const newLinks = [...(brandProfile.ctaLinks || [])];
                         newLinks[index] = { ...link, label: e.target.value };
                         updateBrandProfile({ ctaLinks: newLinks });
                       }}
@@ -7379,7 +7399,7 @@ function BrandProfileView() {
                     <Input
                       value={link.url}
                       onChange={(e) => {
-                        const newLinks = [...brandProfile.ctaLinks];
+                        const newLinks = [...(brandProfile.ctaLinks || [])];
                         newLinks[index] = { ...link, url: e.target.value };
                         updateBrandProfile({ ctaLinks: newLinks });
                       }}
@@ -7388,7 +7408,7 @@ function BrandProfileView() {
                     />
                     <Button variant="ghost" size="icon" onClick={() => {
                       updateBrandProfile({
-                        ctaLinks: brandProfile.ctaLinks.filter((_, i) => i !== index),
+                          ctaLinks: (brandProfile.ctaLinks || []).filter((_, i) => i !== index),
                       });
                     }}>
                       <XCircle className="h-4 w-4" />
@@ -7397,7 +7417,7 @@ function BrandProfileView() {
                 ))}
                 <Button variant="outline" size="sm" onClick={() => {
                   updateBrandProfile({
-                    ctaLinks: [...brandProfile.ctaLinks, { label: "", url: "" }],
+                    ctaLinks: [...(brandProfile.ctaLinks || []), { label: "", url: "" }],
                   });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -7429,7 +7449,7 @@ function BrandProfileView() {
                 <div className="space-y-2">
                   <Label>Primary Colors</Label>
                   <div className="flex gap-2">
-                    {brandProfile.primaryColors.map((color, index) => (
+                    {(brandProfile.primaryColors || []).map((color, index) => (
                       <div
                         key={index}
                         className="w-10 h-10 rounded border"
@@ -7442,7 +7462,7 @@ function BrandProfileView() {
                 <div className="space-y-2">
                   <Label>Secondary Colors</Label>
                   <div className="flex gap-2">
-                    {brandProfile.secondaryColors.map((color, index) => (
+                    {(brandProfile.secondaryColors || []).map((color, index) => (
                       <div
                         key={index}
                         className="w-10 h-10 rounded border"
@@ -7456,7 +7476,7 @@ function BrandProfileView() {
               <div className="space-y-2">
                 <Label>Imagery to Avoid</Label>
                 <div className="flex flex-wrap gap-2">
-                  {brandProfile.doNotUseImagery.map((item, index) => (
+                  {(brandProfile.doNotUseImagery || []).map((item, index) => (
                     <Badge key={index} variant="outline" className="gap-1">
                       <XCircle className="h-3 w-3 text-red-500" />
                       {item}
@@ -7477,7 +7497,7 @@ function BrandProfileView() {
             <CardContent>
               <div className="grid grid-cols-3 gap-3">
                 {POSTING_GOALS.map((goal) => {
-                  const isSelected = brandProfile.postingGoals.includes(goal.id);
+                  const isSelected = (brandProfile.postingGoals || []).includes(goal.id);
                   return (
                     <Button
                       key={goal.id}
@@ -7486,11 +7506,11 @@ function BrandProfileView() {
                       onClick={() => {
                         if (isSelected) {
                           updateBrandProfile({
-                            postingGoals: brandProfile.postingGoals.filter((g) => g !== goal.id),
+                            postingGoals: (brandProfile.postingGoals || []).filter((g) => g !== goal.id),
                           });
                         } else {
                           updateBrandProfile({
-                            postingGoals: [...brandProfile.postingGoals, goal.id],
+                            postingGoals: [...(brandProfile.postingGoals || []), goal.id],
                           });
                         }
                       }}
@@ -7514,30 +7534,30 @@ function BrandProfileView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {brandProfile.contentPillars.map((pillar, index) => (
+                {(brandProfile.contentPillars || []).map((pillar, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <Badge variant="outline" className="shrink-0">{index + 1}</Badge>
                     <Input
                       value={pillar}
                       onChange={(e) => {
-                        const newPillars = [...brandProfile.contentPillars];
+                        const newPillars = [...(brandProfile.contentPillars || [])];
                         newPillars[index] = e.target.value;
                         updateBrandProfile({ contentPillars: newPillars });
                       }}
                     />
                     <Button variant="ghost" size="icon" onClick={() => {
                       updateBrandProfile({
-                        contentPillars: brandProfile.contentPillars.filter((_, i) => i !== index),
+                          contentPillars: (brandProfile.contentPillars || []).filter((_, i) => i !== index),
                       });
                     }}>
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-                {brandProfile.contentPillars.length < 6 && (
+                {(brandProfile.contentPillars || []).length < 6 && (
                   <Button variant="outline" size="sm" className="w-full" onClick={() => {
                     updateBrandProfile({
-                      contentPillars: [...brandProfile.contentPillars, ""],
+                      contentPillars: [...(brandProfile.contentPillars || []), ""],
                     });
                   }}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -7656,11 +7676,24 @@ function AuditLogView() {
 
 // Main App component
 function App() {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7673',message:'App component render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const { activeView, setActiveView } = useAppStore();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7675',message:'App activeView state',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   const renderView = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7676',message:'renderView called',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     switch (activeView) {
       case "dashboard":
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7678',message:'Rendering DashboardView',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         return <DashboardView />;
       case "autopilot":
         return <AutopilotView />;
@@ -7717,6 +7750,11 @@ function App() {
 
   const pageConfig = getPageConfig();
   const isRiskyPage = ["compose", "autopilot", "queue"].includes(activeView);
+  
+  // #region agent log
+  const renderedView = renderView();
+  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7735',message:'App render before AppShell',data:{activeView,pageConfigTitle:pageConfig.title,renderedViewType:renderedView?.type?.name||'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   return (
     <AppShell
@@ -7725,7 +7763,7 @@ function App() {
       createButtonLabel={pageConfig.createLabel}
       onCreateClick={pageConfig.onCreate}
     >
-      {renderView()}
+      {renderedView}
     </AppShell>
   );
 }

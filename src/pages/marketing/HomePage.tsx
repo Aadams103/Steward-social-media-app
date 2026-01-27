@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { StewardLogo } from "@/components/StewardLogo";
+import { AppLogo } from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
+import { APP_HEADLINE, APP_SUBHEAD } from "@/config/brand";
 import { Check } from "lucide-react";
 
 /**
@@ -11,15 +12,15 @@ export function HomePage() {
     <section className="relative overflow-hidden">
       <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="flex justify-center mb-8">
-          <StewardLogo variant="full" scheme="dark" height={40} />
+          <AppLogo variant="lockup" theme="dark" size={40} />
         </div>
 
         <h1 className="text-center text-[var(--text-h1)] font-semibold tracking-tight text-foreground sm:text-4xl">
-          First-Class Care for Your Brand&apos;s Presence.
+          {APP_HEADLINE}
         </h1>
 
         <p className="mt-4 text-center text-[var(--text-body)] text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Steward autonomously publishes, monitors, and protects your social media—so you don&apos;t have to.
+          {APP_SUBHEAD}
         </p>
 
         <ul className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 list-none">

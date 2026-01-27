@@ -285,10 +285,10 @@ export function UploadDropzone({
                       <Loader2 className="h-6 w-6 text-white animate-spin" />
                     )}
                     {item.status === 'success' && (
-                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      <CheckCircle2 className="h-6 w-6 text-success" />
                     )}
                     {item.status === 'error' && (
-                      <AlertCircle className="h-6 w-6 text-red-500" />
+                      <AlertCircle className="h-6 w-6 text-destructive" />
                     )}
                   </div>
                 )}

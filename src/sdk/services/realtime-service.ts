@@ -45,7 +45,13 @@ class RealtimeService {
    * Connect to WebSocket server
    */
   async connect(token?: string): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:47',message:'Realtime connect start',data:{hasToken:!!token,wsUrl:this.wsUrl,isConnecting:this.isConnecting,readyState:this.ws?.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:50',message:'Realtime connect skipped',data:{reason:this.isConnecting?'connecting':'already_open'},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
@@ -53,29 +59,50 @@ class RealtimeService {
 
     try {
       const url = token ? `${this.wsUrl}?token=${token}` : this.wsUrl;
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:57',message:'Realtime WebSocket creating',data:{url,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:60',message:'Realtime WebSocket opened',data:{readyState:this.ws?.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.log('WebSocket connected');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
       };
 
       this.ws.onmessage = (event) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:66',message:'Realtime message received',data:{dataLength:event.data?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         try {
           const data: RealtimeEvent = JSON.parse(event.data);
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:69',message:'Realtime event parsed',data:{eventType:data.type,hasPayload:!!data.payload},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           this.handleEvent(data);
         } catch (error) {
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:73',message:'Realtime parse error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           console.error('Error parsing WebSocket message:', error);
         }
       };
 
       this.ws.onerror = (error) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:77',message:'Realtime WebSocket error',data:{readyState:this.ws?.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.error('WebSocket error:', error);
         this.isConnecting = false;
       };
 
       this.ws.onclose = () => {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime-service.ts:82',message:'Realtime WebSocket closed',data:{reconnectAttempts:this.reconnectAttempts},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.log('WebSocket disconnected');
         this.isConnecting = false;
         this.attemptReconnect(token);

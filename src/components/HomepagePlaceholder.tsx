@@ -8,6 +8,8 @@ import {
 	Sparkles,
 	Zap,
 } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
+import { APP_NAME } from "@/config/brand";
 
 export function HomepagePlaceholder() {
 	return (
@@ -30,34 +32,26 @@ export function HomepagePlaceholder() {
 
 			<div className="w-full max-w-lg mx-auto relative z-10">
 				<div className="text-center space-y-10 animate-in fade-in-0 slide-in-from-bottom-8 duration-1000">
-					{/* Ultra Enhanced Icon Section with multiple layers */}
+					<div className="flex justify-center">
+						<AppLogo variant="lockup" theme="dark" size={40} />
+					</div>
+					{/* Icon Section */}
 					<div className="flex justify-center">
 						<div className="relative group">
-							{/* Outer glow rings */}
-							<div className="absolute inset-0 bg-gradient-to-r from-red-300 via-orange-300 to-yellow-300 dark:from-red-800 dark:via-orange-800 dark:to-yellow-800 rounded-full blur-3xl animate-pulse opacity-60" />
-							<div className="absolute inset-2 bg-gradient-to-r from-pink-300 to-purple-300 dark:from-pink-800 dark:to-purple-800 rounded-full blur-2xl animate-pulse delay-300 opacity-40" />
-
-							{/* Main icon container with enhanced styling */}
-							<div className="relative bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 dark:from-red-950 dark:via-orange-950 dark:to-yellow-950 p-12 rounded-full border-2 border-red-200/60 dark:border-red-800/60 shadow-2xl group-hover:shadow-red-500/25 dark:group-hover:shadow-red-400/25 transition-all duration-500 group-hover:scale-105">
-								<div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent to-red-100/50 dark:to-red-900/50" />
-								<AlertTriangle className="h-16 w-16 text-red-500 dark:text-red-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 relative z-10 drop-shadow-lg" />
-
-								{/* Floating mini icons */}
-								<div className="absolute -top-2 -right-2 p-1.5 bg-gradient-to-br from-orange-200 to-red-200 dark:from-orange-800 dark:to-red-800 rounded-full animate-bounce delay-200">
-									<Zap className="h-3 w-3 text-orange-600 dark:text-orange-400" />
-								</div>
+							<div className="absolute inset-0 bg-muted/20 rounded-full blur-3xl animate-pulse opacity-40" />
+							<div className="relative bg-muted/30 p-12 rounded-full border border-border/40 shadow-sm group-hover:shadow-md transition-all duration-500">
+								<AlertTriangle className="h-16 w-16 text-destructive group-hover:scale-110 transition-transform duration-500 relative z-10" />
 							</div>
 						</div>
 					</div>
 
-					{/* Enhanced Typography Section with animated gradient */}
 					<div className="space-y-6">
 						<h1 className="text-5xl font-black bg-gradient-to-r from-black via-gray-800 to-gray-900 dark:from-white dark:via-gray-200 dark:to-gray-100 bg-clip-text text-transparent animate-pulse drop-shadow-sm">
 							Build Error
 						</h1>
 						<div className="relative">
 							<p className="text-xl text-gray-800 dark:text-gray-200 leading-relaxed max-w-md mx-auto font-medium backdrop-blur-sm bg-white/20 dark:bg-gray-800/20 rounded-xl p-4 border border-gray-200/30 dark:border-gray-700/30">
-								There are some issues while building the app. Don't worry, we
+								There are some issues while building {APP_NAME}. Don&apos;t worry, we
 								can fix this together.
 							</p>
 						</div>
@@ -86,26 +80,26 @@ export function HomepagePlaceholder() {
 								</span>
 							</div>
 
-							{/* Support links with fancy hover effects */}
+							{/* Support links with muted styling */}
 							<div className="flex items-center justify-center gap-8 pt-2">
 								<a
 									href="https://discord.gg/VPNExXcP9W"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="group flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-0.5"
+									className="group flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-all duration-200"
 								>
 									<FontAwesomeIcon
 										icon={faDiscord}
-										className="h-5 w-5 group-hover:bounce"
+										className="h-5 w-5"
 									/>
 									<span>Discord Community</span>
 								</a>
 								<a
-									href="mailto:support@example.com"
-									className="group flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white font-semibold rounded-xl shadow-lg hover:shadow-gray-800/25 transition-all duration-300 hover:scale-105 hover:-translate-y-0.5"
+									href="mailto:hello@steward.app"
+									className="group flex items-center gap-3 px-4 py-3 bg-secondary text-secondary-foreground font-medium rounded-lg hover:bg-secondary/80 transition-all duration-200"
 								>
-									<Mail className="h-5 w-5 group-hover:bounce" />
-									<span>Support</span>
+									<Mail className="h-5 w-5" />
+									<span>{APP_NAME} Support</span>
 								</a>
 							</div>
 						</div>

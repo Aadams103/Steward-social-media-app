@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { APP_SHORT_TAGLINE } from "@/config/brand";
 import type { LucideIcon } from "lucide-react";
 
 interface EmptyStateProps {
@@ -14,7 +15,7 @@ interface EmptyStateProps {
 export function EmptyState({
   icon: Icon,
   title,
-  description,
+  description = APP_SHORT_TAGLINE,
   actionLabel,
   onAction,
   className,

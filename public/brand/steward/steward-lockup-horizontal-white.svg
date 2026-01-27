@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" fill="none" aria-hidden="true">
+  <!-- Steward horizontal lockup: light mark + wordmark for dark backgrounds -->
+  <g stroke="#f5f0e8" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 14 C 22 6 34 10 34 18 C 34 24 22 22 10 18" />
+    <path d="M10 22 C 22 26 34 24 34 30 C 34 38 22 34 10 30" />
+  </g>
+  <text x="50" y="32" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#f5f0e8" letter-spacing="0.08em">STEWARD</text>
+</svg>
+

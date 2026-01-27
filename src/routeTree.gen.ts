@@ -11,6 +11,7 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as SettingsImport } from './routes/settings'
 import { Route as AppImport } from './routes/app'
 import { Route as MarketingImport } from './routes/_marketing'
 import { Route as AuthenticatedImport } from './routes/_authenticated'
@@ -24,6 +25,12 @@ import { Route as MarketingDocsImport } from './routes/_marketing.docs'
 import { Route as MarketingContactImport } from './routes/_marketing.contact'
 
 // Create/Update Routes
+
+const SettingsRoute = SettingsImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const AppRoute = AppImport.update({
   id: '/app',
@@ -112,6 +119,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppImport
+      parentRoute: typeof rootRoute
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsImport
       parentRoute: typeof rootRoute
     }
     '/_marketing/contact': {
@@ -212,6 +226,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 export interface FileRoutesByFullPath {
   '': typeof MarketingRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/contact': typeof MarketingContactRoute
   '/docs': typeof MarketingDocsRoute
   '/how-it-works': typeof MarketingHowItWorksRoute
@@ -224,6 +239,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '': typeof AuthenticatedRoute
+  '/settings': typeof SettingsRoute
   '/contact': typeof MarketingContactRoute
   '/docs': typeof MarketingDocsRoute
   '/how-it-works': typeof MarketingHowItWorksRoute
@@ -239,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRoute
   '/_marketing': typeof MarketingRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/_marketing/contact': typeof MarketingContactRoute
   '/_marketing/docs': typeof MarketingDocsRoute
   '/_marketing/how-it-works': typeof MarketingHowItWorksRoute
@@ -254,6 +271,7 @@ export interface FileRouteTypes {
   fullPaths:
     | ''
     | '/app'
+    | '/settings'
     | '/contact'
     | '/docs'
     | '/how-it-works'
@@ -265,6 +283,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | ''
+    | '/settings'
     | '/contact'
     | '/docs'
     | '/how-it-works'
@@ -278,6 +297,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_marketing'
     | '/app'
+    | '/settings'
     | '/_marketing/contact'
     | '/_marketing/docs'
     | '/_marketing/how-it-works'
@@ -293,12 +313,14 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRoute
   MarketingRoute: typeof MarketingRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRoute,
   MarketingRoute: MarketingRouteWithChildren,
   AppRoute: AppRouteWithChildren,
+  SettingsRoute: SettingsRoute,
 }
 
 export const routeTree = rootRoute
@@ -313,7 +335,8 @@ export const routeTree = rootRoute
       "children": [
         "/_authenticated",
         "/_marketing",
-        "/app"
+        "/app",
+        "/settings"
       ]
     },
     "/_authenticated": {
@@ -336,6 +359,9 @@ export const routeTree = rootRoute
       "children": [
         "/app/"
       ]
+    },
+    "/settings": {
+      "filePath": "settings.tsx"
     },
     "/_marketing/contact": {
       "filePath": "_marketing.contact.tsx",

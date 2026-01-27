@@ -1,5 +1,5 @@
 /**
- * Hostess Backend Shim
+ * Steward Backend Shim
  * Express server with WebSocket support for local development
  * Simulates backend API endpoints matching api-services.ts
  */

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 /** Light mark for dark UI; dark mark for light UI. No shadows, aspect ratio preserved, 0.5× height padding. */
@@ -12,9 +13,36 @@ interface StewardLogoProps {
 }
 
 export function StewardLogo({ variant = "full", scheme = "light", height = 32, className }: StewardLogoProps) {
-  const lightFull = "/steward-logo-light.svg";
-  const darkFull = "/steward-logo-dark.svg";
-  const src = variant === "mark" ? "/steward-logo-mark.svg" : scheme === "dark" ? darkFull : lightFull;
+  const [fallbackAttempted, setFallbackAttempted] = useState(false);
+  
+  // Steward SVG assets: dark for light backgrounds, light for dark backgrounds
+  const primaryAssets = {
+    full: {
+      light: "/brand/steward/steward-lockup-horizontal-white.svg",
+      dark: "/brand/steward/steward-lockup-horizontal-black.svg",
+    },
+    mark: {
+      light: "/brand/steward/steward-mark-white.svg",
+      dark: "/brand/steward/steward-mark-black.svg",
+    },
+  };
+  
+  // Fallback to legacy SVG files if new assets don't exist
+  const legacyAssets = {
+    full: {
+      light: "/steward-logo-light.svg",
+      dark: "/steward-logo-dark.svg",
+    },
+    mark: {
+      light: "/steward-logo-mark.svg",
+      dark: "/steward-logo-mark-dark.svg",
+    },
+  };
+  
+  const primarySrc = primaryAssets[variant][scheme];
+  const legacySrc = legacyAssets[variant][scheme];
+  const src = fallbackAttempted ? legacySrc : primarySrc;
+  
   const padding = Math.ceil(height * 0.5);
   return (
     <div
@@ -30,6 +58,16 @@ export function StewardLogo({ variant = "full", scheme = "light", height = 32, c
         style={{
           height: `${height}px`,
           maxWidth: variant === "mark" ? `${height}px` : "none",
+        }}
+        onError={(e) => {
+          const img = e.target as HTMLImageElement;
+          // If new Steward asset fails, try legacy SVG fallback
+          if (src === primarySrc && !fallbackAttempted) {
+            setFallbackAttempted(true);
+            img.src = legacySrc;
+            return;
+          }
+          console.warn(`Failed to load logo: ${src}`);
         }}
       />
     </div>

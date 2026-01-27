@@ -46,8 +46,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAppStore } from "@/store/app-store";
 import { useBrands, useCurrentBrand, useSetCurrentBrand } from "@/hooks/use-api";
 import { APP_NAME } from "@/config/brand";
-import { StewardLogo } from "@/components/StewardLogo";
+import { AppLogo } from "@/components/AppLogo";
 import { BackButton } from "@/components/BackButton";
+import { SettingsOverlay, type SettingsSectionId } from "@/components/SettingsOverlay";
 
 interface NavItem {
   id: string;
@@ -83,6 +84,32 @@ export function AppShell({
 
   const activeBrandId = useAppStore((state) => state.activeBrandId);
   const isAllBrandsMode = activeBrandId === "all";
+
+  // Settings overlay state
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
+
+  const openSettings = React.useCallback((section?: SettingsSectionId) => {
+    // #region agent log
+    fetch("http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "AppShell.tsx:openSettings",
+        message: "Settings overlay requested",
+        data: { section },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "runtime",
+        hypothesisId: "A",
+      }),
+    }).catch(() => {});
+    // #endregion
+    if (section) {
+      setSettingsSection(section);
+    }
+    setSettingsOpen(true);
+  }, []);
 
   // Calculate badges
   const unreadCount = conversations.filter((c) => c.status === "unread").length;
@@ -164,19 +191,31 @@ export function AppShell({
       {/* Left Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r bg-card transition-all duration-300",
+          "flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
         {/* Logo/Brand */}
-        <div className="flex h-16 items-center justify-between border-b px-4 gap-2">
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4 gap-3">
           {sidebarCollapsed ? (
             <div className="flex flex-1 items-center justify-center min-w-0">
-              <StewardLogo variant="mark" height={28} />
+              <AppLogo 
+                variant="mark" 
+                theme="light" 
+                size={32} 
+                brandLogoUrl={currentBrand?.logoUrl}
+                className="opacity-100"
+              />
             </div>
           ) : (
             <div className="flex flex-1 items-center min-w-0">
-              <StewardLogo variant="full" height={28} />
+              <AppLogo 
+                variant="lockup" 
+                theme="light" 
+                size={32} 
+                brandLogoUrl={currentBrand?.logoUrl}
+                className="opacity-100"
+              />
             </div>
           )}
           <Button
@@ -209,8 +248,8 @@ export function AppShell({
                         className={cn(
                           "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                           isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         )}
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
@@ -239,36 +278,33 @@ export function AppShell({
           </nav>
         </ScrollArea>
 
-        {/* Settings (pinned at bottom) */}
-        <div className="border-t p-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setActiveView("settings")}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    activeView === "settings"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <Settings className="h-5 w-5 shrink-0" />
-                  {!sidebarCollapsed && <span className="flex-1 text-left">Settings</span>}
-                </button>
-              </TooltipTrigger>
-              {sidebarCollapsed && (
-                <TooltipContent side="right">Settings</TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+        {/* Version (pinned at bottom, opens Settings overlay) */}
+        <div className="border-t border-sidebar-border px-3 py-2">
+          <button
+            type="button"
+            onClick={() => openSettings("my-account")}
+            className={cn(
+              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-medium tracking-tight text-sidebar-foreground/80 transition-colors",
+              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            {!sidebarCollapsed && (
+              <>
+                <span className="truncate">{APP_NAME}</span>
+                <span className="ml-2 font-mono text-[10px] opacity-80">v0.1.0</span>
+              </>
+            )}
+            {sidebarCollapsed && (
+              <span className="mx-auto font-mono text-[10px] opacity-80">v0.1.0</span>
+            )}
+          </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/50 bg-background px-6">
           <BackButton />
           {/* Brand Switcher */}
           <div className="flex items-center gap-4 flex-1">
@@ -342,7 +378,7 @@ export function AppShell({
                       </Avatar>
                       <span className="flex-1">{brand.name}</span>
                       {isActive && (
-                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-sidebar-primary shrink-0" />
                       )}
                     </DropdownMenuItem>
                   );
@@ -365,14 +401,11 @@ export function AppShell({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    useAppStore.getState().setActiveView("settings");
-                    // Could navigate to a specific settings tab if needed
-                  }}
+                  onClick={() => openSettings("my-brand")}
                   className="flex items-center gap-2"
                 >
-                  <Settings className="h-4 w-4" />
-                  <span>Manage Brands</span>
+                  <Layers className="h-4 w-4" />
+                  <span>Manage Brand Settings</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -424,15 +457,23 @@ export function AppShell({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => useAppStore.getState().setActiveView("settings")}>
+                <DropdownMenuItem onClick={() => openSettings("my-account")}>
                   <User className="h-4 w-4 mr-2" />
-                  Profile
+                  My Account
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => useAppStore.getState().setActiveView("settings")}>
+                <DropdownMenuItem onClick={() => openSettings("my-steward")}>
+                  <Bot className="h-4 w-4 mr-2" />
+                  My Steward
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openSettings("billing")}>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Billing
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openSettings("support")}>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Help & Support
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive">
@@ -446,9 +487,9 @@ export function AppShell({
 
         {/* Brand Safety Banner */}
         {showBrandBanner && isRiskyActionPage && (
-          <Alert className="mx-6 mt-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-amber-800 dark:text-amber-200">
+          <Alert className="mx-6 mt-4 border-border/60 bg-muted/30">
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertDescription className="text-foreground">
               {isAllBrandsMode ? (
                 <span>
                   <strong>All Brands (View Only)</strong> — Select a brand to create or publish content.
@@ -467,6 +508,12 @@ export function AppShell({
           {children}
         </main>
       </div>
+      <SettingsOverlay
+        open={settingsOpen}
+        section={settingsSection}
+        onOpenChange={setSettingsOpen}
+        onSectionChange={setSettingsSection}
+      />
     </div>
   );
 }
