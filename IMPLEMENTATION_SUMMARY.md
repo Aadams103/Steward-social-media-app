@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the implementation of backend API integration, OAuth flows, real-time updates, and enhanced error handling for the Hostess Social Media App.
+This document summarizes the implementation of backend API integration, OAuth flows, real-time updates, and enhanced error handling for the Steward Social Media App.
 
 ## Completed Features
 

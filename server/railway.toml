@@ -1,0 +1,11 @@
+# Railway - Steward backend
+# Use Root Directory: server in Railway service settings.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300

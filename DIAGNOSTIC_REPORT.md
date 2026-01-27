@@ -1,4 +1,4 @@
-# Hostess Social Media App - Diagnostic Report
+# Steward Social Media App - Diagnostic Report
 
 **Date:** 2024-12-19  
 **Frontend URL:** http://localhost:5000  
@@ -206,7 +206,7 @@ GET /api/social-accounts
 #### Implementation
 ✅ **Header Injection**
 - Location: `src/sdk/core/request.ts:74-85`
-- All API requests include `x-brand-id` header from `localStorage.getItem('hostess_active_brand_id')`
+- All API requests include `x-brand-id` header from `localStorage.getItem('steward_active_brand_id')`
 - Defaults to `'all'` if no brand selected
 
 ✅ **Server-Side Filtering**

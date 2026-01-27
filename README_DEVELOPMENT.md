@@ -1,4 +1,4 @@
-# Hostess Social Media App - Development Guide
+# Steward Social Media App - Development Guide
 
 ## Local Development Setup
 

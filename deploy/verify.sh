@@ -1,11 +1,11 @@
 #!/bin/bash
-# Hostess Deployment Verification Script
+# Steward Deployment Verification Script
 # Checks that all services are running correctly
 
 set -e
 
 echo "=========================================="
-echo "Hostess Deployment Verification"
+echo "Steward Deployment Verification"
 echo "=========================================="
 echo ""
 
@@ -32,13 +32,13 @@ check_warn() {
 FAILED=0
 
 # 1. Check systemd service status
-echo "1. Checking hostess-api service..."
-if systemctl is-active --quiet hostess-api; then
-    check_pass "hostess-api service is running"
-    systemctl status hostess-api --no-pager -l | head -n 5
+echo "1. Checking steward-api service..."
+if systemctl is-active --quiet steward-api; then
+    check_pass "steward-api service is running"
+    systemctl status steward-api --no-pager -l | head -n 5
 else
-    check_fail "hostess-api service is not running"
-    echo "   Run: sudo systemctl status hostess-api"
+    check_fail "steward-api service is not running"
+    echo "   Run: sudo systemctl status steward-api"
 fi
 echo ""
 
@@ -83,12 +83,12 @@ echo ""
 
 # 5. Check frontend files
 echo "5. Checking frontend files..."
-if [ -f "/var/www/hostess/index.html" ]; then
+if [ -f "/var/www/steward/index.html" ]; then
     check_pass "Frontend index.html exists"
-    FRONTEND_SIZE=$(du -sh /var/www/hostess 2>/dev/null | cut -f1)
+    FRONTEND_SIZE=$(du -sh /var/www/steward 2>/dev/null | cut -f1)
     echo "   Frontend size: $FRONTEND_SIZE"
 else
-    check_fail "Frontend index.html not found at /var/www/hostess/index.html"
+    check_fail "Frontend index.html not found at /var/www/steward/index.html"
 fi
 echo ""
 
@@ -115,13 +115,13 @@ echo ""
 
 # 8. Check file permissions
 echo "8. Checking file permissions..."
-if [ -r "/opt/hostess/server/dist/index.js" ]; then
+if [ -r "/opt/steward/server/dist/index.js" ]; then
     check_pass "Backend dist/index.js is readable"
 else
     check_fail "Backend dist/index.js not found or not readable"
 fi
 
-if [ -r "/var/www/hostess/index.html" ]; then
+if [ -r "/var/www/steward/index.html" ]; then
     check_pass "Frontend index.html is readable"
 else
     check_fail "Frontend index.html not readable"
@@ -130,11 +130,11 @@ echo ""
 
 # 9. Check recent logs for errors
 echo "9. Checking recent service logs..."
-RECENT_ERRORS=$(journalctl -u hostess-api --since "5 minutes ago" --no-pager | grep -i error | tail -n 3 || true)
+RECENT_ERRORS=$(journalctl -u steward-api --since "5 minutes ago" --no-pager | grep -i error | tail -n 3 || true)
 if [ -z "$RECENT_ERRORS" ]; then
-    check_pass "No recent errors in hostess-api logs"
+    check_pass "No recent errors in steward-api logs"
 else
-    check_warn "Recent errors found in hostess-api logs:"
+    check_warn "Recent errors found in steward-api logs:"
     echo "$RECENT_ERRORS"
 fi
 echo ""
@@ -156,7 +156,7 @@ else
     echo -e "${RED}✗ Some checks failed${NC}"
     echo ""
     echo "Please review the errors above and:"
-    echo "  1. Check service logs: sudo journalctl -u hostess-api -n 50"
+    echo "  1. Check service logs: sudo journalctl -u steward-api -n 50"
     echo "  2. Check nginx logs: sudo tail -f /var/log/nginx/error.log"
     echo "  3. Verify configuration files are in place"
     echo "  4. See README_DEPLOY.md for troubleshooting"

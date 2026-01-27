@@ -5,7 +5,7 @@
 ## Quick Start
 
 1. **Go to Railway**: https://railway.app/new
-2. **Deploy from GitHub repo** → Select your Hostess repository
+2. **Deploy from GitHub repo** → Select your Steward repository
 3. **Configure:**
    - **Root Directory**: `server`
    - **Start Command**: (auto-detected) `npm start`

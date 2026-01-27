@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hostess VPS Setup Script
+# Steward VPS Setup Script
 # Idempotent setup script for Ubuntu VPS deployment
 # Usage: sudo bash setup_vps.sh [REPO_URL=https://...]
 
@@ -8,7 +8,7 @@ set -e  # Exit on error
 REPO_URL="${REPO_URL:-}"
 
 echo "=========================================="
-echo "Hostess VPS Setup Script"
+echo "Steward VPS Setup Script"
 echo "=========================================="
 
 # Check if running as root
@@ -48,30 +48,30 @@ echo "npm version: $NPM_VERSION"
 
 # Create application directory
 echo "[4/8] Creating application directory..."
-mkdir -p /opt/hostess
-chown -R $SUDO_USER:$SUDO_USER /opt/hostess 2>/dev/null || chown -R root:root /opt/hostess
+mkdir -p /opt/steward
+chown -R $SUDO_USER:$SUDO_USER /opt/steward 2>/dev/null || chown -R root:root /opt/steward
 
 # Create web root directory
 echo "[5/8] Creating web root directory..."
-mkdir -p /var/www/hostess
-chown -R www-data:www-data /var/www/hostess
-chmod -R 755 /var/www/hostess
+mkdir -p /var/www/steward
+chown -R www-data:www-data /var/www/steward
+chmod -R 755 /var/www/steward
 
 # Create uploads directory
 echo "[6/8] Creating uploads directory..."
-mkdir -p /opt/hostess/server/uploads
-chown -R www-data:www-data /opt/hostess/server/uploads
-chmod -R 755 /opt/hostess/server/uploads
+mkdir -p /opt/steward/server/uploads
+chown -R www-data:www-data /opt/steward/server/uploads
+chmod -R 755 /opt/steward/server/uploads
 
 # Clone repository if REPO_URL is provided
 if [ -n "$REPO_URL" ]; then
     echo "[7/8] Cloning repository from $REPO_URL..."
-    cd /opt/hostess
+    cd /opt/steward
     if [ -d ".git" ]; then
         echo "Repository already exists, skipping clone"
     else
         git clone "$REPO_URL" .
-        chown -R $SUDO_USER:$SUDO_USER /opt/hostess 2>/dev/null || chown -R root:root /opt/hostess
+        chown -R $SUDO_USER:$SUDO_USER /opt/steward 2>/dev/null || chown -R root:root /opt/steward
     fi
 else
     echo "[7/8] No REPO_URL provided, skipping repository clone"
@@ -79,16 +79,16 @@ else
     echo "=========================================="
     echo "Next steps:"
     echo "=========================================="
-    echo "1. Deploy your code to /opt/hostess"
+    echo "1. Deploy your code to /opt/steward"
     echo "   Example:"
-    echo "   cd /opt/hostess"
-    echo "   git clone https://github.com/yourusername/hostess.git ."
+    echo "   cd /opt/steward"
+    echo "   git clone https://github.com/yourusername/steward.git ."
     echo ""
     echo "   Or upload via SCP:"
-    echo "   scp -r /path/to/hostess/* root@your-server:/opt/hostess/"
+    echo "   scp -r /path/to/steward/* root@your-server:/opt/steward/"
     echo ""
     echo "2. Build the application:"
-    echo "   cd /opt/hostess"
+    echo "   cd /opt/steward"
     echo "   npm install"
     echo "   npm run build"
     echo "   cd server"
@@ -96,7 +96,7 @@ else
     echo "   npm run build"
     echo ""
     echo "3. Copy frontend build:"
-    echo "   cp -r /opt/hostess/dist/* /var/www/hostess/"
+    echo "   cp -r /opt/steward/dist/* /var/www/steward/"
     echo ""
     echo "4. Continue with deployment steps in README_DEPLOY.md"
     echo "=========================================="
@@ -113,8 +113,8 @@ echo "  - git: $(git --version)"
 echo "  - certbot: $(certbot --version 2>&1 | head -n1)"
 echo ""
 echo "Directories created:"
-echo "  - /opt/hostess (application code)"
-echo "  - /var/www/hostess (web root)"
-echo "  - /opt/hostess/server/uploads (uploads directory)"
+echo "  - /opt/steward (application code)"
+echo "  - /var/www/steward (web root)"
+echo "  - /opt/steward/server/uploads (uploads directory)"
 echo ""
 echo "Next steps: See README_DEPLOY.md for deployment instructions"

@@ -1,4 +1,4 @@
-# Hostess Production Deployment Guide
+# Steward Production Deployment Guide
 
 ## Railway Quick Start
 
@@ -6,7 +6,7 @@ For cloud deployment, see **[Railway Deployment Guide](./README_RAILWAY.md)** fo
 
 ---
 
-This guide provides step-by-step instructions for deploying Hostess to an Ubuntu VPS (Kamatera).
+This guide provides step-by-step instructions for deploying Steward to an Ubuntu VPS (Kamatera).
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ cd /opt
 sudo bash setup_vps.sh
 
 # If you have a git repository URL, you can provide it:
-# sudo REPO_URL=https://github.com/yourusername/hostess.git bash setup_vps.sh
+# sudo REPO_URL=https://github.com/yourusername/steward.git bash setup_vps.sh
 ```
 
 **Note for PowerShell users:** Run commands one at a time. PowerShell doesn't support `&&` syntax.
@@ -39,17 +39,17 @@ If you didn't provide `REPO_URL` in step 1, manually deploy your code:
 
 ```bash
 # Option A: Clone from Git
-cd /opt/hostess
-sudo git clone https://github.com/yourusername/hostess.git .
+cd /opt/steward
+sudo git clone https://github.com/yourusername/steward.git .
 
 # Option B: Upload via SCP (from your local machine)
-# scp -r /path/to/hostess/* root@your-server:/opt/hostess/
+# scp -r /path/to/steward/* root@your-server:/opt/steward/
 ```
 
 ### 3. Build Frontend and Backend
 
 ```bash
-cd /opt/hostess
+cd /opt/steward
 
 # Install frontend dependencies
 npm install
@@ -70,7 +70,7 @@ cd ..
 
 ```bash
 # Create backend .env file
-sudo nano /opt/hostess/server/.env
+sudo nano /opt/steward/server/.env
 ```
 
 Add your environment variables (example):
@@ -84,35 +84,35 @@ PORT=8080
 
 ```bash
 # Copy frontend dist to web root
-sudo cp -r /opt/hostess/dist/* /var/www/hostess/
-sudo chown -R www-data:www-data /var/www/hostess
+sudo cp -r /opt/steward/dist/* /var/www/steward/
+sudo chown -R www-data:www-data /var/www/steward
 ```
 
 ### 6. Install Systemd Service
 
 ```bash
 # Copy service file
-sudo cp /opt/hostess/deploy/hostess-api.service /etc/systemd/system/
+sudo cp /opt/steward/deploy/steward-api.service /etc/systemd/system/
 
 # Reload systemd
 sudo systemctl daemon-reload
 
 # Enable and start service
-sudo systemctl enable hostess-api
-sudo systemctl start hostess-api
+sudo systemctl enable steward-api
+sudo systemctl start steward-api
 
 # Check status
-sudo systemctl status hostess-api
+sudo systemctl status steward-api
 ```
 
 ### 7. Configure Nginx
 
 ```bash
 # Copy nginx config
-sudo cp /opt/hostess/deploy/nginx-hostess.conf /etc/nginx/sites-available/hostess
+sudo cp /opt/steward/deploy/nginx-steward.conf /etc/nginx/sites-available/steward
 
 # Create symlink
-sudo ln -s /etc/nginx/sites-available/hostess /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/steward /etc/nginx/sites-enabled/
 
 # Remove default site (optional)
 sudo rm /etc/nginx/sites-enabled/default
@@ -140,7 +140,7 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
 ```bash
 # Run verification script
-cd /opt/hostess/deploy
+cd /opt/steward/deploy
 sudo bash verify.sh
 ```
 
@@ -151,7 +151,7 @@ sudo bash verify.sh
 curl http://localhost:8080/api/health
 
 # Check systemd service
-sudo systemctl status hostess-api
+sudo systemctl status steward-api
 
 # Check nginx status
 sudo systemctl status nginx
@@ -160,13 +160,13 @@ sudo systemctl status nginx
 sudo tail -f /var/log/nginx/error.log
 
 # Check backend logs
-sudo journalctl -u hostess-api -f
+sudo journalctl -u steward-api -f
 ```
 
 ## Updating the Application
 
 ```bash
-cd /opt/hostess
+cd /opt/steward
 
 # Pull latest changes (if using git)
 sudo git pull
@@ -180,10 +180,10 @@ npm run build
 cd ..
 
 # Copy new frontend build
-sudo cp -r dist/* /var/www/hostess/
+sudo cp -r dist/* /var/www/steward/
 
 # Restart backend service
-sudo systemctl restart hostess-api
+sudo systemctl restart steward-api
 
 # Reload nginx (usually not needed, but safe)
 sudo systemctl reload nginx
@@ -195,13 +195,13 @@ sudo systemctl reload nginx
 
 ```bash
 # Check service logs
-sudo journalctl -u hostess-api -n 50
+sudo journalctl -u steward-api -n 50
 
 # Check if port 8080 is in use
 sudo netstat -tlnp | grep 8080
 
 # Test backend manually
-cd /opt/hostess/server
+cd /opt/steward/server
 node dist/index.js
 ```
 
@@ -222,11 +222,11 @@ sudo tail -f /var/log/nginx/access.log
 
 ```bash
 # Verify files are in place
-ls -la /var/www/hostess/
+ls -la /var/www/steward/
 
 # Check permissions
-sudo chown -R www-data:www-data /var/www/hostess
-sudo chmod -R 755 /var/www/hostess
+sudo chown -R www-data:www-data /var/www/steward
+sudo chmod -R 755 /var/www/steward
 ```
 
 ### WebSocket connection issues
@@ -237,11 +237,11 @@ sudo chmod -R 755 /var/www/hostess
 
 ## File Locations
 
-- **Application code:** `/opt/hostess`
-- **Frontend build:** `/var/www/hostess`
-- **Backend service:** `/etc/systemd/system/hostess-api.service`
-- **Nginx config:** `/etc/nginx/sites-available/hostess`
-- **Backend logs:** `journalctl -u hostess-api`
+- **Application code:** `/opt/steward`
+- **Frontend build:** `/var/www/steward`
+- **Backend service:** `/etc/systemd/system/steward-api.service`
+- **Nginx config:** `/etc/nginx/sites-available/steward`
+- **Backend logs:** `journalctl -u steward-api`
 - **Nginx logs:** `/var/log/nginx/`
 
 ## Security Notes
@@ -249,7 +249,7 @@ sudo chmod -R 755 /var/www/hostess
 - Ensure firewall is configured (UFW recommended)
 - Keep system updated: `sudo apt update && sudo apt upgrade`
 - Use strong passwords and SSH keys
-- Regularly backup `/opt/hostess` and database (if applicable)
+- Regularly backup `/opt/steward` and database (if applicable)
 - Review nginx security headers in production
 
 ## PowerShell Users

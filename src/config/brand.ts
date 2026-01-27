@@ -1,7 +1,7 @@
 /**
  * Steward brand configuration.
  * Single source of truth for user-facing app name and core copy.
- * Do not rename internal keys/contracts (e.g. hostess_active_brand_id, x-brand-id).
+ * Do not rename internal keys/contracts (e.g. steward_active_brand_id, x-brand-id).
  */
 export const APP_NAME = "Steward";
 

@@ -61,7 +61,7 @@ META_OAUTH_REDIRECT_BASE=http://localhost:8080
    - Test users: Add your email address (for testing)
 4. Create OAuth client ID:
    - Application type: **Web application**
-   - Name: "Hostess OAuth Client"
+   - Name: "Steward OAuth Client"
    - **Authorized redirect URIs**: Add:
      ```
      http://localhost:8080/api/oauth/google/callback

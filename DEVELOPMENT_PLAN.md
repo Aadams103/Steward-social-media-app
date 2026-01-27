@@ -1,4 +1,4 @@
-# Hostess Social Media App - Development Plan
+# Steward Social Media App - Development Plan
 
 ## Phase 0 - Fix White Screen ✅ COMPLETED
 

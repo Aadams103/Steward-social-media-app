@@ -38,7 +38,7 @@ git push -u origin main
 1. Click **"New Project"**
 2. Select **"Deploy from GitHub repo"**
 3. **Authorize Railway** to access your GitHub (if first time)
-4. **Select your Hostess repository**
+4. **Select your Steward repository**
 
 ### 2.3 Configure Backend Service
 1. Railway will detect it's a Node.js project
@@ -64,7 +64,7 @@ git push -u origin main
 1. Go to **Settings** tab
 2. Scroll to **"Networking"** section
 3. Click **"Generate Domain"** (if not already generated)
-4. **Copy the URL** (e.g., `https://hostess-production.up.railway.app`)
+4. **Copy the URL** (e.g., `https://steward-production.up.railway.app`)
 5. **Save this URL** - you'll need it for the frontend!
 
 ### 2.6 Test Backend
@@ -88,7 +88,7 @@ You should see: `{"ok":true,"time":"...","version":"1.0.0"}`
 
 ### 3.2 Import Project
 1. Click **"Add New..."** → **"Project"**
-2. **Import** your Hostess GitHub repository
+2. **Import** your Steward GitHub repository
 3. Click **"Import"**
 
 ### 3.3 Configure Frontend
@@ -121,7 +121,7 @@ You should see: `{"ok":true,"time":"...","version":"1.0.0"}`
 3. Vercel will show you the deployment URL
 
 ### 3.6 Get Your Frontend URL
-- Vercel provides a URL like: `https://hostess-xyz.vercel.app`
+- Vercel provides a URL like: `https://steward-xyz.vercel.app`
 - **Save this URL**
 
 **✅ Frontend is live!**

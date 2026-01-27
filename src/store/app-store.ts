@@ -1608,7 +1608,16 @@ export const useAppStore = create<AppState>((set, get) => {
   activeBrandId: (() => {
     // Load from localStorage on initialization
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('hostess_active_brand_id');
+      let stored = localStorage.getItem('steward_active_brand_id');
+      // One-time migration from legacy hostess_active_brand_id (Hostess → Steward rebrand)
+      if (!stored) {
+        const legacy = localStorage.getItem('hostess_active_brand_id');
+        if (legacy) {
+          localStorage.setItem('steward_active_brand_id', legacy);
+          localStorage.removeItem('hostess_active_brand_id');
+          stored = legacy;
+        }
+      }
       return stored || null;
     }
     return null;
@@ -1617,9 +1626,9 @@ export const useAppStore = create<AppState>((set, get) => {
     // Persist to localStorage
     if (typeof window !== 'undefined') {
       if (brandId === null) {
-        localStorage.removeItem('hostess_active_brand_id');
+        localStorage.removeItem('steward_active_brand_id');
       } else {
-        localStorage.setItem('hostess_active_brand_id', brandId);
+        localStorage.setItem('steward_active_brand_id', brandId);
       }
     }
     set({ activeBrandId: brandId });
@@ -1638,9 +1647,9 @@ export const useAppStore = create<AppState>((set, get) => {
       newActiveBrandId = newBrands.length > 0 ? newBrands[0].id : null;
       if (typeof window !== 'undefined') {
         if (newActiveBrandId) {
-          localStorage.setItem('hostess_active_brand_id', newActiveBrandId);
+          localStorage.setItem('steward_active_brand_id', newActiveBrandId);
         } else {
-          localStorage.removeItem('hostess_active_brand_id');
+          localStorage.removeItem('steward_active_brand_id');
         }
       }
     }

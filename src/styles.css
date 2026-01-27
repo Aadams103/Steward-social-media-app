@@ -9,6 +9,13 @@
  * ----------------------------------------------------------------------------- */
 
 :root {
+	/* Steward UI — login, chrome, branded surfaces */
+	--steward-bg: #0b1220;
+	--steward-surface: #111a2b;
+	--steward-silver: #d7dce3;
+	--steward-steel: #8a93a2;
+	--steward-blue: #1f3b74;
+
 	/* Typography scale — Clean, executive sans-serif; calm hierarchy */
 	--font-sans:
 		ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",

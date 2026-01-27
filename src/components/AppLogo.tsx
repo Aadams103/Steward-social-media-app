@@ -37,7 +37,6 @@ export function AppLogo({
 }: AppLogoProps) {
   const { data: currentBrand } = useCurrentBrand();
   const [imageError, setImageError] = useState(false);
-  const [fallbackAttempted, setFallbackAttempted] = useState(false);
 
   // Determine which brand logo URL to use
   const brandLogoUrl = useMemo(() => {
@@ -70,37 +69,8 @@ export function AppLogo({
     return brandLogoUrl;
   }, [brandLogoUrl, currentBrand]);
 
-  // Steward fallback assets (SVG-based lockups + marks)
-  const stewardAssets = {
-    lockup: {
-      light: "/brand/steward/steward-lockup-horizontal-white.svg",
-      dark: "/brand/steward/steward-lockup-horizontal-black.svg",
-    },
-    mark: {
-      light: "/brand/steward/steward-mark-white.svg",
-      dark: "/brand/steward/steward-mark-black.svg",
-    },
-  };
-
-  // Fallback to legacy SVG paths if PNGs don't exist
-  const stewardAssetsLegacy = {
-    lockup: {
-      light: "/steward-logo-light.svg",
-      dark: "/steward-logo-dark.svg",
-    },
-    mark: {
-      light: "/steward-logo-mark.svg",
-      dark: "/steward-logo-mark-dark.svg",
-    },
-  };
-
-  // Determine which asset to use
-  const stewardAsset = stewardAssets[variant][theme];
-  const stewardAssetLegacy = stewardAssetsLegacy[variant][theme];
-
-  // Use brand logo if available and no error, otherwise use Steward
-  // Try new PNG assets first, fall back to legacy SVG if they don't exist
-  const stewardFallback = fallbackAttempted ? stewardAssetLegacy : stewardAsset;
+  // Steward fallback: /brand/steward-mark.svg and /brand/steward-lockup.svg
+  const stewardFallback = variant === "mark" ? "/brand/steward-mark.svg" : "/brand/steward-lockup.svg";
   const logoSrc = brandLogoUrlWithCache && !imageError 
     ? brandLogoUrlWithCache 
     : stewardFallback;
@@ -124,23 +94,12 @@ export function AppLogo({
         }}
         onError={(e) => {
           const img = e.target as HTMLImageElement;
-          
-          // If brand logo fails, fall back to Steward
           if (brandLogoUrlWithCache && !imageError) {
             setImageError(true);
             img.src = stewardFallback;
-            return;
+          } else {
+            console.warn(`Failed to load logo: ${logoSrc}`);
           }
-          
-          // If new Steward asset fails, try legacy SVG
-          if (logoSrc === stewardAsset && !fallbackAttempted) {
-            setFallbackAttempted(true);
-            img.src = stewardAssetLegacy;
-            return;
-          }
-          
-          // If legacy also fails, keep showing it (broken image is better than nothing)
-          console.warn(`Failed to load logo: ${logoSrc}`);
         }}
       />
     </div>

@@ -1,27 +1,21 @@
 # Railway ignore file for server directory
+# Build runs from source: npm ci && npm run build (tsc), then npm start (node dist/index.js)
 
-# Development files
+# Development / tooling
 node_modules/
 .cursor/
 .vscode/
 
-# Source files (only need dist/)
-src/
-
-# Logs
-*.log
-
-# Environment files
+# Environment (use Railway Variables)
 .env
 .env.local
 
-# Test files
+# Test files (not needed in production build)
 **/*.test.ts
 **/*.spec.ts
 
-# Config files
-tsconfig.json
-.eslintrc*
+# Logs
+*.log
 
 # Documentation
 *.md

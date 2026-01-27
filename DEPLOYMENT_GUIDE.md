@@ -1,6 +1,6 @@
-# Hostess Deployment Guide - Railway, Render, Vercel, Supabase
+# Steward Deployment Guide - Railway, Render, Vercel, Supabase
 
-This guide covers deploying Hostess to production platforms so you can start adding real data.
+This guide covers deploying Steward to production platforms so you can start adding real data.
 
 ## 🎯 Recommended Setup: Railway (Full-Stack)
 
@@ -28,7 +28,7 @@ This guide covers deploying Hostess to production platforms so you can start add
 
 1. **Go to Railway**: https://railway.app/new
 2. **Select "Deploy from GitHub repo"**
-3. **Choose your Hostess repository**
+3. **Choose your Steward repository**
 4. **Configure the service:**
    - **Root Directory**: `server`
    - **Start Command**: (auto-detected) `npm start`
@@ -54,7 +54,7 @@ This guide covers deploying Hostess to production platforms so you can start add
    ```
 
 6. **Get your backend URL:**
-   - Railway provides a URL like: `https://hostess-production.up.railway.app`
+   - Railway provides a URL like: `https://steward-production.up.railway.app`
    - Copy this URL - you'll need it for the frontend
 
 ### Step 3: Add Postgres Database (For Real Data!)
@@ -171,7 +171,7 @@ Currently, your backend uses in-memory storage. To persist data, you need to add
 2. **New** → **Web Service**
 3. **Connect your repository**
 4. **Configure:**
-   - **Name**: `hostess-backend`
+   - **Name**: `steward-backend`
    - **Environment**: Node
    - **Build Command**: `cd server && npm install && npm run build`
    - **Start Command**: `cd server && npm start`

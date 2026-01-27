@@ -1,7 +1,7 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { AppLogo } from "@/components/AppLogo";
+import { StewardLogo } from "@/components/StewardLogo";
 import { Button } from "@/components/ui/button";
-import { APP_NAME } from "@/config/brand";
+import { APP_NAME, APP_SHORT_TAGLINE } from "@/config/brand";
 
 const NAV = [
   { to: "/", label: "Home" },
@@ -16,27 +16,31 @@ const NAV = [
 export function MarketingLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-sidebar-border bg-sidebar">
+      <header className="sticky top-0 z-50 border-b border-[var(--steward-steel)]/40 bg-[var(--steward-surface)]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <AppLogo variant="lockup" theme="light" size={32} />
+          <Link to="/" className="flex items-center gap-3 shrink-0">
+            <StewardLogo variant="mark" size={36} />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-[var(--steward-silver)]">{APP_NAME}</span>
+              <span className="text-xs text-[var(--steward-steel)]">{APP_SHORT_TAGLINE}</span>
+            </div>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {NAV.map(({ to, label }) => (
               <Link
                 key={to}
                 to={to}
-                className="px-3 py-2 text-sm font-medium text-sidebar-foreground/80 hover:text-sidebar-foreground rounded-md hover:bg-sidebar-accent transition-colors"
+                className="px-3 py-2 text-sm font-medium text-[var(--steward-steel)] hover:text-[var(--steward-silver)] rounded-md transition-colors"
               >
                 {label}
               </Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground">
+            <Button variant="ghost" asChild className="text-[var(--steward-silver)] hover:bg-white/5 hover:text-[var(--steward-silver)]">
               <Link to="/app">Log in</Link>
             </Button>
-            <Button asChild className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
+            <Button asChild className="bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90">
               <Link to="/app">Get started</Link>
             </Button>
           </div>

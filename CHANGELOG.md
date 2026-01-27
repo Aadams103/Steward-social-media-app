@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Hostess Social Media App will be documented in this file.
+All notable changes to the Steward Social Media App will be documented in this file.
 
 ## Phase 0 - Fix White Screen (2024-12-XX)
 

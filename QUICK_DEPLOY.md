@@ -14,7 +14,7 @@ git push
 
 1. Go to: **https://railway.app/new**
 2. Click **"Deploy from GitHub repo"**
-3. Select your **Hostess repository**
+3. Select your **Steward repository**
 4. In the service settings:
    - **Root Directory**: `server`
    - **Start Command**: (auto-detected) `npm start`
@@ -22,7 +22,7 @@ git push
    ```
    NODE_ENV=production
    ```
-6. **Copy your backend URL** (e.g., `https://hostess-production.up.railway.app`)
+6. **Copy your backend URL** (e.g., `https://steward-production.up.railway.app`)
 
 ## Step 3: Deploy Frontend (Vercel)
 

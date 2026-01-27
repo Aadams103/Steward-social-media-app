@@ -1,4 +1,4 @@
-# Today's Action Plan - Hostess Social Media App
+# Today's Action Plan - Steward Social Media App
 
 ## 🎯 Current Status
 

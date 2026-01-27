@@ -61,7 +61,7 @@ META_OAUTH_REDIRECT_BASE=https://your-railway-service.up.railway.app
 1. **Create Railway Project**
    - Go to https://railway.app/new
    - Select "Deploy from GitHub repo"
-   - Choose your Hostess repository
+   - Choose your Steward repository
 
 2. **Configure Service**
    - **Root Directory**: `server`
@@ -74,7 +74,7 @@ META_OAUTH_REDIRECT_BASE=https://your-railway-service.up.railway.app
 3. **Set Environment Variables**
    - Go to Variables tab in Railway dashboard
    - Add all required variables listed above
-   - **Important**: Set `GOOGLE_OAUTH_REDIRECT_BASE` and `META_OAUTH_REDIRECT_BASE` to your Railway service URL (e.g., `https://hostess-production.up.railway.app`)
+   - **Important**: Set `GOOGLE_OAUTH_REDIRECT_BASE` and `META_OAUTH_REDIRECT_BASE` to your Railway service URL (e.g., `https://steward-production.up.railway.app`)
 
 4. **Deploy**
    - Railway automatically deploys on git push

@@ -1,4 +1,4 @@
-# Hostess Social Media App - Setup Checklist
+# Steward Social Media App - Setup Checklist
 
 **Generated:** Today  
 **Status:** Getting Started Guide

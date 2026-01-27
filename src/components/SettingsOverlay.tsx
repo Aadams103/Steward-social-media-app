@@ -27,7 +27,7 @@ import { BillingSettings } from "@/pages/settings/BillingSettings";
 import { IntegrationsSettings } from "@/pages/settings/IntegrationsSettings";
 import { AuditLogsSettings } from "@/pages/settings/AuditLogsSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 export type SettingsSectionId =
   | "my-account"
@@ -348,7 +348,7 @@ export function SettingsOverlay(props: SettingsOverlayProps) {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleKeepEditing}>Keep editing</AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
+              className={buttonVariants({ variant: "destructive" })}
               onClick={handleDiscardChanges}
             >
               Discard changes

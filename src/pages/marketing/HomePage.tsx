@@ -1,61 +1,68 @@
-import { Link } from "@tanstack/react-router";
-import { AppLogo } from "@/components/AppLogo";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { StewardLogo } from "@/components/StewardLogo";
 import { Button } from "@/components/ui/button";
-import { APP_HEADLINE, APP_SUBHEAD } from "@/config/brand";
-import { Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /**
- * Marketing homepage hero. Copy must match exactly (headline, subhead, proof row, skeptic).
+ * Home/login: center card with lockup + email/password form.
+ * Uses Steward CSS tokens (--steward-bg, --steward-surface, --steward-silver, --steward-steel, --steward-blue).
  */
 export function HomePage() {
+  const navigate = useNavigate();
+
   return (
-    <section className="relative overflow-hidden">
-      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
+    <section className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-[var(--steward-bg)] text-[var(--steward-silver)] py-12 px-4">
+      <div className="w-full max-w-md rounded-lg bg-[var(--steward-surface)] p-8 shadow-xl">
         <div className="flex justify-center mb-8">
-          <AppLogo variant="lockup" theme="dark" size={40} />
+          <StewardLogo variant="lockup" size={44} />
         </div>
 
-        <h1 className="text-center text-[var(--text-h1)] font-semibold tracking-tight text-foreground sm:text-4xl">
-          {APP_HEADLINE}
-        </h1>
-
-        <p className="mt-4 text-center text-[var(--text-body)] text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          {APP_SUBHEAD}
-        </p>
-
-        <ul className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 list-none">
-          <li className="flex items-center gap-2 text-[var(--text-body)] text-foreground">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Check className="h-3 w-3" />
-            </span>
-            On-brand content, automatically
-          </li>
-          <li className="flex items-center gap-2 text-[var(--text-body)] text-foreground">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Check className="h-3 w-3" />
-            </span>
-            Approvals when you want them
-          </li>
-          <li className="flex items-center gap-2 text-[var(--text-body)] text-foreground">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Check className="h-3 w-3" />
-            </span>
-            Monitoring that doesn&apos;t miss mentions
-          </li>
-        </ul>
-
-        <p className="mt-8 text-center text-[var(--text-body)] text-muted-foreground max-w-2xl mx-auto">
-          Steward is an autonomous social media manager you configure once to run your presence safely.
-        </p>
-
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Button asChild size="lg">
-            <Link to="/app">Get started</Link>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate({ to: "/app" });
+          }}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-[var(--steward-silver)]">
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              className="bg-[var(--steward-bg)]/50 border-[var(--steward-steel)]/50 text-[var(--steward-silver)] placeholder:text-[var(--steward-steel)]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-[var(--steward-silver)]">
+              Password
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              className="bg-[var(--steward-bg)]/50 border-[var(--steward-steel)]/50 text-[var(--steward-silver)] placeholder:text-[var(--steward-steel)]"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90"
+          >
+            Sign in
           </Button>
-          <Button variant="outline" asChild size="lg">
-            <Link to="/product">Learn more</Link>
-          </Button>
-        </div>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-[var(--steward-steel)]">
+          New to Steward?{" "}
+          <Link to="/app" className="text-[var(--steward-silver)] underline hover:no-underline">
+            Get started
+          </Link>
+        </p>
       </div>
     </section>
   );

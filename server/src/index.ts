@@ -5,23 +5,27 @@
  */
 
 import 'dotenv/config';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import type { Request as ExpressRequest } from 'express-serve-static-core';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types';
 import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed';
+import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost } from './supabase.js';
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 // #region agent log
-const DEBUG_LOG_PATH = path.join(process.cwd(), '.cursor', 'debug.log');
+const DEBUG_LOG_PATH = path.resolve(__dirname, '..', '..', '.cursor', 'debug.log');
 
 function agentLog(payload: {
   sessionId: string;
@@ -263,7 +267,7 @@ app.post('/api/posts', (req, res) => {
 // ============================================================================
 
 // POST /api/oauth/meta/start?brandId=...&purpose=facebook|instagram
-app.get('/api/oauth/meta/start', (req, res) => {
+app.get('/api/oauth/meta/start', async (req, res) => {
   if (!META_APP_ID || !META_APP_SECRET) {
     return res.status(500).json({ 
       code: 'META_NOT_CONFIGURED', 
@@ -280,14 +284,7 @@ app.get('/api/oauth/meta/start', (req, res) => {
 
   const state = generateState();
   const expiresAt = Date.now() + (10 * 60 * 1000); // 10 minutes
-  oauthStates.set(state, { brandId, purpose, provider: 'meta', expiresAt });
-
-  // Clean up expired states
-  for (const [key, value] of oauthStates.entries()) {
-    if (value.expiresAt < Date.now()) {
-      oauthStates.delete(key);
-    }
-  }
+  await setOAuthState(state, { brandId, purpose, provider: 'meta', expiresAt });
 
   const redirectUri = `${META_OAUTH_REDIRECT_BASE}/api/oauth/meta/callback`;
   
@@ -359,9 +356,8 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
     return res.send(errorHtml);
   }
 
-  const stateData = oauthStates.get(state as string);
-  if (!stateData || stateData.expiresAt < Date.now() || stateData.provider !== 'meta') {
-    oauthStates.delete(state as string);
+  const stateData = await getAndDeleteOAuthState(state as string);
+  if (!stateData || stateData.provider !== 'meta') {
     const errorHtml = `
       <!DOCTYPE html>
       <html>
@@ -384,7 +380,6 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
   }
 
   const { brandId, purpose } = stateData;
-  oauthStates.delete(state as string);
 
   try {
     // Exchange code for tokens
@@ -463,6 +458,7 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
       };
 
       socialAccounts.set(account.id, account);
+      await upsertSocialAccountForSupabase(account, defaultOrg.id);
       broadcast({ type: 'account_created', data: account });
 
       const successHtml = `
@@ -523,6 +519,7 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
         };
 
         socialAccounts.set(account.id, account);
+        await upsertSocialAccountForSupabase(account, defaultOrg.id);
         broadcast({ type: 'account_created', data: account });
 
         const successHtml = `
@@ -2680,12 +2677,10 @@ const META_APP_ID = process.env.META_APP_ID || '';
 const META_APP_SECRET = process.env.META_APP_SECRET || '';
 const META_OAUTH_REDIRECT_BASE = process.env.META_OAUTH_REDIRECT_BASE || 'http://localhost:8080';
 
-// OAuth state storage (in production, use Redis or similar)
 // purpose: 'gmail' | 'gbp' | 'youtube' (Google OAuth purposes)
 // purpose: 'facebook' | 'instagram' (Meta OAuth purposes)
 type OAuthPurpose = 'gmail' | 'gbp' | 'youtube' | 'facebook' | 'instagram';
 type OAuthProvider = 'google' | 'meta';
-const oauthStates: Map<string, { brandId: string; purpose: OAuthPurpose; provider: OAuthProvider; expiresAt: number }> = new Map();
 
 // GET /api/oauth/config-status - Check OAuth configuration status
 app.get('/api/oauth/config-status', (req, res) => {
@@ -2746,7 +2741,7 @@ async function getGoogleAccessToken(integration: GoogleIntegration): Promise<str
 }
 
 // GET /api/oauth/google/start?brandId=...&purpose=gmail|gbp|youtube
-app.get('/api/oauth/google/start', (req, res) => {
+app.get('/api/oauth/google/start', async (req, res) => {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     return res.status(500).json({ 
       code: 'GOOGLE_NOT_CONFIGURED', 
@@ -2763,14 +2758,7 @@ app.get('/api/oauth/google/start', (req, res) => {
 
   const state = generateState();
   const expiresAt = Date.now() + (10 * 60 * 1000); // 10 minutes
-  oauthStates.set(state, { brandId, purpose, provider: 'google', expiresAt });
-
-  // Clean up expired states
-  for (const [key, value] of oauthStates.entries()) {
-    if (value.expiresAt < Date.now()) {
-      oauthStates.delete(key);
-    }
-  }
+  await setOAuthState(state, { brandId, purpose, provider: 'google', expiresAt });
 
   const redirectUri = `${GOOGLE_OAUTH_REDIRECT_BASE}/api/oauth/google/callback`;
   
@@ -2862,9 +2850,8 @@ app.get('/api/oauth/google/callback', async (req, res) => {
     return res.send(errorHtml);
   }
 
-  const stateData = oauthStates.get(state as string);
-  if (!stateData || stateData.expiresAt < Date.now()) {
-    oauthStates.delete(state as string);
+  const stateData = await getAndDeleteOAuthState(state as string);
+  if (!stateData || stateData.provider !== 'google') {
     const errorHtml = `
       <!DOCTYPE html>
       <html>
@@ -2887,7 +2874,6 @@ app.get('/api/oauth/google/callback', async (req, res) => {
   }
 
   const { brandId, purpose } = stateData;
-  oauthStates.delete(state as string);
 
   try {
     // Exchange code for tokens
@@ -3649,21 +3635,112 @@ app.get('/api/email/triage', (req, res) => {
 });
 
 // ============================================================================
-// HEALTH CHECK
+// HEALTH CHECK & AUTH /me (must be before 404 catch-all)
 // ============================================================================
 
+// GET /api/health
+app.get('/api/health', async (req, res) => {
+  // #region agent log
+  agentLog({
+    sessionId: 'debug-session',
+    runId: 'post-fix',
+    hypothesisId: 'H1',
+    location: 'server/src/index.ts:health',
+    message: 'healthcheck_invoked',
+    data: {},
+    timestamp: Date.now(),
+  });
+  // #endregion
+
+  const payload: { ok: boolean; time: string; version: string; supabase?: string } = {
+    ok: true,
+    time: new Date().toISOString(),
+    version: '1.0.0',
+  };
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const { checkSupabaseConnection } = await import('./supabase.js');
+    payload.supabase = await checkSupabaseConnection();
+  }
+  res.json(payload);
+});
+
+// GET /api/me - used by auth validateToken; returns minimal user for 200
+app.get('/api/me', (_req, res) => {
+  res.json({ id: 'dev-user', email: 'dev@localhost' });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/cron/ingest - Instagram ingestion (guarded by INGEST_SECRET)
+// Rate limit: ~1 run per account per 55 minutes. Idempotent upsert by (platform, external_id).
+// ---------------------------------------------------------------------------
+const ingestLastRun = new Map<string, number>();
+const INGEST_RATE_MS = 55 * 60 * 1000;
+
+app.post('/api/cron/ingest', async (req, res) => {
+  const secret = req.headers['x-ingest-secret'] || req.headers['authorization']?.replace(/^Bearer /, '');
+  const want = process.env.INGEST_SECRET || process.env.CRON_SECRET;
+  if (want && secret !== want) {
+    return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid or missing secret' });
+  }
+
+  type Acc = { id: string; brand_id: string; provider_account_id: string; oauth_access_token: string };
+  let accounts: Acc[];
+
+  if (getSupabaseClient()) {
+    accounts = await getInstagramAccountsForIngest();
+  } else {
+    accounts = Array.from(socialAccounts.values())
+      .filter((sa) => sa.platform === 'instagram' && sa.oauthToken?.accessToken)
+      .map((sa) => ({
+        id: sa.id,
+        brand_id: sa.brandId,
+        provider_account_id: sa.providerAccountId || sa.id,
+        oauth_access_token: sa.oauthToken!.accessToken,
+      }));
+  }
+
+  let ok = 0;
+  let skipped = 0;
+  for (const acc of accounts) {
+    const key = acc.id;
+    const last = ingestLastRun.get(key) ?? 0;
+    if (Date.now() - last < INGEST_RATE_MS) {
+      skipped++;
+      continue;
+    }
+    try {
+      const url = `https://graph.facebook.com/v18.0/${acc.provider_account_id}/media?fields=id,caption,media_type,media_url,timestamp&access_token=${encodeURIComponent(acc.oauth_access_token)}`;
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const json = (await r.json()) as { data?: Array<{ id?: string; caption?: string; media_type?: string; media_url?: string; timestamp?: string }> };
+      const list = json.data ?? [];
+      for (const item of list) {
+        if (item.id) {
+          try { await upsertIngestedPost('instagram', item.id, acc.brand_id, item); } catch { /* skip */ }
+        }
+      }
+      ingestLastRun.set(key, Date.now());
+      ok++;
+    } catch {
+      // skip on error
+    }
+  }
+
+  res.json({ ok, skipped, accounts: accounts.length });
+});
+
 // ============================================================================
-// HEALTH CHECK & FALLBACK 404
+// FALLBACK 404
 // ============================================================================
 
-// Fallback 404 handler to detect missing endpoints
+// Fallback 404 handler (must be last)
 app.use((req, res) => {
   // #region agent log
   agentLog({
     sessionId: 'debug-session',
-    runId: 'pre-fix',
+    runId: 'post-fix',
     hypothesisId: 'H2',
-    location: 'server/src/index.ts:3643',
+    location: 'server/src/index.ts:404',
     message: 'unhandled_route_404',
     data: { method: req.method, path: req.path },
     timestamp: Date.now(),
@@ -3676,27 +3753,6 @@ app.use((req, res) => {
   });
 });
 
-// GET /api/health
-app.get('/api/health', (req, res) => {
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'pre-fix',
-    hypothesisId: 'H1',
-    location: 'server/src/index.ts:3648',
-    message: 'healthcheck_invoked',
-    data: {},
-    timestamp: Date.now(),
-  });
-  // #endregion
-
-  res.json({
-    ok: true,
-    time: new Date().toISOString(),
-    version: '1.0.0',
-  });
-});
-
 const PORT = Number(process.env.PORT) || 8080;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend shim running on http://0.0.0.0:${PORT}`);
@@ -3706,9 +3762,9 @@ server.listen(PORT, "0.0.0.0", () => {
   // #region agent log
   agentLog({
     sessionId: 'debug-session',
-    runId: 'pre-fix',
+    runId: 'post-fix',
     hypothesisId: 'H1',
-    location: 'server/src/index.ts:3652',
+    location: 'server/src/index.ts:server_listen',
     message: 'server_listen',
     data: {
       port: PORT,

@@ -1,4 +1,4 @@
-# Hostess Backend Shim
+# Steward Backend Shim
 
 Local development backend server with WebSocket support.
 

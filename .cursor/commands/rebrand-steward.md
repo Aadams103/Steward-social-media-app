@@ -3,7 +3,7 @@
 You are editing this repo to complete a full rebrand to **Steward** with zero legacy branding remaining, and to implement a consistent design-token system plus UI consistency improvements.
 
 ## Inputs
-- **OLD_BRAND_TERMS**: Defaults to `["Hostess", "hostess"]` if not provided. Discover any additional legacy terms via search.
+- **OLD_BRAND_TERMS**: `["Hostess", "hostess"]` — legacy terms to catch any remaining (rebrand to Steward complete).
 - **MODES**: Confirm whether light-only, dark-only, or both modes are required (default: keep current light/dark behavior; add a missing mode only if already partially supported).
 
 ## Workflow (Plan → Implement → Verify)

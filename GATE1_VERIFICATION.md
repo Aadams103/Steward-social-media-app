@@ -76,7 +76,7 @@ npm run
 
 **Output:**
 ```
-Lifecycle scripts included in hostess-backend-shim@1.0.0:
+Lifecycle scripts included in steward-backend-shim@1.0.0:
   start
     tsx src/index.ts
 available via `npm run`:

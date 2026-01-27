@@ -50,7 +50,7 @@ Use this checklist to ensure a smooth deployment to Railway, Render, or Vercel.
   - [ ] `NODE_ENV=production`
   - [ ] (Optional) OAuth credentials if needed
 - [ ] **Deployment succeeded** (check logs)
-- [ ] **Got backend URL** (e.g., `https://hostess-production.up.railway.app`)
+- [ ] **Got backend URL** (e.g., `https://steward-production.up.railway.app`)
 - [ ] **Tested health endpoint:**
   ```bash
   curl https://your-backend-url.up.railway.app/api/health
@@ -84,7 +84,7 @@ Use this checklist to ensure a smooth deployment to Railway, Render, or Vercel.
 - [ ] **Set Start Command:** `npm start`
 - [ ] **Set environment variables** (same as Railway)
 - [ ] **Deployment succeeded**
-- [ ] **Got backend URL** (e.g., `https://hostess-backend.onrender.com`)
+- [ ] **Got backend URL** (e.g., `https://steward-backend.onrender.com`)
 
 ### Frontend Service
 

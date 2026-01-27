@@ -4,39 +4,12 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)), "..");
 const LEGACY_TERMS = [/hostess/i];
+// After rebrand to Steward: only allow files that document the legacy term or one-time migration
 const ALLOWLIST = [
-	"CHANGELOG.md",
-	".cursor/commands/rebrand-steward.md",
 	"config/scripts/check-branding.mjs",
-	"src/config/brand.ts",
-	"src/store/app-store.ts",
-	"src/sdk/core/request.ts",
-	"server/package-lock.json",
-	"server/package.json",
-	"server/README.md",
-	"RAILWAY_READINESS.md",
-	"deploy/README_DEPLOY.md",
-	"deploy/README_RAILWAY.md",
-	"deploy/verify.sh",
-	"deploy/setup_vps.sh",
-	"deploy/nginx-hostess.conf",
-	"deploy/hostess-api.service",
-	"GATE1_VERIFICATION.md",
-	"config/scripts/startup.sh",
-	"config/hooks/git_diff.sh",
-	"APP_STATUS_REPORT.md",
-	"COMPREHENSIVE_PLAN.md",
-	"CURRENT_STATUS_AND_REMAINING_WORK.md",
-	"DEVELOPMENT_PLAN.md",
-	"DIAGNOSTIC_REPORT.md",
-	"FULL_APP_REVIEW.md",
-	"HOOTSUITE_COMPARISON.md",
-	"IMPLEMENTATION_SUMMARY.md",
-	"OAUTH_SETUP_GUIDE.md",
-	"PROJECT_REVIEW_SUMMARY.md",
-	"README_DEVELOPMENT.md",
-	"SETUP_CHECKLIST.md",
-	"TODAYS_PLAN.md",
+	".cursor/commands/rebrand-steward.md",
+	".cursor/commands/brand-steward.md", // documents OLD_BRAND_TERMS for the rebrand procedure
+	"src/store/app-store.ts", // one-time migration: hostess_active_brand_id → steward_active_brand_id
 ];
 
 async function walk(dir, acc) {
