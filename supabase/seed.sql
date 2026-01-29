@@ -1,0 +1,1 @@
+-- Steward seed (optional). Add seed data here for `supabase db reset`.

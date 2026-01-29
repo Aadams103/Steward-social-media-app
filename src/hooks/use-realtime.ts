@@ -17,28 +17,13 @@ export function useRealtime() {
 
   // Connect on mount
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-realtime.ts:19',message:'useRealtime mount',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     let mounted = true;
 
     const connect = async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-realtime.ts:24',message:'Realtime connect attempt',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const token = await getAuthTokenAsync();
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-realtime.ts:27',message:'Realtime token obtained',data:{hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         await realtimeService.connect(token || undefined);
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-realtime.ts:30',message:'Realtime connect success',data:{isConnected:realtimeService.isConnected()},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
       } catch (error) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-realtime.ts:33',message:'Realtime connect error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         console.error('Failed to connect to real-time service:', error);
         // Fallback to polling if WebSocket fails
       }

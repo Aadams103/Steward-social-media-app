@@ -1076,18 +1076,10 @@ const generateSampleQuotaWarnings = (): QuotaWarning[] => [
 ];
 
 export const useAppStore = create<AppState>((set, get) => {
-	// #region agent log
-	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-store.ts:966',message:'Store initialization start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
-	// #endregion
 	return {
   // Navigation
   activeView: 'dashboard',
-  setActiveView: (view) => {
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-store.ts:969',message:'Store state update - activeView',data:{view},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
-		set({ activeView: view });
-	},
+  setActiveView: (view) => set({ activeView: view }),
 
   // Calendar
   calendarView: 'week',

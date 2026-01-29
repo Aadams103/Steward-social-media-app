@@ -106,19 +106,11 @@ export async function platformRequest(
 		realUrl = url;
 	}
 
-	// #region agent log
-	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'request.ts:beforeFetch',message:'platformRequest before fetch',data:{url:String(realUrl),method,baseUrl,requiresAuth},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'H2'})}).catch(()=>{});
-	// #endregion
-
 		try {
 			const response = await fetch(realUrl, {
 				...options,
 				headers,
 			});
-
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'request.ts:afterFetch',message:'platformRequest after fetch',data:{url:String(realUrl),status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'H2'})}).catch(()=>{});
-			// #endregion
 
 			// Handle error responses
 		if (!response.ok) {

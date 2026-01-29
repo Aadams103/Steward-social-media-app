@@ -69,24 +69,12 @@ export function usePosts(
   params?: { platform?: string; status?: string; campaignId?: string },
   options?: UseQueryOptions<{ posts: Post[]; total: number }, Error>,
 ) {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:68',message:'usePosts hook called',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  const query = useQuery({
+  return useQuery({
     queryKey: ['posts', params],
-    queryFn: () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:75',message:'usePosts queryFn executing',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return postsApi.list(params);
-    },
+    queryFn: () => postsApi.list(params),
     staleTime: 30 * 1000, // 30 seconds
     ...options,
   });
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:81',message:'usePosts query state',data:{isLoading:query.isLoading,isError:query.isError,isSuccess:query.isSuccess,hasData:!!query.data},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  return query;
 }
 
 export function usePost(id: string, options?: UseQueryOptions<Post, Error>) {
@@ -172,24 +160,12 @@ export function usePublishPost(options?: UseMutationOptions<PublishJob, Error, s
 // ============================================================================
 
 export function useCampaigns(params?: { status?: string }, options?: UseQueryOptions<{ campaigns: Campaign[]; total: number }, Error>) {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:162',message:'useCampaigns hook called',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  const query = useQuery({
+  return useQuery({
     queryKey: ['campaigns', params],
-    queryFn: () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:166',message:'useCampaigns queryFn executing',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return campaignsApi.list(params);
-    },
+    queryFn: () => campaignsApi.list(params),
     staleTime: 60 * 1000, // 1 minute
     ...options,
   });
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:172',message:'useCampaigns query state',data:{isLoading:query.isLoading,isError:query.isError,isSuccess:query.isSuccess,hasData:!!query.data},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  return query;
 }
 
 export function useCampaign(id: string, options?: UseQueryOptions<Campaign, Error>) {
@@ -223,24 +199,12 @@ export function useSocialAccounts(
   params?: { platform?: string; isConnected?: boolean },
   options?: UseQueryOptions<{ accounts: SocialAccount[] }, Error>,
 ) {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:198',message:'useSocialAccounts hook called',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  const query = useQuery({
+  return useQuery({
     queryKey: ['social-accounts', params],
-    queryFn: () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:204',message:'useSocialAccounts queryFn executing',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return socialAccountsApi.list(params);
-    },
+    queryFn: () => socialAccountsApi.list(params),
     staleTime: 60 * 1000, // 1 minute
     ...options,
   });
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'use-api.ts:212',message:'useSocialAccounts query state',data:{isLoading:query.isLoading,isError:query.isError,isSuccess:query.isSuccess,hasData:!!query.data},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  return query;
 }
 
 export function useCreateSocialAccount(

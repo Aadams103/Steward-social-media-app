@@ -51,19 +51,10 @@ async function internalCallService(
 	request: MCPRequest,
 	transportType = "streamable_http",
 ): Promise<unknown> {
-	// #region agent log
-	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:48',message:'MCP call start',data:{mcpId,method:request.method},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-	// #endregion
 	const token = await getAuthTokenAsync();
 	const isAuthenticated = isAuthenticatedSync();
 
-	// #region agent log
-	fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:55',message:'MCP auth check',data:{hasToken:!!token,isAuthenticated},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-	// #endregion
 	if (!isAuthenticated) {
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:58',message:'MCP call failed - not authenticated',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		throw new Error("User not authenticated");
 	}
 
@@ -89,14 +80,8 @@ async function internalCallService(
 			}),
 		});
 
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:83',message:'MCP response received',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		if (!response.ok) {
 			const errorMessage = `HTTP error! status: ${response.status}`;
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:85',message:'MCP response error',data:{status:response.status,errorMessage},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			throw new Error(errorMessage);
 		}
 
@@ -104,22 +89,13 @@ async function internalCallService(
 
 		if (data.error) {
 			const errorMessage = data.error.message || "MCP request failed";
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:92',message:'MCP data error',data:{errorMessage,errorCode:data.error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			throw new Error(errorMessage);
 		}
 
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:95',message:'MCP call success',data:{hasResult:!!data.result},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		return data.result;
 	} catch (error) {
 		// Log error but don't report to parent window (legacy integration removed)
 		if (error instanceof Error) {
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mcp-client.ts:99',message:'MCP call exception',data:{error:error.message,method:request.method},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			console.error("MCP request error:", {
 				message: error.message,
 				serverUrl,

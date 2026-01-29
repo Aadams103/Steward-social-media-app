@@ -13,8 +13,11 @@ Migrations and config for Supabase (Auth, Postgres, Storage).
 
 **Option A – Supabase CLI (recommended)**
 
+One-time: log in and link (run in an interactive terminal; or set `SUPABASE_ACCESS_TOKEN`):
+
 ```bash
-npx supabase link --project-ref <PROJECT_REF>
+npx supabase login
+npx supabase link --project-ref bffuipcmtlfatvxkcpeq
 npx supabase db push
 ```
 
@@ -39,9 +42,13 @@ psql $DATABASE_URL -f supabase/migrations/20250127000001_storage.sql
 
 ## Env (backend)
 
-- `SUPABASE_URL` – Project URL  
-- `SUPABASE_SERVICE_ROLE_KEY` – **Backend only**  
+- `SUPABASE_URL` – Project URL (`https://bffuipcmtlfatvxkcpeq.supabase.co` for this project)
+- `SUPABASE_SERVICE_ROLE_KEY` – **Backend only**; from [Project Settings → API](https://supabase.com/dashboard/project/bffuipcmtlfatvxkcpeq/settings/api) → service_role
 - `DATABASE_URL` – From Supabase → Settings → Database (if using external migrator or `psql`)
+
+**Railway:** In the server service variables, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+**Verification:** Once `SUPABASE_SERVICE_ROLE_KEY` is set, `GET /api/health` should include `"supabase": "connected"`.
 
 ## Env (frontend)
 

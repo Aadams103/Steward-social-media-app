@@ -5,14 +5,11 @@
  */
 
 import 'dotenv/config';
-import { fileURLToPath } from 'url';
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import type { Request as ExpressRequest } from 'express-serve-static-core';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
@@ -23,41 +20,6 @@ import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
-
-// #region agent log
-const DEBUG_LOG_PATH = path.resolve(__dirname, '..', '..', '.cursor', 'debug.log');
-
-function agentLog(payload: {
-  sessionId: string;
-  runId: string;
-  hypothesisId: string;
-  location: string;
-  message: string;
-  data: unknown;
-  timestamp: number;
-}) {
-  const line = JSON.stringify(payload) + '\n';
-  try {
-    const dir = path.dirname(DEBUG_LOG_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.appendFile(DEBUG_LOG_PATH, line, (err) => {
-      if (err) {
-        // swallow file errors in instrumentation
-      }
-    });
-  } catch {
-    // ignore filesystem errors in instrumentation
-  }
-
-  void fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: line,
-  }).catch(() => {});
-}
-// #endregion
 
 // Middleware
 app.use(cors());
@@ -121,18 +83,6 @@ const clients: Set<WebSocket> = new Set();
 wss.on('connection', (ws: WebSocket) => {
   console.log('WebSocket client connected');
   clients.add(ws);
-
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'pre-fix',
-    hypothesisId: 'H4',
-    location: 'server/src/index.ts:82',
-    message: 'websocket_connection_open',
-    data: { activeClients: clients.size },
-    timestamp: Date.now(),
-  });
-  // #endregion
 
   ws.on('close', () => {
     console.log('WebSocket client disconnected');
@@ -203,25 +153,6 @@ app.get('/api/posts', (req, res) => {
   if (campaignId) {
     filteredPosts = filteredPosts.filter((p) => p.campaignId === campaignId);
   }
-
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'pre-fix',
-    hypothesisId: 'H3',
-    location: 'server/src/index.ts:129',
-    message: 'posts_list_invoked',
-    data: {
-      brandId,
-      totalPosts: posts.size,
-      filteredCount: filteredPosts.length,
-      hasPlatformFilter: Boolean(platform),
-      hasStatusFilter: Boolean(status),
-      hasCampaignFilter: Boolean(campaignId),
-    },
-    timestamp: Date.now(),
-  });
-  // #endregion
 
   res.json({
     posts: filteredPosts,
@@ -3640,18 +3571,6 @@ app.get('/api/email/triage', (req, res) => {
 
 // GET /api/health
 app.get('/api/health', async (req, res) => {
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'post-fix',
-    hypothesisId: 'H1',
-    location: 'server/src/index.ts:health',
-    message: 'healthcheck_invoked',
-    data: {},
-    timestamp: Date.now(),
-  });
-  // #endregion
-
   const payload: { ok: boolean; time: string; version: string; supabase?: string } = {
     ok: true,
     time: new Date().toISOString(),
@@ -3735,18 +3654,6 @@ app.post('/api/cron/ingest', async (req, res) => {
 
 // Fallback 404 handler (must be last)
 app.use((req, res) => {
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'post-fix',
-    hypothesisId: 'H2',
-    location: 'server/src/index.ts:404',
-    message: 'unhandled_route_404',
-    data: { method: req.method, path: req.path },
-    timestamp: Date.now(),
-  });
-  // #endregion
-
   res.status(404).json({
     code: 'NOT_FOUND',
     message: 'Route not implemented in backend shim',
@@ -3758,19 +3665,4 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend shim running on http://0.0.0.0:${PORT}`);
   console.log(`📡 WebSocket server running on ws://0.0.0.0:${PORT}/ws`);
   console.log(`📊 Posts: ${posts.size}, Jobs: ${publishJobs.size}, Campaigns: ${campaigns.size}, Accounts: ${socialAccounts.size}, Assets: ${assets.size}`);
-
-  // #region agent log
-  agentLog({
-    sessionId: 'debug-session',
-    runId: 'post-fix',
-    hypothesisId: 'H1',
-    location: 'server/src/index.ts:server_listen',
-    message: 'server_listen',
-    data: {
-      port: PORT,
-      nodeEnv: process.env.NODE_ENV ?? 'undefined',
-    },
-    timestamp: Date.now(),
-  });
-  // #endregion
 });

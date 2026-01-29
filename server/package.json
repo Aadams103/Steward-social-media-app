@@ -1,5 +1,5 @@
 {
-  "name": "steward-backend-shim",
+  "name": "steward-social-media-app-server",
   "version": "1.0.0",
   "type": "module",
   "scripts": {

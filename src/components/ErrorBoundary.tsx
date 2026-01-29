@@ -30,18 +30,12 @@ export class ErrorBoundary extends React.Component<
 	}
 
 	static getDerivedStateFromError(error: Error) {
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ErrorBoundary.tsx:30',message:'Error boundary caught error',data:{error:error.message,stack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'D'})}).catch(()=>{});
-		// #endregion
 		console.error("Error caught in getDerivedStateFromError:", error);
 		clonedStage = normalContainer?.cloneNode(true) as HTMLDivElement;
 		return { hasError: true, error };
 	}
 
 	componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-		// #region agent log
-		fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ErrorBoundary.tsx:36',message:'Error boundary componentDidCatch',data:{error:error.message,componentStack:errorInfo.componentStack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'D'})}).catch(()=>{});
-		// #endregion
 		console.error("Error caught in componentDidCatch:", error, errorInfo);
 		this.setState({ hasError: true, error, errorInfo });
 	}

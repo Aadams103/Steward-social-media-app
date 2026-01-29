@@ -171,26 +171,6 @@ export function SettingsOverlay(props: SettingsOverlayProps) {
 
               <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
                 <TabsContent value="my-account" className="mt-0 space-y-4">
-                  {/* #region agent log */}
-                  {/* Settings overlay My Account section render */}
-                  {/* This log fires whenever the My Account tab content mounts */}
-                  {(() => {
-                    fetch("http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        location: "SettingsOverlay.tsx:TabsContent[my-account]",
-                        message: "My Account tab rendered",
-                        data: { open, section },
-                        timestamp: Date.now(),
-                        sessionId: "debug-session",
-                        runId: "runtime",
-                        hypothesisId: "B",
-                      }),
-                    }).catch(() => {});
-                    return null;
-                  })()}
-                  {/* #endregion */}
                   <Card>
                     <CardHeader>
                       <CardTitle>My Account</CardTitle>

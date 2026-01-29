@@ -90,21 +90,6 @@ export function AppShell({
   const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
 
   const openSettings = React.useCallback((section?: SettingsSectionId) => {
-    // #region agent log
-    fetch("http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "AppShell.tsx:openSettings",
-        message: "Settings overlay requested",
-        data: { section },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "runtime",
-        hypothesisId: "A",
-      }),
-    }).catch(() => {});
-    // #endregion
     if (section) {
       setSettingsSection(section);
     }

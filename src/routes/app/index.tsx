@@ -156,11 +156,6 @@ export const Route = createFileRoute("/app/")({
   component: App,
 });
 
-// #region agent log
-// Log route creation
-fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:155',message:'Route /app/ created',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'A'})}).catch(()=>{});
-// #endregion
-
 // Platform icon component
 function PlatformIcon({ platform, className }: { platform: Platform; className?: string }) {
   switch (platform) {
@@ -297,17 +292,10 @@ function Sidebar() {
 
 // Dashboard View
 function DashboardView() {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:294',message:'DashboardView render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   // API Hooks
   const { data: postsData, isLoading: postsLoading, isError: postsIsError, error: postsError, refetch: refetchPosts } = usePosts();
   const { data: campaignsData, isLoading: campaignsLoading, isError: campaignsIsError, error: campaignsError } = useCampaigns();
   const { data: accountsData, isLoading: accountsLoading, isError: accountsIsError, error: accountsError } = useSocialAccounts();
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:300',message:'Dashboard hooks state',data:{postsLoading,postsIsError,campaignsLoading,campaignsIsError,accountsLoading,accountsIsError,postsError:!!postsError,campaignsError:!!campaignsError,accountsError:!!accountsError,postsCount:postsData?.posts?.length||0,campaignsCount:campaignsData?.campaigns?.length||0,accountsCount:accountsData?.accounts?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   
   // Get data from store for autopilot (still using mock for now)
   const { conversations, autopilotSettings, scheduledSlots, autopilotNotifications } = useAppStore();
@@ -317,17 +305,9 @@ function DashboardView() {
   const campaigns = campaignsData?.campaigns || [];
   const socialAccounts = accountsData?.accounts || [];
 
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:306',message:'Dashboard data extracted',data:{postsCount:posts.length,campaignsCount:campaigns.length,socialAccountsCount:socialAccounts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-
   // Loading states - use isError from React Query for more reliable error detection
   const isLoading = postsLoading || campaignsLoading || accountsLoading;
   const hasError = postsIsError || campaignsIsError || accountsIsError || postsError || campaignsError || accountsError;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:312',message:'Dashboard state check',data:{isLoading,hasError,postsIsError,campaignsIsError,accountsIsError},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // Calculate metrics
   const metrics = {
@@ -7676,24 +7656,11 @@ function AuditLogView() {
 
 // Main App component
 function App() {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7673',message:'App component render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const { activeView, setActiveView } = useAppStore();
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7675',message:'App activeView state',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
 
   const renderView = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7676',message:'renderView called',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     switch (activeView) {
       case "dashboard":
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7678',message:'Rendering DashboardView',data:{activeView},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         return <DashboardView />;
       case "autopilot":
         return <AutopilotView />;
@@ -7750,11 +7717,7 @@ function App() {
 
   const pageConfig = getPageConfig();
   const isRiskyPage = ["compose", "autopilot", "queue"].includes(activeView);
-  
-  // #region agent log
   const renderedView = renderView();
-  fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/index.tsx:7735',message:'App render before AppShell',data:{activeView,pageConfigTitle:pageConfig.title,renderedViewType:renderedView?.type?.name||'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'runtime',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
 
   return (
     <AppShell

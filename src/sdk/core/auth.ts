@@ -91,15 +91,9 @@ const useAuthStore = create<AuthStore>(
 
 		// Validate token by making a request to the /me endpoint
 		validateToken: async (token: string): Promise<boolean> => {
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:73',message:'Token validation start',data:{hasToken:!!token,apiBaseUrl:API_BASE_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			console.log("Validating token...", { API_BASE_URL });
 
 			if (!API_BASE_URL) {
-				// #region agent log
-				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:77',message:'Token validation failed - no API_BASE_URL',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
-				// #endregion
 				console.error("API_BASE_URL is not set");
 				return false;
 			}
@@ -114,15 +108,9 @@ const useAuthStore = create<AuthStore>(
 					},
 				});
 
-				// #region agent log
-				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:91',message:'Token validation response',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
-				// #endregion
 				console.log("Token validation response:", response.status, response.ok);
 				return response.ok;
 			} catch (error) {
-				// #region agent log
-				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:93',message:'Token validation error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'C'})}).catch(()=>{});
-				// #endregion
 				console.warn("Token validation failed:", error);
 				return false;
 			}
@@ -184,9 +172,6 @@ const useAuthStore = create<AuthStore>(
 
 		// Initialize the authentication system
 		initialize: async (): Promise<void> => {
-			// #region agent log
-			fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:153',message:'Auth init start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 			console.log("Auth initialization started");
 			try {
 				// Initialize from storage
@@ -200,9 +185,6 @@ const useAuthStore = create<AuthStore>(
 
 				// If still loading after initialization, set to unauthenticated
 				const currentStatus = get().status;
-				// #region agent log
-				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:167',message:'Auth init complete',data:{status:currentStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
-				// #endregion
 				if (currentStatus === "loading") {
 					console.log(
 						"Auth initialization complete - setting to unauthenticated",
@@ -212,9 +194,6 @@ const useAuthStore = create<AuthStore>(
 					console.log("Auth initialization complete - status:", currentStatus);
 				}
 			} catch (error) {
-				// #region agent log
-				fetch('http://127.0.0.1:7244/ingest/7fc858c1-7495-471e-9aa5-ff96e8b59c94',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:175',message:'Auth init error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'init',hypothesisId:'B'})}).catch(()=>{});
-				// #endregion
 				console.error("Auth initialization failed:", error);
 				set({ status: "unauthenticated" });
 			}
