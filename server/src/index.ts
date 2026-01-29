@@ -3660,9 +3660,5 @@ app.use((req, res) => {
   });
 });
 
-const PORT = Number(process.env.PORT) || 8080;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Backend shim running on http://0.0.0.0:${PORT}`);
-  console.log(`📡 WebSocket server running on ws://0.0.0.0:${PORT}/ws`);
-  console.log(`📊 Posts: ${posts.size}, Jobs: ${publishJobs.size}, Campaigns: ${campaigns.size}, Accounts: ${socialAccounts.size}, Assets: ${assets.size}`);
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, "0.0.0.0", () => console.log(`Listening on ${PORT}`));
