@@ -1,0 +1,11 @@
+# Railway - Steward backend (use when service Root Directory is repo root)
+# If Root Directory is set to "server", use server/railway.toml instead.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build:server"
+
+[deploy]
+startCommand = "cd server && node dist/server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
