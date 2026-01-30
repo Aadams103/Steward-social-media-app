@@ -3,11 +3,11 @@
 ## ✅ Verified Railway Compatibility
 
 ### Server Configuration
-- ✅ **PORT binding**: Server uses `process.env.PORT || 8080` (Railway provides PORT automatically)
+- ✅ **PORT binding**: Server uses `process.env.PORT || 3000` (Railway provides PORT automatically)
 - ✅ **Host binding**: Server binds to `0.0.0.0` (required for Railway external access)
-- ✅ **Health endpoint**: `/api/health` exists and returns `{"ok":true,"time":"...","version":"1.0.0"}`
-- ✅ **Build process**: `npm run build` compiles TypeScript to `dist/index.js`
-- ✅ **Start command**: `npm start` runs `node dist/index.js` (Railway auto-detects)
+- ✅ **Health endpoints**: `/health` and `/api/health` return 200 (minimal and full JSON respectively)
+- ✅ **Build process**: `npm run build` compiles TypeScript to `dist/server.js`
+- ✅ **Start command**: `npm start` runs `node dist/server.js` (Railway auto-detects)
 
 ### API Endpoints
 - ✅ **90+ route handlers** implemented covering all major features:
@@ -82,9 +82,9 @@ META_OAUTH_REDIRECT_BASE=https://your-railway-service.up.railway.app
    - Verify health: `https://your-service.up.railway.app/api/health`
 
 5. **Verify Deployment**
-   - Health check: `curl https://your-service.up.railway.app/api/health`
-   - Should return: `{"ok":true,"time":"...","version":"1.0.0"}`
-   - Check Railway logs for: `🚀 Backend shim running on http://0.0.0.0:PORT`
+   - Health checks: `curl https://your-service.up.railway.app/health` and `curl https://your-service.up.railway.app/api/health`
+   - `/health` returns `{"ok":true}`; `/api/health` returns full JSON with `ok`, `time`, `version`
+   - Check Railway logs for: `Server listening on port PORT`
 
 ## Current Limitations (MVP)
 
@@ -122,10 +122,13 @@ META_OAUTH_REDIRECT_BASE=https://your-railway-service.up.railway.app
 
 ## Troubleshooting
 
+### Seeing Vite on port 5000?
+If the deployed app runs Vite on port 5000, the Railway service is using the **repository root** (not the backend). Root `package.json` is **frontend-only** and has `"start": "vite --port 5000"`. For the backend, set the service **Root Directory** to **`server`** in Railway (Settings → Root Directory → `server`). Then `npm start` runs the Node server (`node dist/server.js`) on `process.env.PORT` bound to `0.0.0.0`.
+
 ### Server won't start
 - Check Railway logs for TypeScript compilation errors
 - Verify `npm run build` succeeds locally
-- Ensure `dist/index.js` exists after build
+- Ensure `dist/server.js` exists after build
 
 ### Health check fails
 - Verify PORT is set (Railway provides automatically)

@@ -3569,6 +3569,11 @@ app.get('/api/email/triage', (req, res) => {
 // HEALTH CHECK & AUTH /me (must be before 404 catch-all)
 // ============================================================================
 
+// GET /health - minimal health for load balancers / platforms that expect /health
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
 // GET /api/health
 app.get('/api/health', async (req, res) => {
   const payload: { ok: boolean; time: string; version: string; supabase?: string } = {
@@ -3668,7 +3673,7 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
 });
