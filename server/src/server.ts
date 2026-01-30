@@ -13,8 +13,8 @@ import type { Request as ExpressRequest } from 'express-serve-static-core';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
-import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types';
-import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed';
+import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types.js';
+import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed.js';
 import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost } from './supabase.js';
 
 const app = express();

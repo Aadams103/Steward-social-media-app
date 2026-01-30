@@ -1,8 +1,10 @@
 # Steward Deployment Guide - Railway, Render, Vercel, Supabase
 
-This guide covers deploying Steward to production platforms so you can start adding real data.
+**Production is not hosted locally.** The app runs on **Railway** (backend), **Vercel** (frontend), and **Supabase** (Postgres/auth/storage). See [HOSTING_ARCHITECTURE.md](./HOSTING_ARCHITECTURE.md) for how these platforms fit together.
 
-## 🎯 Recommended Setup: Railway (Full-Stack)
+This guide covers deploying to production so you can start adding real data.
+
+## 🎯 Recommended Setup: Railway + Vercel + Supabase
 
 **Railway is recommended** because it:
 - ✅ Supports Express backend with WebSocket
