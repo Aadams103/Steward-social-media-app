@@ -1,5 +1,5 @@
 # Railway ignore file for server directory
-# Build runs from source: npm ci && npm run build (tsc), then npm start (node dist/index.js)
+# Build runs from source: npm ci && npm run build (tsc), then npm start (node dist/server.js)
 
 # Development / tooling
 node_modules/
