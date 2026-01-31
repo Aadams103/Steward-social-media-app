@@ -1,9 +1,0 @@
-# Fail-safe: force Railway to build and run the backend from server/ when Root Directory doesn't stick.
-# Build/start run from repo root but explicitly use server/ for install, build, and start.
-
-[build]
-builder = "NIXPACKS"
-watchPatterns = ["server/**"]
-
-[deploy]
-startCommand = "cd server && npm install && npm run build && npm start"
