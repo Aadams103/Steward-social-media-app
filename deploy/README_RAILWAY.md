@@ -2,6 +2,15 @@
 
 **Quick reference** - For complete deployment guide, see [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md)
 
+## Railway backend (monorepo)
+
+This repository contains multiple apps (frontend + backend). For the **backend** service only:
+
+- Set Railway **Root Directory** to **`server`** (in the service Settings). No code change can override a wrong dashboard value.
+- Use **`server/railway.toml`** for build/start/healthcheck. If the UI offers a config file path, set it to `server/railway.toml`.
+- Do **not** set custom Build or Start commands in the dashboard; let `server/railway.toml` define them.
+- Node version should be **22+** (see `server/package.json` engines).
+
 ## Quick Start
 
 1. **Go to Railway**: https://railway.app/new
