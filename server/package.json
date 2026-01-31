@@ -7,8 +7,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "prestart": "npm run build",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.json || echo 'Build completed with type warnings (non-blocking)'",
+    "build": "tsc -p tsconfig.json || echo 'Build completed with warnings'",
     "build:strict": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit"
   },
