@@ -16,6 +16,7 @@ import { createServer } from 'http';
 import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types.js';
 import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed.js';
 import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost } from './supabase.js';
+import { authMiddleware, type AuthenticatedRequest } from './middleware/auth.js';
 
 const app = express();
 const server = createServer(app);
@@ -37,6 +38,8 @@ app.use(cors({
     }
   },
   credentials: true, // Required for cookies/auth
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-brand-id'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -91,6 +94,15 @@ function getBrandIdFromRequest(req: express.Request): string | 'all' {
 }
 // Use seed data for autopilot settings
 let autopilotSettings: AutopilotSettings = { ...defaultAutopilotSettings };
+
+// Auth middleware: protect /api routes except health, oauth, cron
+app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const p = req.path;
+  if (p === '/health') return next();
+  if (p.startsWith('/oauth/')) return next();
+  if (p.startsWith('/cron/')) return next();
+  authMiddleware(req as AuthenticatedRequest, res, next);
+});
 
 // WebSocket clients
 const clients: Set<WebSocket> = new Set();
@@ -3603,9 +3615,10 @@ app.get('/api/health', async (req, res) => {
   res.json(payload);
 });
 
-// GET /api/me - used by auth validateToken; returns minimal user for 200
-app.get('/api/me', (_req, res) => {
-  res.json({ id: 'dev-user', email: 'dev@localhost' });
+// GET /api/me - used by auth validateToken; returns minimal user for 200 (auth middleware runs first)
+app.get('/api/me', (req: AuthenticatedRequest, res) => {
+  const user = req.user ?? { id: 'dev-user', email: 'dev@localhost' };
+  res.json({ id: user.id, email: user.email ?? 'dev@localhost' });
 });
 
 // ---------------------------------------------------------------------------

@@ -23,6 +23,7 @@
     "prepare": "echo Skipping git hooks setup"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.93.1",
     "cors": "^2.8.5",
     "ws": "^8.14.2",
     "@fortawesome/fontawesome-svg-core": "^7.0.0",

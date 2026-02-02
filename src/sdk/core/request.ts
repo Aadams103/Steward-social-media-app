@@ -1,4 +1,5 @@
 import { getAuthTokenAsync, isAuthenticatedSync } from "./auth";
+import { getSupabaseClient } from "@/lib/supabase";
 
 const API_BASE_PATH = import.meta.env.VITE_MCP_API_BASE_PATH;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_PATH || "/api";
@@ -55,15 +56,27 @@ export async function platformRequest(
 	const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
 	const requiresAuth = !isDev;
 
+	// Get token: prefer Supabase session, then fall back to auth store
+	let token: string | null = null;
+	const supabase = getSupabaseClient();
+	if (supabase) {
+		const { data: { session } } = await supabase.auth.getSession();
+		token = session?.access_token ?? null;
+		// #region agent log
+		console.log('🔑 Attaching Auth Token:', !!session?.access_token);
+		// #endregion
+	}
+	if (!token) {
+		token = await getAuthTokenAsync();
+	}
+
 	// Check authentication (skip in dev mode)
-	if (requiresAuth && !isAuthenticatedSync()) {
+	if (requiresAuth && !token) {
 		throw new PlatformRequestError({
 			code: "UNAUTHENTICATED",
 			message: "User is not authenticated",
 		});
 	}
-
-	const token = await getAuthTokenAsync();
 	const method = options.method || "GET";
 
 	const headers = new Headers(options.headers);
