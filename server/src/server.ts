@@ -21,20 +21,22 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// CORS: allow Vercel frontend and local dev/preview
-const allowedOrigins = [
-  'http://localhost:5173', // Vite dev
-  'http://localhost:4173',  // Vite preview
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : []),
-];
-const vercelPreviewRegex = /^https:\/\/[^/]+\.vercel\.app$/;
+// CORS: allow Vercel frontend and local dev/preview; credentials for cookies/auth
+const allowedOrigins: (string | RegExp)[] = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  process.env.FRONTEND_URL, // Set in Railway variables
+  /^https:\/\/.*\.vercel\.app$/, // Allow all Vercel preview URLs
+].filter((o): o is string | RegExp => o != null);
 app.use(cors({
-  origin(origin, cb) {
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin) || vercelPreviewRegex.test(origin)) return cb(null, true);
-    return cb(null, false);
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
-  credentials: true,
+  credentials: true, // Required for cookies/auth
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
