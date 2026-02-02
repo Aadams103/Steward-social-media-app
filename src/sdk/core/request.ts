@@ -59,15 +59,29 @@ export async function platformRequest(
 	// Get token: prefer Supabase session, then fall back to auth store
 	let token: string | null = null;
 	const supabase = getSupabaseClient();
+	
 	if (supabase) {
-		const { data: { session } } = await supabase.auth.getSession();
+		const { data: { session }, error } = await supabase.auth.getSession();
 		token = session?.access_token ?? null;
-		// #region agent log
-		console.log('🔑 Attaching Auth Token:', !!session?.access_token);
-		// #endregion
+		
+		// Debug logging for auth troubleshooting
+		console.log('🔑 Token attached:', !!session?.access_token);
+		if (!session?.access_token) {
+			console.log('⚠️ No Supabase session found. User may need to log in again.');
+			if (error) {
+				console.error('🔴 Supabase getSession error:', error.message);
+			}
+		}
+	} else {
+		console.warn('⚠️ Supabase client not initialized - check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
 	}
+	
+	// Fallback to legacy auth store if Supabase session not available
 	if (!token) {
 		token = await getAuthTokenAsync();
+		if (token) {
+			console.log('🔑 Token attached (fallback):', true);
+		}
 	}
 
 	// Check authentication (skip in dev mode)
