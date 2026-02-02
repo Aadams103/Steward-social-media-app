@@ -65,9 +65,10 @@ export async function platformRequest(
 		token = session?.access_token ?? null;
 		
 		// Debug logging for auth troubleshooting
-		console.log('🔑 Token attached:', !!session?.access_token);
-		if (!session?.access_token) {
-			console.log('⚠️ No Supabase session found. User may need to log in again.');
+		if (session?.access_token) {
+			console.log('🔑 Token attached to request:', session.access_token.slice(0, 10) + '...');
+		} else {
+			console.warn('⚠️ No auth token found in session!');
 			if (error) {
 				console.error('🔴 Supabase getSession error:', error.message);
 			}
