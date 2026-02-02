@@ -21,8 +21,21 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// Middleware
-app.use(cors());
+// CORS: allow Vercel frontend and local dev/preview
+const allowedOrigins = [
+  'http://localhost:5173', // Vite dev
+  'http://localhost:4173',  // Vite preview
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : []),
+];
+const vercelPreviewRegex = /^https:\/\/[^/]+\.vercel\.app$/;
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin) || vercelPreviewRegex.test(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
