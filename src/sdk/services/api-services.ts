@@ -42,6 +42,16 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_PATH || '/api';
 
+/** Ingested post from platform APIs (e.g. Instagram Graph); real data from cron ingest */
+export interface IngestedPost {
+  id: string;
+  brand_id: string | null;
+  platform: string;
+  external_id: string;
+  payload: Record<string, unknown>;
+  fetched_at: string;
+}
+
 /**
  * Helper to serialize query parameters into URL
  */
@@ -133,6 +143,15 @@ export const socialAccountsApi = {
   sync: (id: string) => apiClient.post<SocialAccount>(`${API_BASE}/social-accounts/${id}/sync`),
 
   disconnect: (id: string) => apiClient.delete<void>(`${API_BASE}/social-accounts/${id}`),
+};
+
+// ============================================================================
+// INGESTED POSTS API (real data from Instagram / Facebook ingest)
+// ============================================================================
+
+export const ingestedPostsApi = {
+  list: (params?: { platform?: string; limit?: number }) =>
+    apiClient.get<{ items: IngestedPost[] }>(buildUrlWithParams(`${API_BASE}/ingested-posts`, params)),
 };
 
 // ============================================================================

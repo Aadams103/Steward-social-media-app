@@ -99,6 +99,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { getApiBaseUrl } from "@/sdk/core/request";
 import { useAppStore } from "@/store/app-store";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
@@ -2562,9 +2563,10 @@ function ConnectAccountButtonsDialog({ currentBrandId, refetchAccounts, setDialo
   const [configStatus, setConfigStatus] = React.useState<{ google: { configured: boolean; missing: string[] }; meta: { configured: boolean; missing: string[] } } | null>(null);
   const [configLoading, setConfigLoading] = React.useState(true);
 
-  // Fetch config status on mount
+  // Fetch config status on mount (use API base so Vercel frontend hits Railway)
+  const apiBase = getApiBaseUrl();
   React.useEffect(() => {
-    fetch('/api/oauth/config-status')
+    fetch(`${apiBase}/oauth/config-status`)
       .then(res => res.json())
       .then(data => {
         setConfigStatus(data);
@@ -2573,7 +2575,7 @@ function ConnectAccountButtonsDialog({ currentBrandId, refetchAccounts, setDialo
       .catch(() => {
         setConfigLoading(false);
       });
-  }, []);
+  }, [apiBase]);
 
   const handleConnectGoogle = async (purpose: 'youtube') => {
     try {
@@ -2581,7 +2583,7 @@ function ConnectAccountButtonsDialog({ currentBrandId, refetchAccounts, setDialo
         toast.error('Please select a specific brand first');
         return;
       }
-      const response = await fetch(`/api/oauth/google/start?brandId=${currentBrandId}&purpose=${purpose}`);
+      const response = await fetch(`${getApiBaseUrl()}/oauth/google/start?brandId=${currentBrandId}&purpose=${purpose}`);
       const data = await response.json();
       
       if (data.code === 'GOOGLE_NOT_CONFIGURED') {
@@ -2619,7 +2621,7 @@ function ConnectAccountButtonsDialog({ currentBrandId, refetchAccounts, setDialo
         toast.error('Please select a specific brand first');
         return;
       }
-      const response = await fetch(`/api/oauth/meta/start?brandId=${currentBrandId}&purpose=${purpose}`);
+      const response = await fetch(`${getApiBaseUrl()}/oauth/meta/start?brandId=${currentBrandId}&purpose=${purpose}`);
       const data = await response.json();
       
       if (data.code === 'META_NOT_CONFIGURED') {

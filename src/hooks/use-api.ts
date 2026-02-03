@@ -8,6 +8,7 @@ import {
   postsApi,
   campaignsApi,
   socialAccountsApi,
+  ingestedPostsApi,
   conversationsApi,
   alertsApi,
   organizationsApi,
@@ -241,6 +242,22 @@ export function useDeleteSocialAccount(options?: UseMutationOptions<void, Error,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['social-accounts'] });
     },
+    ...options,
+  });
+}
+
+// ============================================================================
+// INGESTED POSTS HOOKS (real data from Instagram / Facebook cron ingest)
+// ============================================================================
+
+export function useIngestedPosts(
+  params?: { platform?: string; limit?: number },
+  options?: UseQueryOptions<{ items: import('@/sdk/services/api-services').IngestedPost[] }, Error>,
+) {
+  return useQuery({
+    queryKey: ['ingested-posts', params],
+    queryFn: () => ingestedPostsApi.list(params),
+    staleTime: 60 * 1000, // 1 minute
     ...options,
   });
 }

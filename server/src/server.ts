@@ -15,7 +15,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types.js';
 import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed.js';
-import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost } from './supabase.js';
+import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost, listIngestedPosts } from './supabase.js';
 import { authMiddleware, type AuthenticatedRequest } from './middleware/auth.js';
 
 const app = express();
@@ -1015,6 +1015,19 @@ app.post('/api/social-accounts', (req, res) => {
   socialAccounts.set(account.id, account);
   broadcast({ type: 'account_created', data: account });
   res.status(201).json(account);
+});
+
+// GET /api/ingested-posts — real data from Instagram (and future Facebook) ingest
+app.get('/api/ingested-posts', async (req, res) => {
+  const brandId = getBrandIdFromRequest(req);
+  const { platform, limit } = req.query;
+  const opts: { brandId?: string; platform?: string; limit?: number } = {};
+  if (brandId !== 'all') opts.brandId = brandId;
+  if (typeof platform === 'string') opts.platform = platform;
+  if (typeof limit === 'string' && /^\d+$/.test(limit)) opts.limit = Math.min(parseInt(limit, 10), 200);
+  else opts.limit = 100;
+  const items = await listIngestedPosts(opts);
+  res.json({ items });
 });
 
 // POST /api/social-accounts/:id/sync

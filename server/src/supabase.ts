@@ -146,3 +146,32 @@ export async function upsertIngestedPost(
     { onConflict: 'platform,external_id' }
   );
 }
+
+// --- List ingested posts for API (real data from Instagram/Facebook etc.) ---
+
+export interface IngestedPostRow {
+  id: string;
+  brand_id: string | null;
+  platform: string;
+  external_id: string;
+  payload: Record<string, unknown>;
+  fetched_at: string;
+}
+
+export async function listIngestedPosts(options: {
+  brandId?: string;
+  platform?: string;
+  limit?: number;
+}): Promise<IngestedPostRow[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  let q = client
+    .from('ingested_posts')
+    .select('id, brand_id, platform, external_id, payload, fetched_at')
+    .order('fetched_at', { ascending: false });
+  if (options.brandId) q = q.eq('brand_id', options.brandId);
+  if (options.platform) q = q.eq('platform', options.platform);
+  if (options.limit) q = q.limit(options.limit);
+  const { data } = await q;
+  return (data ?? []) as IngestedPostRow[];
+}

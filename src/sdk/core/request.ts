@@ -1,5 +1,5 @@
-import { getAuthTokenAsync, isAuthenticatedSync } from "./auth";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getAuthTokenAsync } from "./auth";
+import { supabase } from "@/lib/supabase";
 
 const API_BASE_PATH = import.meta.env.VITE_MCP_API_BASE_PATH;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_PATH || "/api";
@@ -56,33 +56,19 @@ export async function platformRequest(
 	const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
 	const requiresAuth = !isDev;
 
-	// Get token: prefer Supabase session, then fall back to auth store
+	// Force Supabase session token onto every request so backend has a valid session
 	let token: string | null = null;
-	const supabase = getSupabaseClient();
-	
-	if (supabase) {
-		const { data: { session }, error } = await supabase.auth.getSession();
-		token = session?.access_token ?? null;
-		
-		// Debug logging for auth troubleshooting
+	const client = supabase.client;
+	if (client) {
+		const { data: { session } } = await client.auth.getSession();
 		if (session?.access_token) {
-			console.log('🔑 Token attached to request:', session.access_token.slice(0, 10) + '...');
-		} else {
-			console.warn('⚠️ No auth token found in session!');
-			if (error) {
-				console.error('🔴 Supabase getSession error:', error.message);
-			}
+			token = session.access_token;
 		}
-	} else {
-		console.warn('⚠️ Supabase client not initialized - check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+		console.log("🔑 Auth Header Attached:", !!session?.access_token);
 	}
-	
-	// Fallback to legacy auth store if Supabase session not available
+	// Fallback to legacy auth store if no Supabase session
 	if (!token) {
 		token = await getAuthTokenAsync();
-		if (token) {
-			console.log('🔑 Token attached (fallback):', true);
-		}
 	}
 
 	// Check authentication (skip in dev mode)
@@ -140,7 +126,24 @@ export async function platformRequest(
 				headers,
 			});
 
-			// Handle error responses
+			// Global 401 interceptor: backend rejected token → stop pretending we're logged in
+			if (response.status === 401) {
+				console.warn("⚠️ Session expired or invalid. Logging out...");
+				const client = supabase.client;
+				if (client) {
+					await client.auth.signOut();
+				}
+				if (typeof window !== "undefined") {
+					window.location.href = "/login";
+				}
+				throw new PlatformRequestError({
+					code: "UNAUTHORIZED",
+					message: "Session expired. Please log in again.",
+					statusCode: 401,
+				});
+			}
+
+			// Handle other error responses
 		if (!response.ok) {
 			let errorData: unknown = {};
 			const contentType = response.headers.get("content-type");
@@ -164,10 +167,7 @@ export async function platformRequest(
 			};
 
 			// Handle specific error codes
-			if (response.status === 401) {
-				error.code = "UNAUTHORIZED";
-				error.message = "Authentication required. Please log in again.";
-			} else if (response.status === 403) {
+			if (response.status === 403) {
 				error.code = "FORBIDDEN";
 				error.message = "You don't have permission to perform this action.";
 			} else if (response.status === 404) {
@@ -207,6 +207,13 @@ export async function platformRequest(
 			details: error,
 		});
 	}
+}
+
+/**
+ * Base URL for API (including /api). Use for OAuth and any fetch that must hit Railway in production.
+ */
+export function getApiBaseUrl(): string {
+	return normalizeBase(API_BASE_URL);
 }
 
 /**
