@@ -1,6 +1,6 @@
 import { Link, Outlet } from "@tanstack/react-router";
+import { GetStartedModal } from "@/components/auth/GetStartedModal";
 import { StewardLogo } from "@/components/StewardLogo";
-import { SignUpModal } from "@/components/SignUpModal";
 import { Button } from "@/components/ui/button";
 import { SignUpModalProvider, useSignUpModal } from "@/contexts/SignUpModalContext";
 import { APP_NAME, APP_SHORT_TAGLINE } from "@/config/brand";
@@ -39,10 +39,13 @@ function MarketingHeader() {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild className="text-[var(--steward-silver)] hover:bg-white/5 hover:text-[var(--steward-silver)]">
-              <Link to="/login">Log in</Link>
-            </Button>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/login"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Log in
+            </Link>
             <Button
               type="button"
               className="bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90"
@@ -53,7 +56,7 @@ function MarketingHeader() {
           </div>
         </div>
       </header>
-      <SignUpModal open={isOpen} onOpenChange={(open) => { if (!open) closeSignUp(); }} />
+      <GetStartedModal open={isOpen} onOpenChange={(open) => { if (!open) closeSignUp(); }} />
     </>
   );
 }
