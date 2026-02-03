@@ -100,6 +100,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { getApiBaseUrl } from "@/sdk/core/request";
+import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/app-store";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
@@ -291,8 +292,41 @@ function Sidebar() {
   );
 }
 
+// Supabase profile row (matches public.profiles)
+type ProfileRow = { id: string; display_name: string | null };
+
 // Dashboard View
 function DashboardView() {
+  // Profile from Supabase (session + public.profiles)
+  const [profile, setProfile] = React.useState<ProfileRow | null>(null);
+  const [profileLoading, setProfileLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const client = supabase.client;
+    if (!client) {
+      setProfileLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await client.auth.getSession();
+      if (cancelled || !session?.user?.id) {
+        setProfileLoading(false);
+        return;
+      }
+      const { data: row } = await client
+        .from("profiles")
+        .select("id, display_name")
+        .eq("id", session.user.id)
+        .single();
+      if (!cancelled) {
+        setProfile(row ?? null);
+        setProfileLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // API Hooks
   const { data: postsData, isLoading: postsLoading, isError: postsIsError, error: postsError, refetch: refetchPosts } = usePosts();
   const { data: campaignsData, isLoading: campaignsLoading, isError: campaignsIsError, error: campaignsError } = useCampaigns();
@@ -306,11 +340,11 @@ function DashboardView() {
   const campaigns = campaignsData?.campaigns || [];
   const socialAccounts = accountsData?.accounts || [];
 
-  // Loading states - use isError from React Query for more reliable error detection
-  const isLoading = postsLoading || campaignsLoading || accountsLoading;
+  // Loading states - include profile fetch so we don't flash mock data
+  const isLoading = profileLoading || postsLoading || campaignsLoading || accountsLoading;
   const hasError = postsIsError || campaignsIsError || accountsIsError || postsError || campaignsError || accountsError;
 
-  // Calculate metrics
+  // Metrics from API (no fake numbers)
   const metrics = {
     totalPosts: posts.length,
     published: posts.filter((p) => p.status === "published").length,
@@ -321,6 +355,14 @@ function DashboardView() {
     unreadMessages: conversations.filter((c) => c.status === "unread").length,
     activeCampaigns: campaigns.filter((c) => c.status === "active").length,
   };
+
+  // Zero-initialized stats for empty-state CTA (derived from real data)
+  const stats = {
+    totalFollowers: socialAccounts.reduce((sum, a) => sum + (a.followerCount ?? 0), 0),
+    engagement: metrics.totalEngagement,
+    posts: metrics.totalPosts,
+  };
+  const showEmptyStateCTA = stats.totalFollowers === 0 && stats.engagement === 0 && stats.posts === 0;
 
   const pendingApprovals = scheduledSlots.filter((s) => s.status === "pending_approval").length;
   const nextPost = scheduledSlots
@@ -369,6 +411,9 @@ function DashboardView() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          <p className="text-muted-foreground">
+            Hello, {profile?.display_name?.trim() ? profile.display_name : "Steward"}
+          </p>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your social media performance</p>
         </div>
@@ -383,6 +428,18 @@ function DashboardView() {
           </Button>
         </div>
       </div>
+
+      {/* Empty state CTA when no activity */}
+      {showEmptyStateCTA && (
+        <Card>
+          <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm font-medium">Ready to grow? Connect your first social account.</p>
+            <Button onClick={() => useAppStore.getState().setActiveView("accounts")}>
+              Connect Account
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Autopilot Status Card */}
       {autopilotSettings.operatingMode !== "manual" && (
@@ -462,10 +519,6 @@ function DashboardView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.totalImpressions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 inline mr-1 text-green-500" />
-              +12.5% from last week
-            </p>
           </CardContent>
         </Card>
 
@@ -476,10 +529,6 @@ function DashboardView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.totalEngagement.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 inline mr-1 text-green-500" />
-              +8.2% from last week
-            </p>
           </CardContent>
         </Card>
 
