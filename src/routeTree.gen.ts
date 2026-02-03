@@ -20,6 +20,7 @@ import { Route as MarketingIndexImport } from './routes/_marketing.index'
 import { Route as MarketingSecurityPrivacyImport } from './routes/_marketing.security-privacy'
 import { Route as MarketingProductImport } from './routes/_marketing.product'
 import { Route as MarketingPricingImport } from './routes/_marketing.pricing'
+import { Route as MarketingLoginImport } from './routes/_marketing.login'
 import { Route as MarketingHowItWorksImport } from './routes/_marketing.how-it-works'
 import { Route as MarketingDocsImport } from './routes/_marketing.docs'
 import { Route as MarketingContactImport } from './routes/_marketing.contact'
@@ -75,6 +76,12 @@ const MarketingProductRoute = MarketingProductImport.update({
 const MarketingPricingRoute = MarketingPricingImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => MarketingRoute,
+} as any)
+
+const MarketingLoginRoute = MarketingLoginImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => MarketingRoute,
 } as any)
 
@@ -149,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingHowItWorksImport
       parentRoute: typeof MarketingImport
     }
+    '/_marketing/login': {
+      id: '/_marketing/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof MarketingLoginImport
+      parentRoute: typeof MarketingImport
+    }
     '/_marketing/pricing': {
       id: '/_marketing/pricing'
       path: '/pricing'
@@ -193,6 +207,7 @@ interface MarketingRouteChildren {
   MarketingContactRoute: typeof MarketingContactRoute
   MarketingDocsRoute: typeof MarketingDocsRoute
   MarketingHowItWorksRoute: typeof MarketingHowItWorksRoute
+  MarketingLoginRoute: typeof MarketingLoginRoute
   MarketingPricingRoute: typeof MarketingPricingRoute
   MarketingProductRoute: typeof MarketingProductRoute
   MarketingSecurityPrivacyRoute: typeof MarketingSecurityPrivacyRoute
@@ -203,6 +218,7 @@ const MarketingRouteChildren: MarketingRouteChildren = {
   MarketingContactRoute: MarketingContactRoute,
   MarketingDocsRoute: MarketingDocsRoute,
   MarketingHowItWorksRoute: MarketingHowItWorksRoute,
+  MarketingLoginRoute: MarketingLoginRoute,
   MarketingPricingRoute: MarketingPricingRoute,
   MarketingProductRoute: MarketingProductRoute,
   MarketingSecurityPrivacyRoute: MarketingSecurityPrivacyRoute,
@@ -230,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof MarketingContactRoute
   '/docs': typeof MarketingDocsRoute
   '/how-it-works': typeof MarketingHowItWorksRoute
+  '/login': typeof MarketingLoginRoute
   '/pricing': typeof MarketingPricingRoute
   '/product': typeof MarketingProductRoute
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
@@ -243,6 +260,7 @@ export interface FileRoutesByTo {
   '/contact': typeof MarketingContactRoute
   '/docs': typeof MarketingDocsRoute
   '/how-it-works': typeof MarketingHowItWorksRoute
+  '/login': typeof MarketingLoginRoute
   '/pricing': typeof MarketingPricingRoute
   '/product': typeof MarketingProductRoute
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
@@ -259,6 +277,7 @@ export interface FileRoutesById {
   '/_marketing/contact': typeof MarketingContactRoute
   '/_marketing/docs': typeof MarketingDocsRoute
   '/_marketing/how-it-works': typeof MarketingHowItWorksRoute
+  '/_marketing/login': typeof MarketingLoginRoute
   '/_marketing/pricing': typeof MarketingPricingRoute
   '/_marketing/product': typeof MarketingProductRoute
   '/_marketing/security-privacy': typeof MarketingSecurityPrivacyRoute
@@ -275,6 +294,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/how-it-works'
+    | '/login'
     | '/pricing'
     | '/product'
     | '/security-privacy'
@@ -287,6 +307,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/how-it-works'
+    | '/login'
     | '/pricing'
     | '/product'
     | '/security-privacy'
@@ -301,6 +322,7 @@ export interface FileRouteTypes {
     | '/_marketing/contact'
     | '/_marketing/docs'
     | '/_marketing/how-it-works'
+    | '/_marketing/login'
     | '/_marketing/pricing'
     | '/_marketing/product'
     | '/_marketing/security-privacy'
@@ -348,6 +370,7 @@ export const routeTree = rootRoute
         "/_marketing/contact",
         "/_marketing/docs",
         "/_marketing/how-it-works",
+        "/_marketing/login",
         "/_marketing/pricing",
         "/_marketing/product",
         "/_marketing/security-privacy",
@@ -373,6 +396,10 @@ export const routeTree = rootRoute
     },
     "/_marketing/how-it-works": {
       "filePath": "_marketing.how-it-works.tsx",
+      "parent": "/_marketing"
+    },
+    "/_marketing/login": {
+      "filePath": "_marketing.login.tsx",
       "parent": "/_marketing"
     },
     "/_marketing/pricing": {

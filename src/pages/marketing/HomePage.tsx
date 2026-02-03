@@ -1,15 +1,17 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { StewardLogo } from "@/components/StewardLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSignUpModal } from "@/contexts/SignUpModalContext";
 
 /**
- * Home/login: center card with lockup + email/password form.
+ * Login form page (route: /login). No auto-redirect on mount — always shows the form.
  * Uses Steward CSS tokens (--steward-bg, --steward-surface, --steward-silver, --steward-steel, --steward-blue).
  */
 export function HomePage() {
   const navigate = useNavigate();
+  const { openSignUp } = useSignUpModal();
 
   return (
     <section className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-[var(--steward-bg)] text-[var(--steward-silver)] py-12 px-4">
@@ -59,9 +61,13 @@ export function HomePage() {
 
         <p className="mt-6 text-center text-sm text-[var(--steward-steel)]">
           New to Steward?{" "}
-          <Link to="/app" className="text-[var(--steward-silver)] underline hover:no-underline">
-            Get started
-          </Link>
+          <button
+            type="button"
+            className="text-[var(--steward-silver)] underline hover:no-underline bg-transparent border-none cursor-pointer p-0 font-inherit"
+            onClick={openSignUp}
+          >
+            Sign up
+          </button>
         </p>
       </div>
     </section>

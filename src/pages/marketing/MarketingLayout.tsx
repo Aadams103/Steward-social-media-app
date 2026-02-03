@@ -1,6 +1,8 @@
 import { Link, Outlet } from "@tanstack/react-router";
 import { StewardLogo } from "@/components/StewardLogo";
+import { SignUpModal } from "@/components/SignUpModal";
 import { Button } from "@/components/ui/button";
+import { SignUpModalProvider, useSignUpModal } from "@/contexts/SignUpModalContext";
 import { APP_NAME, APP_SHORT_TAGLINE } from "@/config/brand";
 
 const NAV = [
@@ -13,9 +15,10 @@ const NAV = [
   { to: "/contact", label: "Contact" },
 ] as const;
 
-export function MarketingLayout() {
+function MarketingHeader() {
+  const { openSignUp, isOpen, closeSignUp } = useSignUpModal();
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <>
       <header className="sticky top-0 z-50 border-b border-[var(--steward-steel)]/40 bg-[var(--steward-surface)]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-3 shrink-0">
@@ -38,17 +41,31 @@ export function MarketingLayout() {
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild className="text-[var(--steward-silver)] hover:bg-white/5 hover:text-[var(--steward-silver)]">
-              <Link to="/app">Log in</Link>
+              <Link to="/login">Log in</Link>
             </Button>
-            <Button asChild className="bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90">
-              <Link to="/app">Get started</Link>
+            <Button
+              type="button"
+              className="bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90"
+              onClick={openSignUp}
+            >
+              Get started
             </Button>
           </div>
         </div>
       </header>
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <SignUpModal open={isOpen} onOpenChange={(open) => { if (!open) closeSignUp(); }} />
+    </>
+  );
+}
+
+export function MarketingLayout() {
+  return (
+    <SignUpModalProvider>
+      <div className="min-h-screen flex flex-col bg-background text-foreground">
+        <MarketingHeader />
+        <main className="flex-1">
+          <Outlet />
+        </main>
       <footer className="border-t border-border py-6">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <span>© {new Date().getFullYear()} {APP_NAME}. All rights reserved.</span>
@@ -59,5 +76,6 @@ export function MarketingLayout() {
         </div>
       </footer>
     </div>
+    </SignUpModalProvider>
   );
 }
