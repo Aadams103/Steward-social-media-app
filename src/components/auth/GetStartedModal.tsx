@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -21,10 +22,21 @@ import {
 } from "lucide-react";
 
 const signUpSchema = z.object({
-  fullName: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  orgName: z.string().min(2, "Organization name is required"),
+  fullName: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name is too long")
+    .trim(),
+  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password is too long"),
+  orgName: z
+    .string()
+    .min(2, "Organization name is required")
+    .max(100, "Organization name is too long")
+    .trim(),
 });
 
 type SignUpFormValues = z.infer<typeof signUpSchema>;
@@ -35,8 +47,9 @@ export type GetStartedModalProps = {
 };
 
 export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [signUpError, setSignUpError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const form = useForm<SignUpFormValues>({
@@ -47,28 +60,81 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
   // Reset step when modal is closed (e.g. from parent) so next open starts fresh
   useEffect(() => {
     if (!open) {
-      const t = setTimeout(() => setStep(1), 300);
+      const t = setTimeout(() => {
+        setStep(1);
+        setSignUpError(null);
+      }, 300);
       return () => clearTimeout(t);
     }
   }, [open]);
 
   const onSignUpSubmit = async (data: SignUpFormValues) => {
     if (isLoading) return;
+    setSignUpError(null);
     setIsLoading(true);
-    console.log("Creating Account:", data);
 
-    setTimeout(() => {
+    const client = supabase.client;
+    if (!client) {
+      setSignUpError("Authentication is not configured. Please try again later.");
       setIsLoading(false);
-      setStep(2);
-    }, 1500);
+      return;
+    }
+
+    const { data: authData, error: signUpErr } = await client.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: { full_name: data.fullName },
+      },
+    });
+
+    if (signUpErr) {
+      setSignUpError(signUpErr.message ?? "Sign up failed. Please try again.");
+      setIsLoading(false);
+      return;
+    }
+
+    const user = authData.user;
+    if (!user) {
+      setSignUpError("Account created but session could not be established. Try logging in.");
+      setIsLoading(false);
+      return;
+    }
+
+    const { error: profileErr } = await client
+      .from("profiles")
+      .insert({
+        id: user.id,
+        display_name: data.fullName,
+      });
+
+    if (profileErr) {
+      setSignUpError(
+        "Account created but profile could not be saved. You can complete setup after logging in."
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(false);
+    setStep(2);
+  };
+
+  const handleSocialConnect = async (provider: "twitter" | "linkedin_oidc") => {
+    const client = supabase.client;
+    if (!client) return;
+    await client.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/app`,
+      },
+    });
+    // OAuth redirects the user away from the modal; no need to close it here.
   };
 
   const onCompleteSetup = () => {
-    setStep(3);
-    setTimeout(() => {
-      onOpenChange(false);
-      navigate({ to: "/app" });
-    }, 2000);
+    onOpenChange(false);
+    navigate({ to: "/app" });
   };
 
   const handleClose = () => {
@@ -98,12 +164,10 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
             <h2 className="text-xl font-bold tracking-tight">
               {step === 1 && "Create your Workspace"}
               {step === 2 && "Connect a Channel"}
-              {step === 3 && "Initializing..."}
             </h2>
             <p className="text-primary-foreground/80 text-sm mt-1.5">
               {step === 1 && "Start managing your social presence today."}
-              {step === 2 && "Connect one account to get the data flowing."}
-              {step === 3 && "We are setting up your secure environment."}
+              {step === 2 && "Connect one account to get the data flowing. You will be redirected to the provider to sign in."}
             </p>
           </div>
         </div>
@@ -192,6 +256,11 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
                 )}
               </div>
 
+              {signUpError && (
+                <p className="text-destructive text-sm" role="alert">
+                  {signUpError}
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full mt-2"
@@ -205,17 +274,21 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
             </form>
           )}
 
-          {/* STEP 2: SOCIAL CONNECT */}
+          {/* STEP 2: SOCIAL CONNECT - OAuth redirects user away from modal */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="grid gap-3">
                 <ConnectButton
                   icon="/brand/steward/steward-mark-black.svg"
                   label="Connect X (Twitter)"
+                  provider="twitter"
+                  onConnect={handleSocialConnect}
                 />
                 <ConnectButton
                   icon="/brand/steward/steward-mark-black.svg"
                   label="Connect LinkedIn"
+                  provider="linkedin_oidc"
+                  onConnect={handleSocialConnect}
                 />
               </div>
 
@@ -235,15 +308,6 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
             </div>
           )}
 
-          {/* STEP 3: LOADING */}
-          {step === 3 && (
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">
-                Finalizing account setup...
-              </p>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -253,13 +317,18 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
 function ConnectButton({
   icon,
   label,
+  provider,
+  onConnect,
 }: {
   icon: string;
   label: string;
+  provider: "twitter" | "linkedin_oidc";
+  onConnect: (provider: "twitter" | "linkedin_oidc") => void;
 }) {
   return (
     <button
       type="button"
+      onClick={() => onConnect(provider)}
       className="flex items-center p-3 border border-input rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors text-left w-full group"
     >
       <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center mr-3">
