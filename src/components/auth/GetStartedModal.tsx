@@ -106,6 +106,8 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
       .insert({
         id: user.id,
         display_name: data.fullName,
+        email: data.email,
+        full_name: data.fullName,
       });
 
     if (profileErr) {

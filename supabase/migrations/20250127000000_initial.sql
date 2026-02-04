@@ -8,6 +8,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   organization_id uuid,
   display_name text,
+  full_name text,
+  email text,
   avatar_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -354,3 +356,30 @@ create trigger campaigns_updated_at before update on public.campaigns for each r
 create trigger social_accounts_updated_at before update on public.social_accounts for each row execute function public.set_updated_at();
 create trigger assets_updated_at before update on public.assets for each row execute function public.set_updated_at();
 create trigger publish_jobs_updated_at before update on public.publish_jobs for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- HANDLE NEW AUTH USER -> PROFILES
+-- ---------------------------------------------------------------------------
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, display_name, full_name, email)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    new.raw_user_meta_data->>'full_name',
+    new.email
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row
+  execute function public.handle_new_user();
