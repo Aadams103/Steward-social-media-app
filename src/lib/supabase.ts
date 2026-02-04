@@ -16,15 +16,15 @@ let supabaseInstance: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('⚠️ Supabase URL or Anon Key not configured');
+    console.warn("⚠️ Supabase URL or Anon Key not configured");
     return null;
   }
-  
+
   // Return existing instance if already created
   if (supabaseInstance) {
     return supabaseInstance;
   }
-  
+
   // Create singleton instance
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -33,13 +33,10 @@ export function getSupabaseClient(): SupabaseClient | null {
       detectSessionInUrl: true,
     },
   });
-  
+
   return supabaseInstance;
 }
 
-// Export the client directly for convenience (lazy initialization)
-export const supabase = {
-  get client() {
-    return getSupabaseClient();
-  },
-};
+// Export the singleton client directly for frontend usage
+// This will be `null` if Supabase is not configured, allowing callers to guard.
+export const supabase = getSupabaseClient();

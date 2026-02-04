@@ -302,7 +302,7 @@ function DashboardView() {
   const [profileLoading, setProfileLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const client = supabase.client;
+    const client = supabase;
     if (!client) {
       setProfileLoading(false);
       return;

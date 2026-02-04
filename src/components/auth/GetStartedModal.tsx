@@ -73,7 +73,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
     setSignUpError(null);
     setIsLoading(true);
 
-    const client = supabase.client;
+    const client = supabase;
     if (!client) {
       setSignUpError("Authentication is not configured. Please try again later.");
       setIsLoading(false);
@@ -122,7 +122,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
   };
 
   const handleSocialConnect = async (provider: "twitter" | "linkedin_oidc") => {
-    const client = supabase.client;
+    const client = supabase;
     if (!client) return;
     await client.auth.signInWithOAuth({
       provider,

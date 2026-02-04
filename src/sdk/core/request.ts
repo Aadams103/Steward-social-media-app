@@ -58,7 +58,7 @@ export async function platformRequest(
 
 	// Force Supabase session token onto every request so backend has a valid session
 	let token: string | null = null;
-	const client = supabase.client;
+	const client = supabase;
 	if (client) {
 		const { data: { session } } = await client.auth.getSession();
 		if (session?.access_token) {
@@ -129,7 +129,7 @@ export async function platformRequest(
 			// Global 401 interceptor: backend rejected token → stop pretending we're logged in
 			if (response.status === 401) {
 				console.warn("⚠️ Session expired or invalid. Logging out...");
-				const client = supabase.client;
+				const client = supabase;
 				if (client) {
 					await client.auth.signOut();
 				}
