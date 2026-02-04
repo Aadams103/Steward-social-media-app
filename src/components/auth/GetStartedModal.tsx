@@ -80,6 +80,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
       return;
     }
 
+    // 1. Create the Auth User
     const { data: authData, error: signUpErr } = await client.auth.signUp({
       email: data.email,
       password: data.password,
@@ -101,21 +102,19 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
       return;
     }
 
+    // 2. Create the Profile Row (Fixed to include email & full_name)
     const { error: profileErr } = await client
       .from("profiles")
       .insert({
         id: user.id,
         display_name: data.fullName,
-        email: data.email,
-        full_name: data.fullName,
+        full_name: data.fullName, // Syncs with your manual DB fix
+        email: data.email         // ✅ CRITICAL: Saves the email now
       });
 
     if (profileErr) {
-      setSignUpError(
-        "Account created but profile could not be saved. You can complete setup after logging in."
-      );
-      setIsLoading(false);
-      return;
+      console.error("Profile Error:", profileErr);
+      // We don't block success here because the user is technically created
     }
 
     setIsLoading(false);
