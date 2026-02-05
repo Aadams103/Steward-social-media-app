@@ -13,6 +13,13 @@ import "./styles.css";
 import { APP_CONFIG } from "./sdk/core/global.ts";
 export { APP_CONFIG }; // for backward compatibility
 
+import { supabase } from "./lib/supabaseClient";
+console.log("Supabase env check:", {
+	url: import.meta.env.VITE_SUPABASE_URL,
+	hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+});
+console.log("Supabase client:", supabase);
+
 // Global error handlers
 window.addEventListener("error", (event) => {
 	console.error("Global error event:", event);
