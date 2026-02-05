@@ -15,6 +15,7 @@ import { Route as SettingsImport } from './routes/settings'
 import { Route as AppImport } from './routes/app'
 import { Route as MarketingImport } from './routes/_marketing'
 import { Route as AuthenticatedImport } from './routes/_authenticated'
+import { Route as AuthIndexImport } from './routes/auth/index'
 import { Route as AppIndexImport } from './routes/app/index'
 import { Route as MarketingIndexImport } from './routes/_marketing.index'
 import { Route as MarketingSecurityPrivacyImport } from './routes/_marketing.security-privacy'
@@ -46,6 +47,12 @@ const MarketingRoute = MarketingImport.update({
 
 const AuthenticatedRoute = AuthenticatedImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AuthIndexRoute = AuthIndexImport.update({
+  id: '/auth/',
+  path: '/auth/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -198,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexImport
       parentRoute: typeof AppImport
     }
+    '/auth/': {
+      id: '/auth/'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -252,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
   '/': typeof MarketingIndexRoute
   '/app/': typeof AppIndexRoute
+  '/auth': typeof AuthIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -266,6 +281,7 @@ export interface FileRoutesByTo {
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
   '/': typeof MarketingIndexRoute
   '/app': typeof AppIndexRoute
+  '/auth': typeof AuthIndexRoute
 }
 
 export interface FileRoutesById {
@@ -283,6 +299,7 @@ export interface FileRoutesById {
   '/_marketing/security-privacy': typeof MarketingSecurityPrivacyRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/app/': typeof AppIndexRoute
+  '/auth/': typeof AuthIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -300,6 +317,7 @@ export interface FileRouteTypes {
     | '/security-privacy'
     | '/'
     | '/app/'
+    | '/auth'
   fileRoutesByTo: FileRoutesByTo
   to:
     | ''
@@ -313,6 +331,7 @@ export interface FileRouteTypes {
     | '/security-privacy'
     | '/'
     | '/app'
+    | '/auth'
   id:
     | '__root__'
     | '/_authenticated'
@@ -328,6 +347,7 @@ export interface FileRouteTypes {
     | '/_marketing/security-privacy'
     | '/_marketing/'
     | '/app/'
+    | '/auth/'
   fileRoutesById: FileRoutesById
 }
 
@@ -336,6 +356,7 @@ export interface RootRouteChildren {
   MarketingRoute: typeof MarketingRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -343,6 +364,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketingRoute: MarketingRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -358,7 +380,8 @@ export const routeTree = rootRoute
         "/_authenticated",
         "/_marketing",
         "/app",
-        "/settings"
+        "/settings",
+        "/auth/"
       ]
     },
     "/_authenticated": {
@@ -421,6 +444,9 @@ export const routeTree = rootRoute
     "/app/": {
       "filePath": "app/index.tsx",
       "parent": "/app"
+    },
+    "/auth/": {
+      "filePath": "auth/index.tsx"
     }
   }
 }
