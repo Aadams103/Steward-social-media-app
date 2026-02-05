@@ -41,10 +41,10 @@ function MarketingHeader() {
           </nav>
           <div className="flex items-center gap-4">
             <Link
-              to="/login"
+              to="/auth"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Log in
+              Login
             </Link>
             <Button
               type="button"
