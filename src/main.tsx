@@ -14,6 +14,7 @@ import { APP_CONFIG } from "./sdk/core/global.ts";
 export { APP_CONFIG }; // for backward compatibility
 
 import { supabase } from "./lib/supabaseClient";
+
 console.log("Supabase env check:", {
 	url: import.meta.env.VITE_SUPABASE_URL,
 	hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
