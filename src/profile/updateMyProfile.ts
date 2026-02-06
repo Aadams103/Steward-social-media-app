@@ -8,6 +8,10 @@ type ProfileUpdate = {
 };
 
 export async function updateMyProfile(update: ProfileUpdate) {
+	if (!supabase) {
+		throw new Error("Supabase client not initialized");
+	}
+
 	const { data: userRes, error: userErr } = await supabase.auth.getUser();
 	if (userErr) throw userErr;
 	if (!userRes.user) throw new Error("Not logged in");
