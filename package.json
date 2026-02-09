@@ -2,7 +2,7 @@
   "name": "steward-social-media-app",
   "private": true,
   "engines": {
-    "node": ">=22.12.0"
+    "node": "22.x"
   },
   "type": "module",
   "scripts": {
@@ -13,7 +13,7 @@
     "serve": "vite preview",
     "test": "vitest run",
     "check": "tsgo --noEmit && npm run lint:radix -- --fix && npm run format",
-    "check:safe": "node -e \"const {spawn}=require('child_process');const proc=spawn('npm',['run','check'],{shell:true});let timeout=setTimeout(()=>{proc.kill();process.exit(1);},20000);proc.on('exit',(c)=>{clearTimeout(timeout);process.exit(c||0);});proc.stdout.pipe(process.stdout);proc.stderr.pipe(process.stderr);\"",
+    "check:safe": "node config/scripts/check-safe.cjs",
     "format": "biome check --write --unsafe",
     "format:quiet": "biome check --write --unsafe --log-level=warn",
     "lint:radix": "eslint src --config config/eslint/eslint.radix.config.js",
