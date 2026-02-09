@@ -20,6 +20,7 @@
     "lint:mcp": "eslint src --config config/eslint/eslint.mcp.config.js",
     "lint:validate": "node config/eslint/validate-configs.js",
     "check:branding": "node config/scripts/check-branding.mjs",
+    "typecheck:server": "cd server && npm run typecheck",
     "prepare": "echo Skipping git hooks setup"
   },
   "dependencies": {

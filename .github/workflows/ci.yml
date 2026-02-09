@@ -1,0 +1,21 @@
+# CI: typecheck backend and optionally keep schema/types in sync
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  typecheck-server:
+    name: Typecheck server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        working-directory: server
+      - run: npm run typecheck
+        working-directory: server
