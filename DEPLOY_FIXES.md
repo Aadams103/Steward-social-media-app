@@ -18,6 +18,20 @@ This document describes the fixes for **Railway** and **Vercel** build failures.
 
 Redeploy on Vercel; it will use `npx vite build` and should succeed.
 
+### Vercel blank screen + 401 on manifest.json (or other assets)
+
+**Problem:** The app loads as a blank screen and the browser console shows `401 Unauthorized` for `manifest.json` (and sometimes for JS/CSS). The `#app` div stays empty.
+
+**Cause:** **Vercel Deployment Protection** (Vercel Authentication or Password Protection) is enabled. Unauthenticated requests get 401, so the document or static assets are blocked and the app never runs.
+
+**Fix:**
+
+1. Open the [Vercel dashboard](https://vercel.com) → your project → **Settings** → **Deployment Protection**.
+2. For **Preview** (and **Production** if you want the site public):
+   - Turn **off** “Vercel Authentication” and/or “Password Protection”, **or**
+   - Use a **Stable Alias** (e.g. `your-project.vercel.app` or a custom domain) and always open the app via that URL after logging in once, so the auth cookie applies to the same domain that serves assets.
+3. Redeploy or refresh; the app and `manifest.json` should load without 401 and the screen should render.
+
 ---
 
 ## Railway
