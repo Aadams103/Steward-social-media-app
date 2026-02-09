@@ -52,31 +52,27 @@ export async function platformRequest(
 	url: string | URL | Request,
 	options: RequestInit = {},
 ): Promise<Response> {
-	// In dev mode, allow requests without auth (for local development)
-	const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
-	const requiresAuth = !isDev;
-
-	// Force Supabase session token onto every request so backend has a valid session
+	// Attach auth token when available; never throw before sending so the app can load.
+	// If the backend returns 401, the response handler below will redirect to /login.
 	let token: string | null = null;
 	const client = supabase;
 	if (client) {
-		const { data: { session } } = await client.auth.getSession();
-		if (session?.access_token) {
-			token = session.access_token;
+		try {
+			const { data: { session } } = await client.auth.getSession();
+			if (session?.access_token) {
+				token = session.access_token;
+			}
+			if (import.meta.env.DEV) {
+				console.log("🔑 Auth Header Attached:", !!session?.access_token);
+			}
+		} catch (e) {
+			// Supabase getSession failed (e.g. not configured); continue without token
+			if (import.meta.env.DEV) console.warn("Supabase getSession failed:", e);
 		}
-		console.log("🔑 Auth Header Attached:", !!session?.access_token);
 	}
 	// Fallback to legacy auth store if no Supabase session
 	if (!token) {
 		token = await getAuthTokenAsync();
-	}
-
-	// Check authentication (skip in dev mode)
-	if (requiresAuth && !token) {
-		throw new PlatformRequestError({
-			code: "UNAUTHENTICATED",
-			message: "User is not authenticated",
-		});
 	}
 	const method = options.method || "GET";
 
@@ -128,10 +124,21 @@ export async function platformRequest(
 
 			// Global 401 interceptor: backend rejected token → stop pretending we're logged in
 			if (response.status === 401) {
-				console.warn("⚠️ Session expired or invalid. Logging out...");
-				const client = supabase;
-				if (client) {
-					await client.auth.signOut();
+				if (import.meta.env.DEV) console.warn("⚠️ Session expired or invalid. Logging out...");
+				const authClient = supabase;
+				if (authClient) {
+					try {
+						await authClient.auth.signOut();
+					} catch {
+						// ignore signOut errors
+					}
+				}
+				// Clear legacy auth token so next load doesn't reuse it
+				try {
+					const { clearAuth } = await import("./auth");
+					await clearAuth();
+				} catch {
+					// ignore
 				}
 				if (typeof window !== "undefined") {
 					window.location.href = "/login";
