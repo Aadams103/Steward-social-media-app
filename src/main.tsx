@@ -13,7 +13,7 @@ import "./styles.css";
 import { APP_CONFIG } from "./sdk/core/global.ts";
 export { APP_CONFIG }; // for backward compatibility
 
-import { supabase } from "./lib/supabaseClient";
+import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 
 console.log("Supabase env check:", {
 	url: import.meta.env.VITE_SUPABASE_URL,
@@ -66,14 +66,57 @@ declare module "@tanstack/react-router" {
 	}
 }
 
-// Render the app
+// Render the app or configuration warning
 const rootElement = document.getElementById("app");
-if (rootElement) {
-	// Clear any existing content before rendering
-	if (rootElement.innerHTML) {
-		rootElement.innerHTML = "";
-	}
-	const root = ReactDOM.createRoot(rootElement);
+
+if (!rootElement) {
+	throw new Error("Root element #app not found in DOM");
+}
+
+// Clear any existing content before rendering
+if (rootElement.innerHTML) {
+	rootElement.innerHTML = "";
+}
+
+const root = ReactDOM.createRoot(rootElement);
+
+if (!isSupabaseConfigured) {
+	root.render(
+		<div
+			style={{
+				fontFamily:
+					"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+				padding: "2rem",
+				maxWidth: "640px",
+				margin: "0 auto",
+				lineHeight: 1.5,
+			}}
+		>
+			<h1
+				style={{
+					fontSize: "1.75rem",
+					fontWeight: 600,
+					marginBottom: "0.75rem",
+				}}
+			>
+				Missing Supabase configuration
+			</h1>
+			<p style={{ marginBottom: "0.75rem" }}>
+				The app could not initialize Supabase because required environment
+				variables are not set.
+			</p>
+			<p style={{ marginBottom: "0.75rem" }}>
+				Please configure <code>VITE_SUPABASE_URL</code> and{" "}
+				<code>VITE_SUPABASE_ANON_KEY</code> in your environment (for example in
+				Vercel project settings) and redeploy.
+			</p>
+			<p>
+				For local development, set these in a <code>.env</code> file at the
+				project root based on <code>.env.example</code>.
+			</p>
+		</div>,
+	);
+} else {
 	try {
 		root.render(
 			<StrictMode>
@@ -86,8 +129,6 @@ if (rootElement) {
 		console.error("root.render error:", error);
 		throw error;
 	}
-} else {
-	throw new Error("Root element #app not found in DOM");
 }
 
 // If you want to start measuring performance in your app, pass a function
