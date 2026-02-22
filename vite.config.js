@@ -57,5 +57,6 @@ export default defineConfig({
 	},
 	build: {
 		chunkSizeWarningLimit: 1500,
+		sourcemap: true, // Production source maps for readable stack traces
 	},
 });
