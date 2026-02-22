@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
+import { signUpWithEmail } from "@/auth/signup";
 import {
   Dialog,
   DialogContent,
@@ -73,52 +74,21 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
     setSignUpError(null);
     setIsLoading(true);
 
-    const client = supabase;
-    if (!client) {
+    if (!supabase) {
       setSignUpError("Authentication is not configured. Please try again later.");
       setIsLoading(false);
       return;
     }
 
-    // 1. Create the Auth User
-    const { data: authData, error: signUpErr } = await client.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: { full_name: data.fullName },
-      },
-    });
-
-    if (signUpErr) {
-      setSignUpError(signUpErr.message ?? "Sign up failed. Please try again.");
+    try {
+      await signUpWithEmail(data.email, data.password, data.fullName);
       setIsLoading(false);
-      return;
-    }
-
-    const user = authData.user;
-    if (!user) {
-      setSignUpError("Account created but session could not be established. Try logging in.");
+      setStep(2);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Sign up failed. Please try again.";
+      setSignUpError(message);
       setIsLoading(false);
-      return;
     }
-
-    // 2. Create the Profile Row (Fixed to include email & full_name)
-    const { error: profileErr } = await client
-      .from("profiles")
-      .insert({
-        id: user.id,
-        display_name: data.fullName,
-        full_name: data.fullName, // Syncs with your manual DB fix
-        email: data.email         // ✅ CRITICAL: Saves the email now
-      });
-
-    if (profileErr) {
-      console.error("Profile Error:", profileErr);
-      // We don't block success here because the user is technically created
-    }
-
-    setIsLoading(false);
-    setStep(2);
   };
 
   const handleSocialConnect = async (provider: "twitter" | "linkedin_oidc") => {

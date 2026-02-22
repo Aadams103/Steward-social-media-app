@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 export async function signUpWithEmail(
 	email: string,
 	password: string,
-	displayName?: string,
+	fullName?: string,
 ) {
 	if (!supabase) {
 		throw new Error("Supabase client not initialized");
@@ -13,7 +13,9 @@ export async function signUpWithEmail(
 		email,
 		password,
 		options: {
-			data: displayName ? { name: displayName } : undefined,
+			data: fullName
+				? { full_name: fullName, display_name: fullName }
+				: undefined,
 		},
 	});
 

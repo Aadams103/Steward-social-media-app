@@ -5,13 +5,13 @@ import { signUpWithEmail } from "../auth/signup";
 export function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   async function handleSignUp() {
     setMessage("Signing up...");
     try {
-      await signUpWithEmail(email, password, displayName || undefined);
+      await signUpWithEmail(email, password, fullName || undefined);
       setMessage("Signed up successfully.");
     } catch (error: any) {
       setMessage(error?.message ?? "Failed to sign up.");
@@ -51,11 +51,11 @@ export function AuthPage() {
           />
         </label>
         <label>
-          Display name (signup only)
+          Full name (signup only)
           <input
             type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             style={{ width: "100%" }}
           />
         </label>
