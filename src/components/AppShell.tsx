@@ -302,7 +302,7 @@ export function AppShell({
                   <Avatar className="h-5 w-5 shrink-0">
                     <AvatarImage 
                       src={brandDisplay.avatar || undefined} 
-                      alt={brandDisplay.name}
+                      alt={brandDisplay?.name ?? ""}
                       onError={(e) => {
                         // Hide broken image, fallback will show
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -313,15 +313,16 @@ export function AppShell({
                         <Layers className="h-3 w-3" />
                       ) : (
                         (() => {
-                          const words = brandDisplay.name.trim().split(/\s+/);
+                          const name = (brandDisplay?.name ?? "").trim();
+                          const words = name.split(/\s+/);
                           return words.length >= 2
                             ? (words[0][0] + words[1][0]).toUpperCase()
-                            : brandDisplay.name.charAt(0).toUpperCase();
+                            : name.charAt(0).toUpperCase();
                         })()
                       )}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{brandDisplay.name}</span>
+                  <span className="font-medium">{brandDisplay?.name ?? ""}</span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -331,12 +332,13 @@ export function AppShell({
                 {brands.slice(0, 6).map((brand) => {
                   const isActive = activeBrandId === brand.id;
                   // Get initials (first letter, or first two letters if single word)
-                  const getInitials = (name: string) => {
-                    const words = name.trim().split(/\s+/);
+                  const getInitials = (n: string | undefined) => {
+                    const safe = (n ?? "").trim();
+                    const words = safe.split(/\s+/);
                     if (words.length >= 2) {
                       return (words[0][0] + words[1][0]).toUpperCase();
                     }
-                    return name.charAt(0).toUpperCase();
+                    return safe.charAt(0).toUpperCase();
                   };
                   
                   return (
@@ -481,7 +483,7 @@ export function AppShell({
                 </span>
               ) : (
                 <span>
-                  <strong>Active Brand:</strong> {brandDisplay.name}
+                  <strong>Active Brand:</strong> {brandDisplay?.name ?? ""}
                 </span>
               )}
             </AlertDescription>

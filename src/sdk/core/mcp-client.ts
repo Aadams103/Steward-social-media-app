@@ -166,13 +166,13 @@ export async function callMCPTool<
 
 // back compatibility for old server-prompt format
 function findServerByUrl(expected: string) {
-	const lowerExpected = expected.toLowerCase().trim();
-	const items = Object.values(MCP_SERVERS) as { url: string, name: string, id: string }[]
+	const lowerExpected = (expected ?? "").toLowerCase().trim();
+	const items = Object.values(MCP_SERVERS) as { url: string; name: string; id: string }[];
 	for (const item of items) {
 		if (
-			item.url.toLowerCase().trim() === lowerExpected ||
-			item.id.toLowerCase().trim() === lowerExpected ||
-			item.name.toLowerCase() === lowerExpected
+			(item.url ?? "").toLowerCase().trim() === lowerExpected ||
+			(item.id ?? "").toLowerCase().trim() === lowerExpected ||
+			(item.name ?? "").toLowerCase() === lowerExpected
 		) {
 			return item;
 		}

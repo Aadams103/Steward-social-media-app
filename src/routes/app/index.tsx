@@ -412,7 +412,7 @@ function DashboardView() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-muted-foreground">
-            Hello, {profile?.display_name?.trim() ? profile.display_name : "Steward"}
+            Hello, {(profile?.display_name ?? "").trim() || "Steward"}
           </p>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your social media performance</p>
@@ -4311,7 +4311,7 @@ function AutopilotView() {
   const { data: brandsData } = useBrands();
   const { data: currentBrand } = useCurrentBrand();
   const [showEditForm, setShowEditForm] = React.useState(false);
-  const hasBrief = briefData && briefData.brandName && briefData.brandName.trim() !== '';
+  const hasBrief = briefData && (briefData?.brandName ?? "").trim() !== '';
   const isAllMode = activeBrandId === 'all';
   const brands = brandsData?.brands || [];
   const currentBrandData = isAllMode 
