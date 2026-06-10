@@ -81,6 +81,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { UpgradeGate } from "@/components/billing/UpgradeGate";
+import { canAddBrand, getBrandLimit } from "@/lib/plan-capabilities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -890,7 +892,12 @@ function ComposeView() {
           />
         </TabsContent>
         <TabsContent value="bulk" className="mt-4">
-          <ComposeBulkUploadContent campaigns={campaigns} socialAccounts={socialAccounts} />
+          <UpgradeGate
+            feature="bulk_scheduling"
+            description="Upload and schedule many posts at once from a CSV or spreadsheet."
+          >
+            <ComposeBulkUploadContent campaigns={campaigns} socialAccounts={socialAccounts} />
+          </UpgradeGate>
         </TabsContent>
       </Tabs>
 
@@ -2521,6 +2528,10 @@ function AnalyticsView() {
         </Card>
       </div>
 
+      <UpgradeGate
+        feature="analytics_advanced"
+        description="Platform breakdowns, top posts, and deeper performance insights."
+      >
       {/* Platform Breakdown */}
       <Card>
         <CardHeader>
@@ -2602,6 +2613,7 @@ function AnalyticsView() {
           </div>
         </CardContent>
       </Card>
+      </UpgradeGate>
     </div>
   );
 }
@@ -6192,7 +6204,7 @@ function EditTemplateForm({
 
 function BrandsSettingsView() {
   const { data: brandsData } = useBrands();
-  const { activeBrandId, setActiveBrandId, setActiveView } = useAppStore();
+  const { activeBrandId, setActiveBrandId, setActiveView, currentOrganization } = useAppStore();
   const createBrand = useCreateBrand();
   const updateBrand = useUpdateBrand();
   const deleteBrand = useDeleteBrand();
@@ -6201,8 +6213,9 @@ function BrandsSettingsView() {
   const queryClient = useQueryClient();
 
   const brands = brandsData?.brands || [];
-  const maxBrands = 6;
-  const canCreateMore = brands.length < maxBrands;
+  const billingPlan = currentOrganization?.billingPlan ?? "free";
+  const maxBrands = getBrandLimit(billingPlan);
+  const canCreateMore = canAddBrand(billingPlan, brands.length);
   const [editingBrandId, setEditingBrandId] = React.useState<string | null>(null);
   const [editingBrandName, setEditingBrandName] = React.useState("");
   const [editingBrandAvatarUrl, setEditingBrandAvatarUrl] = React.useState("");
@@ -6217,8 +6230,12 @@ function BrandsSettingsView() {
       return;
     }
 
-    if (brands.length >= maxBrands) {
-      toast.error(`Maximum of ${maxBrands} brands allowed`);
+    if (!canCreateMore) {
+      toast.error(
+        maxBrands === -1
+          ? "Cannot create brand"
+          : `Maximum of ${maxBrands} brands allowed on your plan`,
+      );
       return;
     }
 
@@ -6435,9 +6452,11 @@ function BrandsSettingsView() {
         <CardHeader>
           <CardTitle>Create New Brand</CardTitle>
           <CardDescription>
-            {canCreateMore 
-              ? `Create up to ${maxBrands} brands (${brands.length}/${maxBrands} used)`
-              : `Maximum of ${maxBrands} brands reached`}
+            {maxBrands === -1
+              ? `${brands.length} brand${brands.length === 1 ? "" : "s"} (unlimited on your plan)`
+              : canCreateMore
+                ? `Create up to ${maxBrands} brands (${brands.length}/${maxBrands} used)`
+                : `Maximum of ${maxBrands} brands reached on your plan`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -6522,11 +6541,19 @@ function BrandsSettingsView() {
           >
             {createBrand.isPending ? "Creating..." : "Create Brand"}
           </Button>
-          {!canCreateMore && (
+          {!canCreateMore && maxBrands !== -1 && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                You've reached the maximum of {maxBrands} brands. Delete a brand to create a new one.
+                You've reached the maximum of {maxBrands} brands on your plan.{" "}
+                <button
+                  type="button"
+                  className="underline font-medium"
+                  onClick={() => setActiveView("settings")}
+                >
+                  Upgrade your plan
+                </button>{" "}
+                to add more brand profiles.
               </AlertDescription>
             </Alert>
           )}
@@ -7714,7 +7741,14 @@ function App() {
       case "dashboard":
         return <DashboardView />;
       case "autopilot":
-        return <AutopilotView />;
+        return (
+          <UpgradeGate
+            feature="autopilot"
+            description="Autopilot plans, generates, and schedules content for you."
+          >
+            <AutopilotView />
+          </UpgradeGate>
+        );
       case "queue":
         return <QueueView />;
       case "compose":

@@ -3,7 +3,7 @@
  * Simplified versions matching frontend types
  */
 
-export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'pinterest' | 'reddit' | 'slack' | 'notion';
+export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'pinterest' | 'reddit' | 'slack' | 'notion' | 'youtube' | 'x' | 'google_business_profile';
 export type PostStatus = 'draft' | 'needs_approval' | 'approved' | 'scheduled' | 'published' | 'failed';
 export type PublishJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying';
 export type OperatingMode = 'manual' | 'approval' | 'autopilot';

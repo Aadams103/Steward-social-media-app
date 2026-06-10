@@ -17,6 +17,8 @@ import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, Socia
 import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed.js';
 import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost, listIngestedPosts } from './supabase.js';
 import { authMiddleware, type AuthenticatedRequest } from './middleware/auth.js';
+import { createCheckoutSessionHandler, stripeWebhookHandler } from './routes/billing.js';
+import { startScheduler } from './workers/scheduler.js';
 
 const app = express();
 const server = createServer(app);
@@ -41,6 +43,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-brand-id'],
   exposedHeaders: ['Content-Type', 'Authorization'],
 }));
+// Stripe webhook MUST receive the raw body for signature verification, so it
+// is mounted before the global JSON parser. It is authenticated via Stripe
+// signature, not Supabase JWT.
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res) => {
+  void stripeWebhookHandler(req as AuthenticatedRequest, res);
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -78,8 +87,8 @@ const events: Map<string, Event> = new Map();
 const brands: Map<string, Brand> = new Map();
 const autopilotBriefs: Map<string, AutopilotBrief> = new Map();
 const googleIntegrations: Map<string, GoogleIntegration> = new Map();
-const googleConnections: Map<string, import('./types').GoogleConnection> = new Map(); // For GBP
-const emailAccounts: Map<string, import('./types').EmailAccount> = new Map();
+const googleConnections: Map<string, import('./types.js').GoogleConnection> = new Map(); // For GBP
+const emailAccounts: Map<string, import('./types.js').EmailAccount> = new Map();
 const emailTriage: Map<string, TriageStatus> = new Map(); // Key: `${brandId}:${messageId}`
 const scheduleTemplates: Map<string, BusinessScheduleTemplate> = new Map();
 
@@ -101,7 +110,15 @@ app.use('/api', (req: express.Request, res: express.Response, next: express.Next
   if (p === '/health') return next();
   if (p.startsWith('/oauth/')) return next();
   if (p.startsWith('/cron/')) return next();
+  // Webhooks authenticate via provider signatures (route is mounted earlier,
+  // before JSON parsing; this guard is defensive).
+  if (p.startsWith('/webhooks/')) return next();
   authMiddleware(req as AuthenticatedRequest, res, next);
+});
+
+// Billing: checkout session creation (Supabase-authenticated via the gate above)
+app.post('/api/billing/create-checkout-session', (req, res) => {
+  void createCheckoutSessionHandler(req as AuthenticatedRequest, res);
 });
 
 // WebSocket clients
@@ -2964,7 +2981,7 @@ app.get('/api/oauth/google/callback', async (req, res) => {
       const existingConnection = Array.from(googleConnections.values())
         .find(gc => gc.brandId === brandId && gc.googleAccountEmail === email);
 
-      const connection: import('./types').GoogleConnection = {
+      const connection: import('./types.js').GoogleConnection = {
         id: existingConnection?.id || generateId(),
         brandId,
         provider: 'google',
@@ -3028,7 +3045,7 @@ app.get('/api/oauth/google/callback', async (req, res) => {
       const existingEmailAccount = Array.from(emailAccounts.values())
         .find(ea => ea.brandId === brandId && ea.emailAddress === email && ea.provider === 'gmail');
 
-      const emailAccount: import('./types').EmailAccount = {
+      const emailAccount: import('./types.js').EmailAccount = {
         id: existingEmailAccount?.id || generateId(),
         brandId,
         provider: 'gmail',
@@ -3248,7 +3265,7 @@ app.post('/api/email/accounts/imap/connect', async (req, res) => {
   // For MVP, we'll just store the credentials (encrypted in production)
   // For now, we'll simulate a connection test
 
-  const emailAccount: import('./types').EmailAccount = {
+  const emailAccount: import('./types.js').EmailAccount = {
     id: generateId(),
     brandId,
     provider: provider as 'yahoo' | 'icloud' | 'imap_custom',
@@ -3322,7 +3339,7 @@ app.get('/api/email/threads', async (req, res) => {
   const accountId = req.query.accountId as string | undefined;
   
   // Find email account for this brand
-  let account: import('./types').EmailAccount | undefined;
+  let account: import('./types.js').EmailAccount | undefined;
   if (accountId) {
     account = emailAccounts.get(accountId);
     if (!account || account.brandId !== brandId) {
@@ -3717,4 +3734,6 @@ app.use((req, res) => {
 const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
+  // Scheduled publishing worker (no-op unless PUBLISH_WORKER_ENABLED=true)
+  startScheduler();
 });

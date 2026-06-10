@@ -7,7 +7,7 @@ import type {
   Organization,
   Brand,
   AutopilotSettings,
-} from './types';
+} from './types.js';
 
 /**
  * Default organization seed data
@@ -50,6 +50,9 @@ export const defaultAutopilotSettings: AutopilotSettings = {
     reddit: 5,
     slack: 10,
     notion: 3,
+    youtube: 2,
+    x: 7,
+    google_business_profile: 3,
   },
   enableWebResearch: true,
   enableImageGeneration: false,

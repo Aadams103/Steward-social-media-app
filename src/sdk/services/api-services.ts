@@ -310,6 +310,29 @@ export const quotaApi = {
 };
 
 // ============================================================================
+// BILLING API (Stripe)
+// ============================================================================
+
+export interface CreateCheckoutSessionPayload {
+  organizationId: string;
+  planType: 'basic' | 'pro_expert' | 'agency';
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface CreateCheckoutSessionResponse {
+  /** Stripe-hosted Checkout URL; redirect the browser here. */
+  url?: string;
+  /** Fallback: session id for stripe.redirectToCheckout. */
+  sessionId?: string;
+}
+
+export const billingApi = {
+  createCheckoutSession: (payload: CreateCheckoutSessionPayload) =>
+    apiClient.post<CreateCheckoutSessionResponse>(`${API_BASE}/billing/create-checkout-session`, payload),
+};
+
+// ============================================================================
 // AUTOPILOT API
 // ============================================================================
 
