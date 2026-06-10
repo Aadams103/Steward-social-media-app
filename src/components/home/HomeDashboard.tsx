@@ -1,8 +1,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import {
-	BarChart3,
-	Calendar,
+	Bot,
 	CheckCircle2,
 	ChevronRight,
 	Clock,
@@ -10,13 +9,13 @@ import {
 	Link2,
 	PenSquare,
 	Sparkles,
-	TrendingUp,
 	Users,
 	X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/app-store";
-import { usePosts, useSocialAccounts } from "@/hooks/use-api";
+import { usePosts, useSocialAccounts, useAutopilotBrief } from "@/hooks/use-api";
+import { getAutopilotReadiness } from "@/lib/autopilot-readiness";
 import { CreateMenu, CreatePostButton } from "@/components/create/CreateMenu";
 import { PlatformIcon } from "@/components/shared/PlatformIcon";
 import { Button } from "@/components/ui/button";
@@ -78,7 +77,7 @@ function PostRow({ post }: { post: Post }) {
 
 export function HomeDashboard() {
 	const setActiveView = useAppStore((s) => s.setActiveView);
-	const { currentOrganization } = useAppStore();
+	const { currentOrganization, brandProfile, autopilotSettings, scheduledSlots } = useAppStore();
 
 	const [profile, setProfile] = React.useState<ProfileRow | null>(null);
 	const [profileLoading, setProfileLoading] = React.useState(true);
@@ -88,6 +87,7 @@ export function HomeDashboard() {
 		usePosts();
 	const { data: accountsData, isLoading: accountsLoading, isError: accountsIsError, error: accountsError } =
 		useSocialAccounts();
+	const { data: briefData } = useAutopilotBrief();
 
 	React.useEffect(() => {
 		const client = supabase;
@@ -132,7 +132,16 @@ export function HomeDashboard() {
 	const hasConnectedAccounts = socialAccounts.some((a) => a.isConnected);
 	const hasScheduledPost = scheduledPosts.length > 0;
 	const hasDraft = draftPosts.length > 0;
-	const hasAnalytics = publishedWithMetrics.length > 0;
+	const hasBrandProfile = Boolean(brandProfile?.brandName?.trim());
+	const hasBrief = Boolean((briefData?.brandName ?? "").trim());
+
+	const autopilotReadiness = getAutopilotReadiness({
+		brandProfile,
+		socialAccounts,
+		brief: briefData,
+		settings: autopilotSettings,
+		scheduledCount: scheduledPosts.length + scheduledSlots.length,
+	});
 
 	const checklist: ChecklistItem[] = [
 		{
@@ -144,43 +153,44 @@ export function HomeDashboard() {
 			onAction: () => setActiveView("accounts"),
 		},
 		{
-			id: "schedule",
-			title: "Create and schedule a post",
-			description: "Draft content and put it on your calendar.",
-			icon: PenSquare,
-			status: hasScheduledPost ? "done" : hasConnectedAccounts ? "next" : "pending",
+			id: "brand",
+			title: "Complete brand profile",
+			description: "Set voice, audience, and goals for Flight AI.",
+			icon: Users,
+			status: hasBrandProfile || hasBrief ? "done" : hasConnectedAccounts ? "next" : "pending",
+			onAction: () => setActiveView("brand"),
 		},
 		{
-			id: "analytics",
-			title: "See your analytics reports",
-			description: "Review performance once posts are published.",
-			icon: BarChart3,
-			status: hasAnalytics ? "done" : "pending",
-			onAction: () => setActiveView("analytics"),
-		},
-		{
-			id: "trending",
-			title: "Stay on top of trending topics",
-			description: "Use listening insights to shape your content.",
-			icon: TrendingUp,
-			status: "pending",
-			onAction: () => setActiveView("queue"),
-		},
-		{
-			id: "calendar",
-			title: "Check your social calendar",
-			description: "See what's planned across the week.",
-			icon: Calendar,
-			status: hasScheduledPost ? "done" : "pending",
-			onAction: () => setActiveView("calendar"),
-		},
-		{
-			id: "ai",
-			title: "Create quick content with AI",
-			description: "Generate on-brand drafts with OwlGPT.",
+			id: "flight-ai",
+			title: "Open Flight AI",
+			description: "Ask your AI social media manager for ideas and captions.",
 			icon: Sparkles,
-			status: hasDraft ? "done" : "pending",
+			status: hasDraft ? "done" : hasBrief ? "next" : "pending",
+			onAction: () => setActiveView("flight-ai"),
+		},
+		{
+			id: "plan-gen",
+			title: "Generate first content plan",
+			description: "Let Flight AI and Autopilot draft your weekly calendar.",
+			icon: Bot,
+			status: hasScheduledPost ? "done" : hasBrief ? "next" : "pending",
 			onAction: () => setActiveView("autopilot"),
+		},
+		{
+			id: "autopilot-settings",
+			title: "Review Autopilot settings",
+			description: "Choose Manual, Approval, or Autopilot operating mode.",
+			icon: Bot,
+			status: autopilotReadiness.status !== "setup_needed" ? "done" : "pending",
+			onAction: () => setActiveView("autopilot"),
+		},
+		{
+			id: "schedule",
+			title: "Schedule first post",
+			description: "Put approved content on your Plan calendar.",
+			icon: PenSquare,
+			status: hasScheduledPost ? "done" : hasDraft ? "next" : "pending",
+			onAction: () => setActiveView("calendar"),
 		},
 	];
 
@@ -226,7 +236,8 @@ export function HomeDashboard() {
 					{trialLine && <p className="mb-1 text-xs font-medium text-muted-foreground">{trialLine}</p>}
 					<h1 className="text-2xl font-bold tracking-tight md:text-3xl">Welcome, {displayName}!</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Your command center for planning, creating, and publishing social content.
+						Your AI social media command center — connect accounts, plan with Flight AI, and manage
+						content through Autopilot.
 					</p>
 				</div>
 				<CreatePostButton className="shrink-0" />
@@ -283,6 +294,57 @@ export function HomeDashboard() {
 					</CardContent>
 				</Card>
 			)}
+
+			<div className="grid gap-4 sm:grid-cols-2">
+				<Card className="rounded-xl border-border/70 shadow-sm">
+					<CardHeader className="pb-2">
+						<div className="flex items-center gap-2">
+							<Sparkles className="h-4 w-4 text-primary" />
+							<CardTitle className="text-base">Flight AI</CardTitle>
+						</div>
+						<CardDescription>
+							Ask your AI social media manager for captions, ideas, strategy, and calendar help.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Button className="w-full" onClick={() => setActiveView("flight-ai")}>
+							Open Flight AI
+						</Button>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-xl border-border/70 shadow-sm">
+					<CardHeader className="pb-2">
+						<div className="flex items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								<Bot className="h-4 w-4 text-primary" />
+								<CardTitle className="text-base">Autopilot</CardTitle>
+							</div>
+							<Badge
+								variant={
+									autopilotReadiness.status === "active"
+										? "default"
+										: autopilotReadiness.status === "paused"
+											? "secondary"
+											: "outline"
+								}
+								className="text-[10px]"
+							>
+								{autopilotReadiness.label}
+							</Badge>
+						</div>
+						<CardDescription>
+							Let Flight AI build and manage your weekly content plan — drafts and scheduling, not
+							auto-publishing until platforms are connected.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Button variant="outline" className="w-full" onClick={() => setActiveView("autopilot")}>
+							Configure Autopilot
+						</Button>
+					</CardContent>
+				</Card>
+			</div>
 
 			<div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
 				<div className="space-y-4 lg:col-span-2 lg:space-y-6">

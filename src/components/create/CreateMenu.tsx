@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-	Bot,
+	CalendarDays,
 	Megaphone,
 	MessageSquare,
 	PenSquare,
@@ -67,9 +67,19 @@ export function CreateMenu({
 		},
 		{
 			id: "ai",
-			label: "Content with AI",
-			description: "Generate drafts with OwlGPT",
+			label: "Create with Flight AI",
+			description: "Generate captions, ideas, and strategy",
 			icon: Sparkles,
+			onSelect: () => {
+				setActiveView("flight-ai");
+				setOpen(false);
+			},
+		},
+		{
+			id: "plan",
+			label: "Generate content plan",
+			description: "Build a weekly plan with Flight AI + Autopilot",
+			icon: CalendarDays,
 			onSelect: () => {
 				setActiveView("autopilot");
 				setOpen(false);
@@ -130,7 +140,7 @@ export function CreateMenu({
 								e.preventDefault();
 								item.onSelect();
 							}}
-							className="flex items-start gap-3 rounded-lg px-3 py-2.5 cursor-pointer"
+							className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5"
 						>
 							<span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
 								<item.icon className="h-4 w-4" />

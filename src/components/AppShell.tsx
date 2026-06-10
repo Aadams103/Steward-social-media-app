@@ -100,7 +100,8 @@ export function AppShell({
 		{ id: "dashboard", label: "Home", icon: Home },
 		{ id: "calendar", label: "Plan", icon: CalendarDays },
 		{ id: "create", label: "Create", icon: Plus, isCreate: true },
-		{ id: "autopilot", label: "OwlGPT", icon: Sparkles },
+		{ id: "flight-ai", label: "Flight AI", icon: Sparkles },
+		{ id: "autopilot", label: "Autopilot", icon: Bot },
 		{ id: "inbox", label: "Inbox", icon: Inbox, badge: unreadCount },
 		{ id: "analytics", label: "Analytics", icon: BarChart3 },
 		{ id: "campaigns", label: "Ads", icon: Megaphone },
@@ -108,7 +109,7 @@ export function AppShell({
 		{ id: "more", label: "More", icon: MoreHorizontal },
 	];
 
-	const isRiskyActionPage = ["compose", "autopilot", "queue"].includes(activeView);
+	const isRiskyActionPage = ["compose", "flight-ai", "autopilot", "queue"].includes(activeView);
 
 	const handleBrandSwitch = async (brandId: string | "all") => {
 		useAppStore.getState().setActiveBrandId(brandId);

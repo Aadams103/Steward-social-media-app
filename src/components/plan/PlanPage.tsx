@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FileEdit, Filter, LayoutGrid, MessageSquare, PenTool } from "lucide-react";
+import { FileEdit, Filter, LayoutGrid, MessageSquare, PenTool, Sparkles, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,6 +78,33 @@ export function PlanPage({ calendar }: PlanPageProps) {
 					))}
 				</TabsList>
 			</Tabs>
+
+			{section === "calendar" && (
+				<Card className="rounded-xl border-border/70 bg-muted/20 shadow-sm">
+					<CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex items-start gap-3">
+							<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+								<Sparkles className="h-4 w-4 text-primary" />
+							</span>
+							<div>
+								<p className="text-sm font-medium">Flight AI suggestions</p>
+								<p className="text-xs text-muted-foreground">
+									Generate a weekly plan or fill empty calendar slots — review before scheduling.
+								</p>
+							</div>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							<Button size="sm" variant="outline" onClick={() => setActiveView("flight-ai")}>
+								Generate plan with Flight AI
+							</Button>
+							<Button size="sm" onClick={() => setActiveView("autopilot")}>
+								<Bot className="mr-1.5 h-3.5 w-3.5" />
+								Send to Autopilot
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{section === "calendar" && calendar}
 

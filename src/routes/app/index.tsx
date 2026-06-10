@@ -109,6 +109,7 @@ import { AppShell } from "@/components/AppShell";
 import { CreatePostButton } from "@/components/create/CreateMenu";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
 import { PlanPage, PlanCalendarFiltersButton } from "@/components/plan/PlanPage";
+import { FlightAIView } from "@/components/flight-ai/FlightAIView";
 import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/config/brand";
 import { useQueryClient } from "@tanstack/react-query";
@@ -4199,7 +4200,7 @@ function OperatingModeSelector() {
   const confirmAutopilot = () => {
     if (confirmDialog.mode) {
       setOperatingMode(confirmDialog.mode);
-      toast.success("Autopilot Mode activated! Posts will publish automatically.");
+      toast.success("Autopilot Mode activated — content will be drafted and scheduled for your review.");
     }
     setConfirmDialog({ open: false, mode: null });
   };
@@ -4264,8 +4265,8 @@ function OperatingModeSelector() {
               Enable Autopilot Mode?
             </DialogTitle>
             <DialogDescription>
-              In Autopilot Mode, posts will be published automatically without requiring your approval.
-              You can still cancel posts during the approval window.
+              In Autopilot Mode, Flight AI drafts and schedules content automatically. Posts queue for
+              approval or scheduling — live publishing only when platform connections are configured.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -4274,10 +4275,10 @@ function OperatingModeSelector() {
               <AlertTitle>What happens in Autopilot Mode</AlertTitle>
               <AlertDescription>
                 <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>AI generates and schedules posts automatically</li>
-                  <li>Posts publish on schedule unless you deny them</li>
+                  <li>Flight AI generates and schedules draft content</li>
+                  <li>Posts move to Needs approval or Scheduled status</li>
                   <li>You receive notifications before each post</li>
-                  <li>You can pause or stop anytime</li>
+                  <li>Pause or stop anytime — publishing requires connected platforms</li>
                 </ul>
               </AlertDescription>
             </Alert>
@@ -4412,9 +4413,11 @@ function AutopilotView() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Bot className="h-6 w-6" />
-            Autopilot Control Center
+            Autopilot
           </h1>
-          <p className="text-muted-foreground">Manage your AI-powered social media automation</p>
+          <p className="text-muted-foreground">
+            Your AI social media manager for planning, drafting, approvals, and scheduled execution.
+          </p>
         </div>
         <OperatingModeSelector />
       </div>
@@ -4487,6 +4490,27 @@ function AutopilotView() {
           </AlertDescription>
         </Alert>
       )}
+
+      <Card className="rounded-xl border-border/70">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Flight AI recommendations</CardTitle>
+          <CardDescription>Suggested next actions from your assistant</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => useAppStore.getState().setActiveView("flight-ai")}>
+            Generate this week&apos;s content plan
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => useAppStore.getState().setActiveView("flight-ai")}>
+            Create 3 draft captions
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => useAppStore.getState().setActiveView("calendar")}>
+            Fill empty calendar slots
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => useAppStore.getState().setActiveView("accounts")}>
+            Review disconnected accounts
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -7745,11 +7769,21 @@ function App() {
     switch (activeView) {
       case "dashboard":
         return <HomeDashboard />;
+      case "flight-ai":
+      case "owlgpt":
+        return (
+          <UpgradeGate
+            feature="autopilot"
+            description="Flight AI helps you plan, draft, and schedule content with your brand context."
+          >
+            <FlightAIView />
+          </UpgradeGate>
+        );
       case "autopilot":
         return (
           <UpgradeGate
             feature="autopilot"
-            description="Autopilot plans, generates, and schedules content for you."
+            description="Autopilot turns Flight AI strategy into drafts, approvals, and scheduled publish jobs."
           >
             <AutopilotView />
           </UpgradeGate>
@@ -7793,7 +7827,8 @@ function App() {
   const getPageConfig = () => {
     const configs: Record<string, { title: string }> = {
       dashboard: { title: "Home" },
-      autopilot: { title: "OwlGPT" },
+      "flight-ai": { title: "Flight AI" },
+      autopilot: { title: "Autopilot" },
       compose: { title: "Compose" },
       queue: { title: "Listening" },
       calendar: { title: "Plan" },
@@ -7808,14 +7843,14 @@ function App() {
   };
 
   const pageConfig = getPageConfig();
-  const isRiskyPage = ["compose", "autopilot", "queue"].includes(activeView);
+  const isRiskyPage = ["compose", "flight-ai", "autopilot", "queue"].includes(activeView);
   const renderedView = renderView();
 
   return (
     <AppShell
       pageTitle={pageConfig.title}
       showBrandBanner={isRiskyPage}
-      showCreateButton={activeView !== "dashboard" && activeView !== "calendar"}
+      showCreateButton={!["dashboard", "calendar", "flight-ai", "autopilot"].includes(activeView)}
     >
       {renderedView}
     </AppShell>
