@@ -106,6 +106,9 @@ import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/app-store";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
+import { CreatePostButton } from "@/components/create/CreateMenu";
+import { HomeDashboard } from "@/components/home/HomeDashboard";
+import { PlanPage, PlanCalendarFiltersButton } from "@/components/plan/PlanPage";
 import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/config/brand";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1983,56 +1986,56 @@ function CalendarViewComponent() {
   const socialPlatforms = PLATFORMS.filter(p => SOCIAL_PLATFORMS.includes(p.id));
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Content Calendar</h1>
-          <p className="text-muted-foreground">Schedule and manage your posts and events</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as Platform | "all")}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All platforms" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Platforms</SelectItem>
-              {socialPlatforms.map((platform) => (
-                <SelectItem key={platform.id} value={platform.id}>
-                  {platform.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => useAppStore.getState().setActiveView("compose")}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Post
-          </Button>
-        </div>
-      </div>
-
-      {/* Calendar Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate(-1)} aria-label="Previous">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigate(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={() => setSelectedDate(new Date())}>
+          <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}>
             Today
           </Button>
-          <span className="font-medium ml-4">
-            {getDisplayDate()}
-          </span>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate(1)} aria-label="Next">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="ml-1 text-sm font-semibold sm:text-base">{getDisplayDate()}</span>
         </div>
-        <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarView)}>
-          <TabsList>
-            <TabsTrigger value="day">Day</TabsTrigger>
-            <TabsTrigger value="week">Week</TabsTrigger>
-            <TabsTrigger value="month">Month</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarView)}>
+            <TabsList className="h-9">
+              <TabsTrigger value="day" className="text-xs sm:text-sm">Day</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs sm:text-sm">Week</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs sm:text-sm">Month</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <PlanCalendarFiltersButton />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem disabled className="text-xs font-medium text-muted-foreground">
+                Platform
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setPlatformFilter("all")}
+                className={platformFilter === "all" ? "bg-muted" : undefined}
+              >
+                All platforms
+              </DropdownMenuItem>
+              {socialPlatforms.map((platform) => (
+                <DropdownMenuItem
+                  key={platform.id}
+                  onClick={() => setPlatformFilter(platform.id as Platform)}
+                  className={platformFilter === platform.id ? "bg-muted" : undefined}
+                >
+                  {platform.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <CreatePostButton size="sm" />
+        </div>
       </div>
 
       {/* Calendar Views */}
@@ -2129,7 +2132,8 @@ function WeekView({ selectedDate, items }: { selectedDate: Date; items: any[] })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
-    <div className="grid grid-cols-7 gap-4">
+    <div className="overflow-x-auto pb-2">
+    <div className="grid min-w-[640px] grid-cols-7 gap-2 md:gap-3">
       {weekDays.map((day) => {
         const dayItems = items.filter(item => {
           const itemDate = new Date(item.startAt);
@@ -2193,6 +2197,7 @@ function WeekView({ selectedDate, items }: { selectedDate: Date; items: any[] })
           </Card>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -7739,7 +7744,7 @@ function App() {
   const renderView = () => {
     switch (activeView) {
       case "dashboard":
-        return <DashboardView />;
+        return <HomeDashboard />;
       case "autopilot":
         return (
           <UpgradeGate
@@ -7754,7 +7759,9 @@ function App() {
       case "compose":
         return <ComposeView />;
       case "calendar":
-        return <CalendarViewComponent />;
+        return (
+          <PlanPage calendar={<CalendarViewComponent />} />
+        );
       case "notifications":
         return <NotificationsView />;
       case "inbox":
@@ -7778,26 +7785,26 @@ function App() {
       case "vertical-slice":
         return <PostsVerticalSlice />;
       default:
-        return <DashboardView />;
+        return <HomeDashboard />;
     }
   };
 
   // Map activeView to page title and create button
   const getPageConfig = () => {
-    const configs: Record<string, { title: string; createLabel?: string; onCreate?: () => void }> = {
-      dashboard: { title: "Dashboard" },
-      autopilot: { title: "Autopilot" },
-      compose: { title: "Compose", createLabel: "New Post", onCreate: () => setActiveView("compose") },
-      queue: { title: "Queue" },
-      calendar: { title: "Calendar" },
+    const configs: Record<string, { title: string }> = {
+      dashboard: { title: "Home" },
+      autopilot: { title: "OwlGPT" },
+      compose: { title: "Compose" },
+      queue: { title: "Listening" },
+      calendar: { title: "Plan" },
       inbox: { title: "Inbox" },
       analytics: { title: "Analytics" },
-      campaigns: { title: "Campaigns", createLabel: "New Campaign" },
-      assets: { title: "Assets", createLabel: "Upload Asset" },
+      campaigns: { title: "Ads" },
+      assets: { title: "Assets" },
       accounts: { title: "Accounts" },
       settings: { title: "Settings" },
     };
-    return configs[activeView] || { title: "Dashboard" };
+    return configs[activeView] || { title: "Home" };
   };
 
   const pageConfig = getPageConfig();
@@ -7808,8 +7815,7 @@ function App() {
     <AppShell
       pageTitle={pageConfig.title}
       showBrandBanner={isRiskyPage}
-      createButtonLabel={pageConfig.createLabel}
-      onCreateClick={pageConfig.onCreate}
+      showCreateButton={activeView !== "dashboard" && activeView !== "calendar"}
     >
       {renderedView}
     </AppShell>

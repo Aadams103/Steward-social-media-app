@@ -1,45 +1,46 @@
 import * as React from "react";
-import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  LayoutDashboard,
-  PenSquare,
-  Calendar,
-  Inbox,
-  BarChart3,
-  Users,
-  Megaphone,
-  Image,
-  Settings,
-  Bot,
-  ClipboardList,
-  Bell,
-  ChevronDown,
-  LogOut,
-  User,
-  CreditCard,
-  Plus,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  CheckCircle2,
-  Mail,
+	Home,
+	CalendarDays,
+	Plus,
+	Inbox,
+	BarChart3,
+	Megaphone,
+	Radio,
+	MoreHorizontal,
+	Bell,
+	ChevronDown,
+	LogOut,
+	User,
+	CreditCard,
+	Layers,
+	CheckCircle2,
+	AlertCircle,
+	Bot,
+	Sparkles,
+	Settings,
+	Users,
+	Image,
+	ClipboardList,
+	PenSquare,
+	History,
+	ChevronLeft,
+	ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -49,458 +50,331 @@ import { APP_NAME } from "@/config/brand";
 import { AppLogo } from "@/components/AppLogo";
 import { BackButton } from "@/components/BackButton";
 import { SettingsOverlay, type SettingsSectionId } from "@/components/SettingsOverlay";
+import { CreateMenu, CreatePostButton } from "@/components/create/CreateMenu";
 
 interface NavItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-  path: string;
+	id: string;
+	label: string;
+	icon: React.ComponentType<{ className?: string }>;
+	badge?: number;
+	/** Opens Create menu instead of navigating. */
+	isCreate?: boolean;
 }
 
 interface AppShellProps {
-  children: React.ReactNode;
-  pageTitle?: string;
-  showBrandBanner?: boolean;
-  createButtonLabel?: string;
-  onCreateClick?: () => void;
+	children: React.ReactNode;
+	pageTitle?: string;
+	showBrandBanner?: boolean;
+	showCreateButton?: boolean;
 }
 
 export function AppShell({
-  children,
-  pageTitle,
-  showBrandBanner = false,
-  createButtonLabel,
-  onCreateClick,
+	children,
+	pageTitle,
+	showBrandBanner = false,
+	showCreateButton = true,
 }: AppShellProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const { sidebarCollapsed, setSidebarCollapsed, conversations, autopilotNotifications } = useAppStore();
-  const { data: brandsData } = useBrands();
-  const brands = brandsData?.brands || [];
-  const { data: currentBrand } = useCurrentBrand();
-  const setCurrentBrandMutation = useSetCurrentBrand();
+	const queryClient = useQueryClient();
+	const { sidebarCollapsed, setSidebarCollapsed, conversations, autopilotNotifications } = useAppStore();
+	const { data: brandsData } = useBrands();
+	const brands = brandsData?.brands || [];
+	const { data: currentBrand } = useCurrentBrand();
+	const setCurrentBrandMutation = useSetCurrentBrand();
 
-  const activeBrandId = useAppStore((state) => state.activeBrandId);
-  const isAllBrandsMode = activeBrandId === "all";
+	const activeBrandId = useAppStore((state) => state.activeBrandId);
+	const isAllBrandsMode = activeBrandId === "all";
+	const activeView = useAppStore((state) => state.activeView);
+	const setActiveView = useAppStore((state) => state.setActiveView);
 
-  // Settings overlay state
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
+	const [settingsOpen, setSettingsOpen] = React.useState(false);
+	const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
 
-  const openSettings = React.useCallback((section?: SettingsSectionId) => {
-    if (section) {
-      setSettingsSection(section);
-    }
-    setSettingsOpen(true);
-  }, []);
+	const openSettings = React.useCallback((section?: SettingsSectionId) => {
+		if (section) setSettingsSection(section);
+		setSettingsOpen(true);
+	}, []);
 
-  // Calculate badges
-  const unreadCount = conversations.filter((c) => c.status === "unread").length;
-  const pendingApprovals = autopilotNotifications.filter(
-    (n) => n.type === "pending_approval" && !n.isActioned
-  ).length;
+	const unreadCount = conversations.filter((c) => c.status === "unread").length;
 
-  // Get activeView from store for view-based navigation
-  const activeView = useAppStore((state) => state.activeView);
-  const setActiveView = useAppStore((state) => state.setActiveView);
+	const primaryNav: NavItem[] = [
+		{ id: "dashboard", label: "Home", icon: Home },
+		{ id: "calendar", label: "Plan", icon: CalendarDays },
+		{ id: "create", label: "Create", icon: Plus, isCreate: true },
+		{ id: "autopilot", label: "OwlGPT", icon: Sparkles },
+		{ id: "inbox", label: "Inbox", icon: Inbox, badge: unreadCount },
+		{ id: "analytics", label: "Analytics", icon: BarChart3 },
+		{ id: "campaigns", label: "Ads", icon: Megaphone },
+		{ id: "queue", label: "Listening", icon: Radio },
+		{ id: "more", label: "More", icon: MoreHorizontal },
+	];
 
-  // Navigation items - using view-based navigation for now
-  const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
-    { id: "autopilot", label: "Autopilot", icon: Bot, badge: pendingApprovals, path: "/autopilot" },
-    { id: "email", label: "Email", icon: Mail, path: "/email" },
-    { id: "compose", label: "Compose", icon: PenSquare, path: "/compose" },
-    { id: "queue", label: "Queue", icon: ClipboardList, path: "/queue" },
-    { id: "calendar", label: "Calendar", icon: Calendar, path: "/calendar" },
-    { id: "inbox", label: "Inbox", icon: Inbox, badge: unreadCount, path: "/inbox" },
-    { id: "analytics", label: "Analytics", icon: BarChart3, path: "/analytics" },
-    { id: "campaigns", label: "Campaigns", icon: Megaphone, path: "/campaigns" },
-    { id: "assets", label: "Assets", icon: Image, path: "/assets" },
-    { id: "accounts", label: "Accounts", icon: Users, path: "/accounts" },
-  ];
+	const isRiskyActionPage = ["compose", "autopilot", "queue"].includes(activeView);
 
-  // Determine if current page is a risky action page (using view-based navigation)
-  const isRiskyActionPage = ["compose", "autopilot", "queue"].includes(activeView);
+	const handleBrandSwitch = async (brandId: string | "all") => {
+		useAppStore.getState().setActiveBrandId(brandId);
+		await queryClient.invalidateQueries();
+		useAppStore.getState().setActiveView("dashboard");
+		const brandName =
+			brandId === "all" ? "All Brands" : brands.find((b) => b.id === brandId)?.name || "brand";
+		toast.success(`Switched to ${brandName}`);
+		if (brandId !== "all" && setCurrentBrandMutation) {
+			setCurrentBrandMutation.mutate(brandId);
+		}
+	};
 
-  // Handle brand switching
-  const handleBrandSwitch = async (brandId: string | "all") => {
-    useAppStore.getState().setActiveBrandId(brandId);
-    
-    // Invalidate React Query cache
-    await queryClient.invalidateQueries();
-    
-    // Navigate to dashboard (view-based)
-    useAppStore.getState().setActiveView("dashboard");
-    
-    // Show toast
-    const brandName = brandId === "all" 
-      ? "All Brands" 
-      : brands.find((b) => b.id === brandId)?.name || "brand";
-    toast.success(`Switched to ${brandName}`);
-    
-    // If using API hook, update current brand
-    if (brandId !== "all" && setCurrentBrandMutation) {
-      setCurrentBrandMutation.mutate(brandId);
-    }
-  };
+	const getCurrentBrandDisplay = () => {
+		if (isAllBrandsMode) return { name: "All Brands", avatar: null, isViewOnly: true };
+		if (currentBrand) {
+			return { name: currentBrand.name, avatar: currentBrand.avatarUrl, isViewOnly: false };
+		}
+		const brand = brands.find((b) => b.id === activeBrandId);
+		return { name: brand?.name || "Select Brand", avatar: brand?.avatarUrl, isViewOnly: false };
+	};
 
-  // Get current brand display info
-  const getCurrentBrandDisplay = () => {
-    if (isAllBrandsMode) {
-      return { name: "All Brands", avatar: null, isViewOnly: true };
-    }
-    
-    if (currentBrand) {
-      return {
-        name: currentBrand.name,
-        avatar: currentBrand.avatarUrl,
-        isViewOnly: false,
-      };
-    }
-    
-    // Fallback to store state
-    const brand = brands.find((b) => b.id === activeBrandId);
-    return {
-      name: brand?.name || "Select Brand",
-      avatar: brand?.avatarUrl,
-      isViewOnly: false,
-    };
-  };
+	const brandDisplay = getCurrentBrandDisplay();
 
-  const brandDisplay = getCurrentBrandDisplay();
+	const renderNavButton = (item: NavItem) => {
+		const isActive =
+			item.id === "more"
+				? ["settings", "accounts", "assets", "compose", "email", "brand", "audit"].includes(activeView)
+				: item.id === "create"
+					? activeView === "compose"
+					: activeView === item.id;
 
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Left Sidebar */}
-      <aside
-        className={cn(
-          "flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300",
-          sidebarCollapsed ? "w-16" : "w-64"
-        )}
-      >
-        {/* Logo/Brand */}
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4 gap-3">
-          {sidebarCollapsed ? (
-            <div className="flex flex-1 items-center justify-center min-w-0">
-              <AppLogo 
-                variant="mark" 
-                theme="light" 
-                size={32} 
-                brandLogoUrl={currentBrand?.logoUrl}
-                className="opacity-100"
-              />
-            </div>
-          ) : (
-            <div className="flex flex-1 items-center min-w-0">
-              <AppLogo 
-                variant="lockup" 
-                theme="light" 
-                size={32} 
-                brandLogoUrl={currentBrand?.logoUrl}
-                className="opacity-100"
-              />
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+		const inner = (
+			<>
+				<span
+					className={cn(
+						"flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+						isActive
+							? "bg-primary text-primary-foreground shadow-sm"
+							: "text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
+					)}
+				>
+					<item.icon className="h-5 w-5" />
+				</span>
+				{!sidebarCollapsed && (
+					<span className="max-w-[4.5rem] truncate text-center text-[10px] font-medium leading-tight">
+						{item.label}
+					</span>
+				)}
+				{item.badge !== undefined && item.badge > 0 && !sidebarCollapsed && (
+					<Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 min-w-4 px-1 text-[9px]">
+						{item.badge}
+					</Badge>
+				)}
+			</>
+		);
 
-        {/* Navigation */}
-        <ScrollArea className="flex-1">
-          <nav className="p-2 space-y-1">
-            {navItems.map((item) => {
-              // Use view-based navigation for now
-              const isActive = activeView === item.id;
-              
-              return (
-                <TooltipProvider key={item.id}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setActiveView(item.id)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                          isActive
-                            ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        {!sidebarCollapsed && (
-                          <>
-                            <span className="flex-1 text-left">{item.label}</span>
-                            {item.badge !== undefined && item.badge > 0 && (
-                              <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </>
-                        )}
-                      </button>
-                    </TooltipTrigger>
-                    {sidebarCollapsed && (
-                      <TooltipContent side="right">
-                        {item.label}
-                        {item.badge !== undefined && item.badge > 0 && ` (${item.badge})`}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
-          </nav>
-        </ScrollArea>
+		if (item.isCreate) {
+			return (
+				<CreateMenu key={item.id} align="start" side="right">
+					<button
+						type="button"
+						className={cn(
+							"group relative flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors",
+							isActive && "bg-muted/50",
+						)}
+						aria-label="Create"
+					>
+						{inner}
+					</button>
+				</CreateMenu>
+			);
+		}
 
-        {/* Version (pinned at bottom, opens Settings overlay) */}
-        <div className="border-t border-sidebar-border px-3 py-2">
-          <button
-            type="button"
-            onClick={() => openSettings("my-account")}
-            className={cn(
-              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-medium tracking-tight text-sidebar-foreground/80 transition-colors",
-              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-          >
-            {!sidebarCollapsed && (
-              <>
-                <span className="truncate">{APP_NAME}</span>
-                <span className="ml-2 font-mono text-[10px] opacity-80">v0.1.0</span>
-              </>
-            )}
-            {sidebarCollapsed && (
-              <span className="mx-auto font-mono text-[10px] opacity-80">v0.1.0</span>
-            )}
-          </button>
-        </div>
-      </aside>
+		if (item.id === "more") {
+			return (
+				<DropdownMenu key={item.id}>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className={cn(
+								"group relative flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors",
+								isActive && "bg-muted/50",
+							)}
+							aria-label="More navigation"
+						>
+							{inner}
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent side="right" align="start" className="w-48">
+						<DropdownMenuItem onClick={() => setActiveView("compose")}>
+							<PenSquare className="mr-2 h-4 w-4" /> Compose
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setActiveView("queue")}>
+							<ClipboardList className="mr-2 h-4 w-4" /> Queue
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setActiveView("accounts")}>
+							<Users className="mr-2 h-4 w-4" /> Accounts
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setActiveView("assets")}>
+							<Image className="mr-2 h-4 w-4" /> Assets
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setActiveView("brand")}>
+							<Bot className="mr-2 h-4 w-4" /> Brand Profile
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setActiveView("audit")}>
+							<History className="mr-2 h-4 w-4" /> Audit Log
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem onClick={() => setActiveView("settings")}>
+							<Settings className="mr-2 h-4 w-4" /> Settings
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		}
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/50 bg-background px-6">
-          <BackButton />
-          {/* Brand Switcher */}
-          <div className="flex items-center gap-4 flex-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-9 gap-2 px-3"
-                >
-                  <Avatar className="h-5 w-5 shrink-0">
-                    <AvatarImage 
-                      src={brandDisplay.avatar || undefined} 
-                      alt={brandDisplay?.name ?? ""}
-                      onError={(e) => {
-                        // Hide broken image, fallback will show
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                    <AvatarFallback className="text-xs font-medium">
-                      {isAllBrandsMode ? (
-                        <Layers className="h-3 w-3" />
-                      ) : (
-                        (() => {
-                          const name = (brandDisplay?.name ?? "").trim();
-                          const words = name.split(/\s+/);
-                          return words.length >= 2
-                            ? (words[0][0] + words[1][0]).toUpperCase()
-                            : name.charAt(0).toUpperCase();
-                        })()
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">{brandDisplay?.name ?? ""}</span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Switch Brand</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {brands.slice(0, 6).map((brand) => {
-                  const isActive = activeBrandId === brand.id;
-                  // Get initials (first letter, or first two letters if single word)
-                  const getInitials = (n: string | undefined) => {
-                    const safe = (n ?? "").trim();
-                    const words = safe.split(/\s+/);
-                    if (words.length >= 2) {
-                      return (words[0][0] + words[1][0]).toUpperCase();
-                    }
-                    return safe.charAt(0).toUpperCase();
-                  };
-                  
-                  return (
-                    <DropdownMenuItem
-                      key={brand.id}
-                      onClick={() => handleBrandSwitch(brand.id)}
-                      className={cn(
-                        "flex items-center gap-2",
-                        isActive && "bg-accent"
-                      )}
-                    >
-                      <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarImage 
-                          src={brand.avatarUrl || undefined} 
-                          alt={brand.name}
-                          onError={(e) => {
-                            // Hide broken image, fallback will show
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                        <AvatarFallback className="text-xs font-medium">
-                          {getInitials(brand.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="flex-1">{brand.name}</span>
-                      {isActive && (
-                        <CheckCircle2 className="h-4 w-4 text-sidebar-primary shrink-0" />
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleBrandSwitch("all")}
-                  className={cn(
-                    "flex items-center gap-2",
-                    isAllBrandsMode && "bg-accent"
-                  )}
-                >
-                  <div className="h-6 w-6 shrink-0 rounded-full bg-muted flex items-center justify-center">
-                    <Layers className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <span className="flex-1">All Brands (View Only)</span>
-                  {isAllBrandsMode && (
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => openSettings("my-brand")}
-                  className="flex items-center gap-2"
-                >
-                  <Layers className="h-4 w-4" />
-                  <span>Manage Brand Settings</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+		return (
+			<TooltipProvider key={item.id}>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<button
+							type="button"
+							onClick={() => setActiveView(item.id)}
+							className={cn(
+								"group relative flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors",
+								isActive && "bg-muted/50",
+							)}
+							aria-label={item.label}
+							aria-current={isActive ? "page" : undefined}
+						>
+							{inner}
+						</button>
+					</TooltipTrigger>
+					{sidebarCollapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
+				</Tooltip>
+			</TooltipProvider>
+		);
+	};
 
-            {/* Page Title */}
-            {pageTitle && (
-              <h2 className="text-lg font-semibold">{pageTitle}</h2>
-            )}
-          </div>
+	return (
+		<div className="flex h-screen bg-muted/40">
+			<aside
+				className={cn(
+					"flex flex-col border-r border-border/70 bg-background transition-all duration-300",
+					sidebarCollapsed ? "w-[72px]" : "w-[88px]",
+				)}
+			>
+				<div className="flex h-14 items-center justify-center border-b border-border/60 px-2">
+					<AppLogo variant="mark" theme="dark" size={28} brandLogoUrl={currentBrand?.logoUrl} />
+				</div>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-2">
-            {/* Create Button */}
-            {createButtonLabel && onCreateClick && (
-              <Button
-                onClick={onCreateClick}
-                disabled={isAllBrandsMode && isRiskyActionPage}
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {createButtonLabel}
-              </Button>
-            )}
+				<ScrollArea className="flex-1">
+					<nav className="space-y-0.5 p-1.5">{primaryNav.map(renderNavButton)}</nav>
+				</ScrollArea>
 
-            {/* Notifications */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {pendingApprovals > 0 && (
-                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Notifications</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+				<div className="border-t border-border/60 p-2">
+					<Button
+						variant="ghost"
+						size="icon"
+						className="mx-auto h-8 w-8"
+						onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+						aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+					>
+						{sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+					</Button>
+				</div>
+			</aside>
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      <User className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => openSettings("my-account")}>
-                  <User className="h-4 w-4 mr-2" />
-                  My Account
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openSettings("my-steward")}>
-                  <Bot className="h-4 w-4 mr-2" />
-                  My Steward
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openSettings("billing")}>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openSettings("support")}>
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Help & Support
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6">
+					<BackButton />
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" className="h-9 max-w-[200px] gap-2 px-2.5">
+								<Avatar className="h-6 w-6 shrink-0">
+									<AvatarImage src={brandDisplay.avatar || undefined} alt={brandDisplay.name} />
+									<AvatarFallback className="text-[10px]">
+										{isAllBrandsMode ? <Layers className="h-3 w-3" /> : brandDisplay.name.charAt(0)}
+									</AvatarFallback>
+								</Avatar>
+								<span className="truncate font-medium">{brandDisplay.name}</span>
+								<ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="w-56">
+							<DropdownMenuLabel>Switch brand</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{brands.slice(0, 6).map((brand) => (
+								<DropdownMenuItem key={brand.id} onClick={() => handleBrandSwitch(brand.id)}>
+									<Avatar className="mr-2 h-6 w-6">
+										<AvatarImage src={brand.avatarUrl || undefined} />
+										<AvatarFallback className="text-xs">{brand.name.charAt(0)}</AvatarFallback>
+									</Avatar>
+									<span className="flex-1">{brand.name}</span>
+									{activeBrandId === brand.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => handleBrandSwitch("all")}>
+								<Layers className="mr-2 h-4 w-4" /> All Brands (view only)
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 
-        {/* Brand Safety Banner */}
-        {showBrandBanner && isRiskyActionPage && (
-          <Alert className="mx-6 mt-4 border-border/60 bg-muted/30">
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            <AlertDescription className="text-foreground">
-              {isAllBrandsMode ? (
-                <span>
-                  <strong>All Brands (View Only)</strong> — Select a brand to create or publish content.
-                </span>
-              ) : (
-                <span>
-                  <strong>Active Brand:</strong> {brandDisplay?.name ?? ""}
-                </span>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
+					{pageTitle && <h2 className="hidden text-sm font-semibold text-muted-foreground sm:block">{pageTitle}</h2>}
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
-      </div>
-      <SettingsOverlay
-        open={settingsOpen}
-        section={settingsSection}
-        onOpenChange={setSettingsOpen}
-        onSectionChange={setSettingsSection}
-      />
-    </div>
-  );
+					<div className="ml-auto flex items-center gap-2">
+						{showCreateButton && activeView !== "dashboard" && activeView !== "calendar" && (
+							<CreatePostButton size="sm" />
+						)}
+						<Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
+							<Bell className="h-4 w-4" />
+						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label="Account menu">
+									<Avatar className="h-8 w-8">
+										<AvatarFallback>
+											<User className="h-4 w-4" />
+										</AvatarFallback>
+									</Avatar>
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuLabel>{APP_NAME}</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => openSettings("my-account")}>
+									<User className="mr-2 h-4 w-4" /> My Account
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => openSettings("billing")}>
+									<CreditCard className="mr-2 h-4 w-4" /> Billing
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem className="text-destructive">
+									<LogOut className="mr-2 h-4 w-4" /> Logout
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</header>
+
+				{showBrandBanner && isRiskyActionPage && (
+					<Alert className="mx-4 mt-3 border-border/60 bg-muted/30 md:mx-6">
+						<AlertCircle className="h-4 w-4" />
+						<AlertDescription>
+							{isAllBrandsMode ? (
+								<strong>All Brands (view only)</strong>
+							) : (
+								<>
+									<strong>Active brand:</strong> {brandDisplay.name}
+								</>
+							)}
+						</AlertDescription>
+					</Alert>
+				)}
+
+				<main className="flex-1 overflow-auto bg-muted/30 p-4 md:p-6">{children}</main>
+			</div>
+
+			<SettingsOverlay
+				open={settingsOpen}
+				section={settingsSection}
+				onOpenChange={setSettingsOpen}
+				onSectionChange={setSettingsSection}
+			/>
+		</div>
+	);
 }
