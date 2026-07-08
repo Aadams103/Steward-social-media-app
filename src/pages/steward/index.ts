@@ -1,0 +1,9 @@
+export { CommandCenterPage } from "./CommandCenterPage";
+export { CreateStudioPage } from "./CreateStudioPage";
+export { ContentLibraryPage } from "./ContentLibraryPage";
+export { ApprovalsPage } from "./ApprovalsPage";
+export { BrandIntelligencePage } from "./BrandIntelligencePage";
+export { SocialAccountsHubPage } from "./SocialAccountsHubPage";
+export { AIActivityPage } from "./AIActivityPage";
+export { AutomationsHubPage } from "./AutomationsHubPage";
+export { AnalyticsHubPage } from "./AnalyticsHubPage";

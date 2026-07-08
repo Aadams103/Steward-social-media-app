@@ -18,6 +18,35 @@ import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed
 import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost, listIngestedPosts } from './supabase.js';
 import { authMiddleware, type AuthenticatedRequest } from './middleware/auth.js';
 import { createCheckoutSessionHandler, stripeWebhookHandler } from './routes/billing.js';
+import {
+  createAiJobHandler,
+  createAssetMetadataHandler,
+  createAutomationRuleHandler,
+  createPostDraftHandler,
+  createPostVariantHandler,
+  createPublishJobHandler,
+  getBrandProfileHandler,
+  ingestMetricsHandler,
+  patchBrandProfileHandler,
+  scheduleCalendarEntryHandler,
+  seedDemoBrandHandler,
+} from './routes/steward.js';
+import {
+  analyzeMediaHandler,
+  generatePlatformVariantsHandler,
+  generatePostDraftHandler as aiGeneratePostDraftHandler,
+  getAiJobHandler,
+  initAiGatewayRoutes,
+  moderateContentHandler,
+  recommendScheduleHandler,
+  scoreContentHandler,
+} from './routes/ai.js';
+import { logAiGatewayStartupStatus } from './ai/gateway.js';
+import {
+  getBrandContextHandler,
+  submitContentFeedbackHandler,
+} from './routes/brand-intelligence.js';
+import { getDashboardSummaryHandler } from './routes/dashboard.js';
 import { startScheduler } from './workers/scheduler.js';
 
 const app = express();
@@ -119,6 +148,30 @@ app.use('/api', (req: express.Request, res: express.Response, next: express.Next
 // Billing: checkout session creation (Supabase-authenticated via the gate above)
 app.post('/api/billing/create-checkout-session', (req, res) => {
   void createCheckoutSessionHandler(req as AuthenticatedRequest, res);
+});
+
+// Steward AI Gateway (OpenAI — server-side only)
+initAiGatewayRoutes();
+app.post('/api/ai/analyze-media', (req, res) => {
+  void analyzeMediaHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/generate-post-draft', (req, res) => {
+  void aiGeneratePostDraftHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/generate-platform-variants', (req, res) => {
+  void generatePlatformVariantsHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/recommend-schedule', (req, res) => {
+  void recommendScheduleHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/score-content', (req, res) => {
+  void scoreContentHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/moderate-content', (req, res) => {
+  void moderateContentHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/ai/jobs/:jobId', (req, res) => {
+  void getAiJobHandler(req as AuthenticatedRequest, res);
 });
 
 // WebSocket clients
@@ -3712,6 +3765,62 @@ app.post('/api/cron/ingest', async (req, res) => {
 });
 
 // ============================================================================
+// STEWARD SUPABASE SCHEMA API (additive; requires service role)
+// ============================================================================
+
+app.get('/api/steward/brands/:brandId/profile', (req, res) => {
+  void getBrandProfileHandler(req as AuthenticatedRequest, res);
+});
+app.patch('/api/steward/brands/:brandId/profile', (req, res) => {
+  void patchBrandProfileHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/assets/metadata', (req, res) => {
+  void createAssetMetadataHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/posts/drafts', (req, res) => {
+  void createPostDraftHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/posts/variants', (req, res) => {
+  void createPostVariantHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/calendar/entries', (req, res) => {
+  void scheduleCalendarEntryHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/publish-jobs', (req, res) => {
+  void createPublishJobHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/automation-rules', (req, res) => {
+  void createAutomationRuleHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/ai-jobs', (req, res) => {
+  void createAiJobHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/analytics/metrics', (req, res) => {
+  void ingestMetricsHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/steward/demo/seed-kinetic-grappling', (req, res) => {
+  void seedDemoBrandHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
+// STEWARD BRAND INTELLIGENCE API
+// ============================================================================
+
+app.get('/api/brand-intelligence/context', (req, res) => {
+  void getBrandContextHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/brand-intelligence/context', (req, res) => {
+  void getBrandContextHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/brand-intelligence/feedback', (req, res) => {
+  void submitContentFeedbackHandler(req as AuthenticatedRequest, res);
+});
+
+app.get('/api/dashboard/summary', (req, res) => {
+  void getDashboardSummaryHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
 // ROOT
 // ============================================================================
 
@@ -3732,6 +3841,7 @@ app.use((req, res) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
+logAiGatewayStartupStatus();
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
   // Scheduled publishing worker (no-op unless PUBLISH_WORKER_ENABLED=true)

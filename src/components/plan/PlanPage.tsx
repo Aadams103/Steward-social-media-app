@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ApprovalsPage } from "@/pages/steward/ApprovalsPage";
 import { useAppStore } from "@/store/app-store";
 import { usePosts } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
@@ -136,12 +137,7 @@ export function PlanPage({ calendar }: PlanPageProps) {
 			{section === "content" && (
 				<PlanPlaceholder title="Content library" description="Organize reusable assets and templates." />
 			)}
-			{section === "approvals" && (
-				<PlanPlaceholder
-					title="Approvals"
-					description="Review posts before they go live."
-				/>
-			)}
+			{section === "approvals" && <ApprovalsPage />}
 			{section === "dm" && (
 				<PlanPlaceholder title="DM automation" description="Automated direct message workflows." />
 			)}

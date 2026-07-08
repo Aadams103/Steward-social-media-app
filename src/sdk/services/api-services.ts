@@ -634,3 +634,155 @@ export const calendarApi = {
   getItems: (params: { from: string; to: string }) =>
     apiClient.get<{ items: CalendarItem[] }>(buildUrlWithParams(`${API_BASE}/calendar`, params)),
 };
+
+// ============================================================================
+// STEWARD SUPABASE SCHEMA API (service-role backed routes)
+// ============================================================================
+
+export const stewardApi = {
+  getBrandProfile: (brandId: string) =>
+    apiClient.get<{ profile: Record<string, unknown> | null }>(`${API_BASE}/steward/brands/${brandId}/profile`),
+
+  updateBrandProfile: (brandId: string, patch: Record<string, unknown>) =>
+    apiClient.patch<{ profile: Record<string, unknown> }>(`${API_BASE}/steward/brands/${brandId}/profile`, patch),
+
+  saveAssetMetadata: (payload: Record<string, unknown>) =>
+    apiClient.post<{ asset: Record<string, unknown> }>(`${API_BASE}/steward/assets/metadata`, payload),
+
+  createPostDraft: (payload: Record<string, unknown>) =>
+    apiClient.post<{ post: Record<string, unknown> }>(`${API_BASE}/steward/posts/drafts`, payload),
+
+  createPostVariant: (payload: Record<string, unknown>) =>
+    apiClient.post<{ variant: Record<string, unknown> }>(`${API_BASE}/steward/posts/variants`, payload),
+
+  scheduleCalendarEntry: (payload: Record<string, unknown>) =>
+    apiClient.post<{ entry: Record<string, unknown> }>(`${API_BASE}/steward/calendar/entries`, payload),
+
+  createPublishJob: (payload: Record<string, unknown>) =>
+    apiClient.post<{ job: Record<string, unknown> }>(`${API_BASE}/steward/publish-jobs`, payload),
+
+  createAutomationRule: (payload: Record<string, unknown>) =>
+    apiClient.post<{ rule: Record<string, unknown> }>(`${API_BASE}/steward/automation-rules`, payload),
+
+  createAiJob: (payload: Record<string, unknown>) =>
+    apiClient.post<{ job: Record<string, unknown> }>(`${API_BASE}/steward/ai-jobs`, payload),
+
+  ingestMetricsSnapshot: (payload: Record<string, unknown>) =>
+    apiClient.post<{ snapshot: Record<string, unknown> }>(`${API_BASE}/steward/analytics/metrics`, payload),
+
+  seedKineticGrapplingDemo: (organizationId: string, brandId: string) =>
+    apiClient.post<{ ok: boolean; message: string }>(`${API_BASE}/steward/demo/seed-kinetic-grappling`, {
+      organizationId,
+      brandId,
+    }),
+};
+
+// ============================================================================
+// STEWARD AI GATEWAY (OpenAI — server-side only)
+// ============================================================================
+
+export interface AiGatewayResponse<T = Record<string, unknown>> {
+  aiJobId: string;
+  operation: string;
+  status: 'succeeded';
+  result: T;
+  needsHumanReview: boolean;
+  warnings: string[];
+  model: string;
+  promptVersion: string;
+  estimatedCostCents: number;
+  totalTokens: number;
+}
+
+export const aiApi = {
+  analyzeMedia: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/analyze-media`, payload),
+
+  generatePostDraft: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/generate-post-draft`, payload),
+
+  generatePlatformVariants: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/generate-platform-variants`, payload),
+
+  recommendSchedule: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/recommend-schedule`, payload),
+
+  scoreContent: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/score-content`, payload),
+
+  moderateContent: (payload: Record<string, unknown>) =>
+    apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/moderate-content`, payload),
+
+  getJob: (jobId: string) =>
+    apiClient.get<{ job: Record<string, unknown> }>(`${API_BASE}/ai/jobs/${jobId}`),
+};
+
+// ============================================================================
+// STEWARD BRAND INTELLIGENCE
+// ============================================================================
+
+export interface BrandIntelligenceContextPreview {
+  context: {
+    meta: Record<string, unknown>;
+    missingContext: string[];
+    brandProfile: Record<string, unknown> | null;
+    userPreferences: Record<string, unknown> | null;
+    contentPillars: Record<string, unknown>[];
+    audienceSegments: Record<string, unknown>[];
+    hashtags: Record<string, unknown>[];
+    ctas: Record<string, unknown>[];
+    schedules: Record<string, unknown>[];
+    brandRules: Record<string, unknown>[];
+    platformStrategy: Record<string, unknown>[];
+    approvedMemoryFacts: Record<string, unknown>[];
+  };
+}
+
+export const brandIntelligenceApi = {
+  getContext: (params: { organizationId: string; brandId: string; operation?: string; platform?: string }) =>
+    apiClient.get<BrandIntelligenceContextPreview>(
+      buildUrlWithParams(`${API_BASE}/brand-intelligence/context`, params)
+    ),
+
+  submitFeedback: (payload: {
+    organizationId: string;
+    brandId: string;
+    feedbackType: string;
+    postId?: string;
+    aiJobId?: string;
+    rating?: number;
+    comment?: string;
+    selectedReason?: string;
+  }) => apiClient.post<{ id: string; ok: boolean }>(`${API_BASE}/brand-intelligence/feedback`, payload),
+};
+
+// ============================================================================
+// STEWARD DASHBOARD
+// ============================================================================
+
+export interface DashboardSummaryResponse {
+  summary: {
+    brandName: string | null;
+    brandId: string | null;
+    organizationId: string | null;
+    connectedAccounts: number;
+    scheduledThisWeek: number;
+    draftsReady: number;
+    needsReview: number;
+    aiJobsRunning: number;
+    publishFailures: number;
+    recentAssets: { id: string; fileName?: string; mimeType?: string; createdAt?: string }[];
+    todaysQueue: { id: string; title?: string; platform?: string; scheduledTime?: string; status?: string }[];
+    brandCompleteness: number;
+    missingBrandContext: string[];
+    suggestions: { id: string; title: string; description: string; action: string }[];
+    analyticsAvailable: boolean;
+    supabaseConfigured: boolean;
+  };
+  mode: "live" | "setup_required";
+}
+
+export const dashboardApi = {
+  getSummary: (params: { organizationId: string; brandId: string }) =>
+    apiClient.get<DashboardSummaryResponse>(buildUrlWithParams(`${API_BASE}/dashboard/summary`, params)),
+};

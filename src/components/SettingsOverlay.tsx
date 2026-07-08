@@ -20,6 +20,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProfileSettings } from "@/pages/settings/ProfileSettings";
 import { MyBrandSettings } from "@/pages/settings/MyBrandSettings";
+import { BrandIntelligenceSettings } from "@/pages/settings/BrandIntelligenceSettings";
 import { MyStewardSettings } from "@/pages/settings/MyStewardSettings";
 import { AccountSettings } from "@/pages/settings/AccountSettings";
 import { SecuritySettings } from "@/pages/settings/SecuritySettings";
@@ -216,6 +217,7 @@ export function SettingsOverlay(props: SettingsOverlayProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <MyBrandSettings />
+                      <BrandIntelligenceSettings />
                     </CardContent>
                   </Card>
                 </TabsContent>

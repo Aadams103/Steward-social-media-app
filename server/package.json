@@ -11,7 +11,9 @@
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json || echo 'Build completed with warnings'",
     "build:strict": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.1",
@@ -20,9 +22,11 @@
     "express": "^4.18.2",
     "multer": "^1.4.5-lts.2",
     "node-cron": "^4.2.1",
+    "openai": "^6.45.0",
     "stripe": "^22.2.0",
     "typescript": "^5.8.3",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "zod": "^3.25.50"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -31,6 +35,7 @@
     "@types/node": "^20.10.0",
     "@types/node-cron": "^3.0.11",
     "@types/ws": "^8.5.10",
-    "tsx": "^4.7.0"
+    "tsx": "^4.7.0",
+    "vitest": "^3.2.4"
   }
 }

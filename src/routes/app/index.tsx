@@ -108,6 +108,17 @@ import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
 import { CreatePostButton } from "@/components/create/CreateMenu";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
+import {
+  CommandCenterPage,
+  CreateStudioPage,
+  ContentLibraryPage,
+  ApprovalsPage,
+  BrandIntelligencePage,
+  SocialAccountsHubPage,
+  AIActivityPage,
+  AutomationsHubPage,
+  AnalyticsHubPage,
+} from "@/pages/steward";
 import { PlanPage, PlanCalendarFiltersButton } from "@/components/plan/PlanPage";
 import { FlightAIView } from "@/components/flight-ai/FlightAIView";
 import { AppLogo } from "@/components/AppLogo";
@@ -7768,7 +7779,19 @@ function App() {
   const renderView = () => {
     switch (activeView) {
       case "dashboard":
-        return <HomeDashboard />;
+        return <CommandCenterPage />;
+      case "studio":
+        return <CreateStudioPage />;
+      case "assets":
+        return <ContentLibraryPage />;
+      case "approvals":
+        return <ApprovalsPage />;
+      case "brand-intelligence":
+        return <BrandIntelligencePage />;
+      case "ai-activity":
+        return <AIActivityPage />;
+      case "automations":
+        return <AutomationsHubPage />;
       case "flight-ai":
       case "owlgpt":
         return (
@@ -7803,15 +7826,13 @@ function App() {
       case "email":
         return <EmailView />;
       case "analytics":
-        return <AnalyticsView />;
+        return <AnalyticsHubPage />;
       case "brand":
         return <BrandProfileView />;
       case "accounts":
-        return <AccountsView />;
+        return <SocialAccountsHubPage />;
       case "campaigns":
         return <CampaignsView />;
-      case "assets":
-        return <AssetsView />;
       case "audit":
         return <AuditLogView />;
       case "settings":
@@ -7819,38 +7840,43 @@ function App() {
       case "vertical-slice":
         return <PostsVerticalSlice />;
       default:
-        return <HomeDashboard />;
+        return <CommandCenterPage />;
     }
   };
 
   // Map activeView to page title and create button
   const getPageConfig = () => {
     const configs: Record<string, { title: string }> = {
-      dashboard: { title: "Home" },
+      dashboard: { title: "Command Center" },
+      studio: { title: "Create Studio" },
+      assets: { title: "Content Library" },
+      approvals: { title: "Approvals" },
+      "brand-intelligence": { title: "Brand Intelligence" },
+      "ai-activity": { title: "AI Activity" },
+      automations: { title: "Automations" },
       "flight-ai": { title: "Flight AI" },
       autopilot: { title: "Autopilot" },
       compose: { title: "Compose" },
       queue: { title: "Listening" },
-      calendar: { title: "Plan" },
+      calendar: { title: "Calendar" },
       inbox: { title: "Inbox" },
       analytics: { title: "Analytics" },
-      campaigns: { title: "Ads" },
-      assets: { title: "Assets" },
-      accounts: { title: "Accounts" },
+      campaigns: { title: "Campaigns" },
+      accounts: { title: "Social Accounts" },
       settings: { title: "Settings" },
     };
     return configs[activeView] || { title: "Home" };
   };
 
   const pageConfig = getPageConfig();
-  const isRiskyPage = ["compose", "flight-ai", "autopilot", "queue"].includes(activeView);
+  const isRiskyPage = ["compose", "studio", "flight-ai", "autopilot", "queue", "approvals"].includes(activeView);
   const renderedView = renderView();
 
   return (
     <AppShell
       pageTitle={pageConfig.title}
       showBrandBanner={isRiskyPage}
-      showCreateButton={!["dashboard", "calendar", "flight-ai", "autopilot"].includes(activeView)}
+      showCreateButton={!["dashboard", "calendar", "studio", "flight-ai", "autopilot"].includes(activeView)}
     >
       {renderedView}
     </AppShell>

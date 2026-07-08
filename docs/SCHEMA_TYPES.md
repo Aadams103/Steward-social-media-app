@@ -4,7 +4,9 @@ Backend domain types live in `server/src/types.ts` and should stay aligned with 
 
 ## Optional: generate types from Supabase
 
-To detect drift or regenerate types from the database:
+Types are checked in at `server/src/supabase-db-types.generated.ts` (generated from Steward-prod).
+
+To regenerate after schema changes:
 
 1. Install Supabase CLI and link the project (or use project ref).
 2. From the repo root:

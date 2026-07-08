@@ -56,9 +56,19 @@ export function CreateMenu({
 
 	const items: MenuItemDef[] = [
 		{
+			id: "studio",
+			label: "Create Studio",
+			description: "AI drafts with brand context and safety review",
+			icon: PenSquare,
+			onSelect: () => {
+				setActiveView("studio");
+				setOpen(false);
+			},
+		},
+		{
 			id: "post",
-			label: "Post",
-			description: "Compose and schedule a social post",
+			label: "Post (legacy compose)",
+			description: "Classic compose and schedule flow",
 			icon: PenSquare,
 			onSelect: () => {
 				setActiveView("compose");

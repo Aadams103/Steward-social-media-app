@@ -29,6 +29,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { StewardAiActions } from "@/components/ai/StewardAiActions";
 
 const QUICK_PROMPTS = [
 	{ id: "captions", label: "3 caption ideas", icon: Wand2 },
@@ -39,6 +40,7 @@ const QUICK_PROMPTS = [
 
 export function FlightAIView() {
 	const setActiveView = useAppStore((s) => s.setActiveView);
+	const currentOrganization = useAppStore((s) => s.currentOrganization);
 	const { brandProfile, activeBrandId } = useAppStore();
 
 	const { data: briefData, isLoading: briefLoading } = useAutopilotBrief();
@@ -227,6 +229,11 @@ export function FlightAIView() {
 					</div>
 				</CardContent>
 			</Card>
+
+			<StewardAiActions
+				organizationId={currentOrganization?.id}
+				caption={prompt}
+			/>
 
 			{outputs && (
 				<div className="grid gap-4 lg:grid-cols-2">
