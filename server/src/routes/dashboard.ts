@@ -5,7 +5,7 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { getSupabaseClient } from '../supabase.js';
-import { isSupabaseServiceConfigured } from './steward-db.js';
+import { isSupabaseServiceConfigured } from '../services/steward-db.js';
 
 export interface DashboardSummary {
   brandName: string | null;

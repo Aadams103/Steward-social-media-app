@@ -67,7 +67,7 @@ import type {
 // ============================================================================
 
 export function usePosts(
-  params?: { platform?: string; status?: string; campaignId?: string },
+  params?: { platform?: string; status?: string; campaignId?: string; organizationId?: string; brandId?: string },
   options?: UseQueryOptions<{ posts: Post[]; total: number }, Error>,
 ) {
   return useQuery({

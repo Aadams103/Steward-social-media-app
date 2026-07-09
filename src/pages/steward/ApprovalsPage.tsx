@@ -1,27 +1,43 @@
 import * as React from "react";
-import { usePosts } from "@/hooks/use-api";
-import { useAppStore } from "@/store/app-store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { postsApi } from "@/sdk/services/api-services";
 import {
   PlatformPreview,
   StewardEmptyState,
   StatusChip,
   postStatusTone,
-  AIConfidenceBadge,
   SafetyWarningCard,
 } from "@/components/steward";
 import { mapPostStatus } from "@/lib/steward-status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
+import { viewToPath } from "@/lib/steward-routes";
 import type { Post, Platform } from "@/types/app";
 
-const REVIEW_STATUSES = new Set(["pending", "pending_approval", "needs_review", "draft"]);
+const REVIEW_STATUSES = new Set(["pending", "pending_approval", "needs_review", "draft", "in_review"]);
+
+type QueuePost = Post & { approvalState?: string };
 
 export function ApprovalsPage() {
-  const { data, isLoading } = usePosts();
+  const { organizationId, brandId, isRealWorkspace, permissions } = useCurrentWorkspace();
+  const navigate = useNavigate();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["approval-posts", organizationId, brandId],
+    queryFn: () =>
+      postsApi.list({
+        organizationId: organizationId!,
+        brandId: brandId!,
+      }),
+    enabled: isRealWorkspace,
+  });
+
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [filter, setFilter] = React.useState<"all" | "high">("all");
 
   const queue = (data?.posts ?? []).filter((p) => REVIEW_STATUSES.has(p.status));
   const selected = queue.find((p) => p.id === selectedId) ?? queue[0];
@@ -29,6 +45,19 @@ export function ApprovalsPage() {
   React.useEffect(() => {
     if (queue.length && !selectedId) setSelectedId(queue[0]!.id);
   }, [queue, selectedId]);
+
+  if (!isRealWorkspace) {
+    return (
+      <div className="mx-auto max-w-[1280px] space-y-6">
+        <StewardEmptyState
+          title="Workspace setup required"
+          description="Approval queue requires a real Supabase organization and brand."
+          actionLabel="Complete onboarding"
+          onAction={() => void navigate({ to: viewToPath("onboarding") })}
+        />
+      </div>
+    );
+  }
 
   if (isLoading) return <LoadingSkeleton className="h-96 w-full" />;
 
@@ -46,7 +75,7 @@ export function ApprovalsPage() {
           title="Nothing needs review"
           description="When Steward or your team sends drafts for approval, they will appear here with safety flags and AI context."
           actionLabel="Open Create Studio"
-          onAction={() => useAppStore.getState().setActiveView("studio")}
+          onAction={() => void navigate({ to: viewToPath("studio") })}
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
@@ -73,14 +102,72 @@ export function ApprovalsPage() {
             </CardContent>
           </Card>
 
-          {selected && <ApprovalDetail post={selected} />}
+          {selected && organizationId && (
+            <ApprovalDetail
+              post={selected}
+              organizationId={organizationId}
+              canApprove={permissions?.canApprovePosts ?? false}
+              canReject={permissions?.canRejectPosts ?? false}
+              canRequestChanges={permissions?.canRequestChanges ?? false}
+            />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function ApprovalDetail({ post }: { post: Post }) {
+function ApprovalDetail({
+  post,
+  organizationId,
+  canApprove,
+  canReject,
+  canRequestChanges,
+}: {
+  post: QueuePost;
+  organizationId: string;
+  canApprove: boolean;
+  canReject: boolean;
+  canRequestChanges: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [comment, setComment] = React.useState("");
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["approval-posts"] });
+    void queryClient.invalidateQueries({ queryKey: ["posts"] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: () => postsApi.approve(post.id, { organizationId }),
+    onSuccess: () => {
+      toast.success("Post approved");
+      invalidate();
+    },
+    onError: (e: Error) => { toast.error(e.message); },
+  });
+
+  const changesMutation = useMutation({
+    mutationFn: () => postsApi.requestChanges(post.id, { organizationId, comment }),
+    onSuccess: () => {
+      toast.success("Changes requested");
+      setComment("");
+      invalidate();
+    },
+    onError: (e: Error) => { toast.error(e.message); },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => postsApi.reject(post.id, { organizationId, reason: comment }),
+    onSuccess: () => {
+      toast.success("Post rejected");
+      setComment("");
+      invalidate();
+    },
+    onError: (e: Error) => { toast.error(e.message); },
+  });
+
   return (
     <div className="space-y-4">
       <Card className="border-border/70">
@@ -99,14 +186,38 @@ function ApprovalDetail({ post }: { post: Post }) {
               post.scheduledTime ? `Scheduled: ${post.scheduledTime}` : "Not yet scheduled",
             ]}
           />
+          <Textarea
+            placeholder="Comment or rejection reason (required for request changes / reject)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
           <div className="flex flex-wrap gap-2">
-            <Button>Approve</Button>
-            <Button variant="outline">Request changes</Button>
-            <Button variant="ghost">Reject</Button>
+            <Button
+              disabled={!canApprove || approveMutation.isPending}
+              onClick={() => approveMutation.mutate()}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canRequestChanges || !comment.trim() || changesMutation.isPending}
+              onClick={() => changesMutation.mutate()}
+            >
+              Request changes
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={!canReject || !comment.trim() || rejectMutation.isPending}
+              onClick={() => rejectMutation.mutate()}
+            >
+              Reject
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Approve/schedule actions require backend permissions and connected accounts. Actions are disabled until wired to your org role.
-          </p>
+          {!canApprove && (
+            <p className="text-xs text-muted-foreground">
+              Your role cannot approve posts. Contact an owner, admin, or approver.
+            </p>
+          )}
         </CardContent>
       </Card>
       <PlatformPreview

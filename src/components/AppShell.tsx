@@ -47,8 +47,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/store/app-store";
 import { useBrands, useCurrentBrand, useSetCurrentBrand, usePosts } from "@/hooks/use-api";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { viewToPath } from "@/lib/steward-routes";
 import { APP_NAME } from "@/config/brand";
 import { AppLogo } from "@/components/AppLogo";
 import { BackButton } from "@/components/BackButton";
@@ -102,6 +105,16 @@ export function AppShell({
   const isAllBrandsMode = activeBrandId === "all";
   const activeView = useAppStore((state) => state.activeView);
   const setActiveView = useAppStore((state) => state.setActiveView);
+  const navigate = useNavigate();
+  const { organization, brand, isRealWorkspace } = useCurrentWorkspace();
+
+  const goToView = React.useCallback(
+    (view: string) => {
+      setActiveView(view);
+      void navigate({ to: viewToPath(view) });
+    },
+    [navigate, setActiveView]
+  );
 
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
@@ -205,13 +218,13 @@ export function AppShell({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuItem onClick={() => setActiveView("flight-ai")}>
+            <DropdownMenuItem onClick={() => goToView("flight-ai")}>
               <Sparkles className="mr-2 h-4 w-4" /> Flight AI
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveView("compose")}>
+            <DropdownMenuItem onClick={() => goToView("compose")}>
               <PenSquare className="mr-2 h-4 w-4" /> Legacy compose
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveView("inbox")}>
+            <DropdownMenuItem onClick={() => goToView("inbox")}>
               <Inbox className="mr-2 h-4 w-4" /> Inbox
               {unreadCount > 0 && (
                 <Badge variant="secondary" className="ml-auto">
@@ -219,17 +232,17 @@ export function AppShell({
                 </Badge>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveView("queue")}>
+            <DropdownMenuItem onClick={() => goToView("queue")}>
               <ClipboardList className="mr-2 h-4 w-4" /> Listening queue
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveView("automations")}>
+            <DropdownMenuItem onClick={() => goToView("automations")}>
               <Bot className="mr-2 h-4 w-4" /> Automations
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setActiveView("brand")}>
+            <DropdownMenuItem onClick={() => goToView("brand-intelligence")}>
               <Image className="mr-2 h-4 w-4" /> Brand profile (legacy)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveView("audit")}>
+            <DropdownMenuItem onClick={() => goToView("audit")}>
               <History className="mr-2 h-4 w-4" /> Audit log
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -247,7 +260,7 @@ export function AppShell({
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => setActiveView(item.id)}
+              onClick={() => goToView(item.id)}
               className={cn(
                 "group relative flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors",
                 isActive && "bg-muted/50",
@@ -333,7 +346,7 @@ export function AppShell({
 
           <div className="ml-auto flex items-center gap-2">
             {needsReview > 0 && (
-              <Button variant="outline" size="sm" className="hidden h-9 sm:flex" onClick={() => setActiveView("approvals")}>
+              <Button variant="outline" size="sm" className="hidden h-9 sm:flex" onClick={() => goToView("approvals")}>
                 <ShieldCheck className="mr-1.5 h-4 w-4" />
                 {needsReview} review
               </Button>

@@ -1,19 +1,42 @@
-import { useAppStore } from "@/store/app-store";
-import { usePosts, useSocialAccounts } from "@/hooks/use-api";
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { analyticsSummaryApi } from "@/sdk/services/api-services";
 import { MetricCard, StewardEmptyState } from "@/components/steward";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, LineChart } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { viewToPath } from "@/lib/steward-routes";
 
 export function AnalyticsHubPage() {
-  const setActiveView = useAppStore((s) => s.setActiveView);
-  const { data: postsData } = usePosts();
-  const { data: accountsData } = useSocialAccounts();
+  const navigate = useNavigate();
+  const { organizationId, brandId, isRealWorkspace } = useCurrentWorkspace();
 
-  const posts = postsData?.posts ?? [];
-  const published = posts.filter((p) => p.status === "published");
-  const accounts = accountsData?.accounts ?? [];
-  const connected = accounts.filter((a) => a.status === "connected");
-  const hasData = published.length > 0 && connected.length > 0;
+  const { data: analytics, isLoading } = useQuery({
+    queryKey: ["analytics-summary", organizationId, brandId],
+    queryFn: () => analyticsSummaryApi.get({ organizationId: organizationId!, brandId: brandId! }),
+    enabled: isRealWorkspace,
+  });
+
+  if (!isRealWorkspace) {
+    return (
+      <div className="mx-auto max-w-[1280px] space-y-6">
+        <StewardEmptyState
+          icon={BarChart3}
+          title="Workspace setup required"
+          description="Analytics requires a real Supabase organization and published/synced posts."
+          actionLabel="Complete onboarding"
+          onAction={() => void navigate({ to: viewToPath("onboarding") })}
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading analytics…</p>;
+  }
+
+  const hasData = Boolean(analytics?.has_data);
 
   if (!hasData) {
     return (
@@ -25,10 +48,21 @@ export function AnalyticsHubPage() {
         <StewardEmptyState
           icon={BarChart3}
           title="Analytics will appear after Steward publishes or syncs posts"
-          description="Connect social accounts, publish your first scheduled post, and metrics will populate from ingestion."
+          description={String(
+            analytics?.message ??
+              "Connect social accounts, publish your first scheduled post, and metrics will populate from ingestion."
+          )}
           actionLabel="Connect accounts"
-          onAction={() => setActiveView("accounts")}
+          onAction={() => void navigate({ to: viewToPath("accounts") })}
         />
+        {(analytics?.setup_required as string[] | undefined)?.length ? (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-base">Setup required</CardTitle>
+              <CardDescription>{(analytics?.setup_required as string[]).join(", ")}</CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="text-base">What you&apos;ll see</CardTitle>
@@ -42,26 +76,31 @@ export function AnalyticsHubPage() {
     );
   }
 
+  const summary = analytics?.summary as Record<string, unknown> | undefined;
+
   return (
     <div className="mx-auto max-w-[1280px] space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Performance from synced platform metrics.</p>
+        <p className="text-sm text-muted-foreground">
+          Performance from synced platform metrics.{" "}
+          {analytics?.message ? String(analytics.message) : ""}
+        </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard title="Published posts" value={published.length} />
-        <MetricCard title="Connected accounts" value={connected.length} />
-        <MetricCard title="Reach" value="—" hint="Sync in progress" />
-        <MetricCard title="Engagement" value="—" hint="Sync in progress" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard title="Published posts" value={String(summary?.published_posts ?? "—")} />
+        <MetricCard title="Connected accounts" value={String(summary?.connected_accounts ?? "—")} />
+        <MetricCard
+          title="Content insights"
+          value={String((summary?.content_insights as unknown[])?.length ?? 0)}
+        />
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Post performance</CardTitle>
+          <CardTitle className="text-base">Partial data sources</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Detailed metrics snapshots appear when analytics ingestion is connected to ingested_posts / content_insights.
-          </p>
+        <CardContent className="text-sm text-muted-foreground">
+          Missing: {((analytics?.missing_sources as string[]) ?? []).join(", ") || "none"}
         </CardContent>
       </Card>
     </div>

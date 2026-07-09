@@ -1,14 +1,17 @@
 import { useAutopilotSettings } from "@/hooks/use-api";
-import { useAppStore } from "@/store/app-store";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { StewardEmptyState, StatusChip } from "@/components/steward";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bot } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { viewToPath } from "@/lib/steward-routes";
 
 export function AutomationsHubPage() {
-  const { currentOrganization } = useAppStore();
-  const orgId = currentOrganization?.id ?? "org1";
+  const navigate = useNavigate();
+  const { organizationId, isRealWorkspace } = useCurrentWorkspace();
+  const orgId = isRealWorkspace ? organizationId! : "";
   const { data: settings } = useAutopilotSettings(orgId);
 
   return (
@@ -30,7 +33,7 @@ export function AutomationsHubPage() {
         <AutomationRuleCard
           title="Recommend schedule"
           description="Suggest best posting windows based on platform strategy."
-          enabled={settings?.enabled ?? false}
+          enabled={Boolean(settings)}
           approvalRequired
         />
         <AutomationRuleCard
@@ -52,7 +55,7 @@ export function AutomationsHubPage() {
         title="Automation rules from database"
         description="Full automation_rules CRUD will list active triggers and execution history when wired to Supabase."
         actionLabel="Open Autopilot"
-        onAction={() => useAppStore.getState().setActiveView("autopilot")}
+        onAction={() => void navigate({ to: viewToPath("autopilot") })}
       />
     </div>
   );

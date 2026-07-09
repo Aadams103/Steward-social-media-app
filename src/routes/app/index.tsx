@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as React from "react";
 import { format, addDays, startOfWeek, isSameDay, formatDistanceToNow, startOfMonth, endOfMonth, getDaysInMonth, subDays, addMonths, subMonths, startOfDay, endOfDay, isSameMonth, eachDayOfInterval } from "date-fns";
 import {
@@ -104,6 +104,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { getApiBaseUrl } from "@/sdk/core/request";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/app-store";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
+import { pathToView } from "@/lib/steward-routes";
 import { PostsVerticalSlice } from "@/components/PostsVerticalSlice";
 import { AppShell } from "@/components/AppShell";
 import { CreatePostButton } from "@/components/create/CreateMenu";
@@ -118,6 +120,7 @@ import {
   AIActivityPage,
   AutomationsHubPage,
   AnalyticsHubPage,
+  OnboardingPage,
 } from "@/pages/steward";
 import { PlanPage, PlanCalendarFiltersButton } from "@/components/plan/PlanPage";
 import { FlightAIView } from "@/components/flight-ai/FlightAIView";
@@ -170,10 +173,6 @@ import {
   getPlatformConstraint,
   type PlatformConstraint 
 } from "@/config/platform-constraints";
-
-export const Route = createFileRoute("/app/")({
-  component: App,
-});
 
 // Platform icon component
 function PlatformIcon({ platform, className }: { platform: Platform; className?: string }) {
@@ -2870,7 +2869,7 @@ function AccountsView() {
         displayName: stubHandle.trim(),
         isConnected: false,
         status: 'stub',
-        organizationId: 'org1',
+        organizationId: localStorage.getItem('steward_organization_id') ?? '',
       });
       toast.success('Stub account created!');
       setStubDialogOpen(false);
@@ -3692,7 +3691,7 @@ function AssetsView() {
         type: activeTab,
         url: newAssetUrl.trim(),
         tags: newAssetTags.split(',').map(t => t.trim()).filter(Boolean),
-        organizationId: 'org1',
+        organizationId: localStorage.getItem('steward_organization_id') ?? '',
         version: '1.0.0',
       }, {
         onSuccess: () => {
@@ -4324,7 +4323,7 @@ function AutopilotView() {
   } = useAppStore();
 
   // Use API hooks for autopilot settings
-  const organizationId = currentOrganization?.id || 'org1';
+  const organizationId = currentOrganization?.id ?? localStorage.getItem('steward_organization_id') ?? '';
   const { data: autopilotSettings, isLoading: settingsLoading } = useAutopilotSettings(organizationId);
   const updateAutopilotSettingsMutation = useUpdateAutopilotSettings(organizationId);
 
@@ -7773,8 +7772,24 @@ function AuditLogView() {
 }
 
 // Main App component
-function App() {
+export function StewardAppRoot() {
   const { activeView, setActiveView } = useAppStore();
+  const routerState = useRouterState();
+  const navigate = useNavigate();
+  const { loading: workspaceLoading, needsOnboarding, isRealWorkspace } = useCurrentWorkspace();
+
+  React.useEffect(() => {
+    const view = pathToView(routerState.location.pathname);
+    if (view && view !== activeView) {
+      setActiveView(view);
+    }
+  }, [routerState.location.pathname, activeView, setActiveView]);
+
+  React.useEffect(() => {
+    if (!workspaceLoading && needsOnboarding && !routerState.location.pathname.includes("/onboarding")) {
+      void navigate({ to: "/app/onboarding" });
+    }
+  }, [workspaceLoading, needsOnboarding, navigate, routerState.location.pathname]);
 
   const renderView = () => {
     switch (activeView) {
@@ -7839,6 +7854,8 @@ function App() {
         return <SettingsView />;
       case "vertical-slice":
         return <PostsVerticalSlice />;
+      case "onboarding":
+        return <OnboardingPage />;
       default:
         return <CommandCenterPage />;
     }
@@ -7882,3 +7899,7 @@ function App() {
     </AppShell>
   );
 }
+
+export const Route = createFileRoute("/app/")({
+  component: StewardAppRoot,
+});

@@ -76,8 +76,8 @@ function buildUrlWithParams(baseUrl: string, params?: Record<string, string | nu
 // ============================================================================
 
 export const postsApi = {
-  list: (params?: { platform?: string; status?: string; campaignId?: string; limit?: number; offset?: number }) =>
-    apiClient.get<{ posts: Post[]; total: number }>(buildUrlWithParams(`${API_BASE}/posts`, params)),
+  list: (params?: { platform?: string; status?: string; campaignId?: string; organizationId?: string; brandId?: string; limit?: number; offset?: number }) =>
+    apiClient.get<{ posts: Post[]; total: number; source?: string }>(buildUrlWithParams(`${API_BASE}/posts`, params)),
 
   get: (id: string) => apiClient.get<Post>(`${API_BASE}/posts/${id}`),
 
@@ -94,7 +94,17 @@ export const postsApi = {
   schedule: (id: string, scheduledTime: Date) =>
     apiClient.post<Post>(`${API_BASE}/posts/${id}/schedule`, { scheduledTime }),
 
-  approve: (id: string) => apiClient.post<Post>(`${API_BASE}/posts/${id}/approve`),
+  approve: (id: string, body?: { organizationId: string }) =>
+    apiClient.post<Post>(`${API_BASE}/posts/${id}/approve`, body),
+
+  requestChanges: (id: string, body: { organizationId: string; comment: string }) =>
+    apiClient.post<Post>(`${API_BASE}/posts/${id}/request-changes`, body),
+
+  reject: (id: string, body: { organizationId: string; reason: string }) =>
+    apiClient.post<Post>(`${API_BASE}/posts/${id}/reject`, body),
+
+  sendToReview: (id: string, body: { organizationId: string }) =>
+    apiClient.post<Post>(`${API_BASE}/posts/${id}/send-to-review`, body),
 
   deny: (id: string, reason?: string) =>
     apiClient.post<Post>(`${API_BASE}/posts/${id}/deny`, { reason }),
@@ -785,4 +795,183 @@ export interface DashboardSummaryResponse {
 export const dashboardApi = {
   getSummary: (params: { organizationId: string; brandId: string }) =>
     apiClient.get<DashboardSummaryResponse>(buildUrlWithParams(`${API_BASE}/dashboard/summary`, params)),
+};
+
+// ============================================================================
+// WORKSPACE
+// ============================================================================
+
+export interface WorkspacePermissions {
+  canReadAiJobs: boolean;
+  canReadAiJobDetails: boolean;
+  canApprovePosts: boolean;
+  canRejectPosts: boolean;
+  canRequestChanges: boolean;
+  canSendToReview: boolean;
+  canEditPosts: boolean;
+  canPublish: boolean;
+  canApproveMemory: boolean;
+  canProposeMemory: boolean;
+  canManageWorkspace: boolean;
+}
+
+export interface WorkspaceResponse {
+  workspace: {
+    user: { id: string; email?: string };
+    profile: {
+      id: string;
+      email: string | null;
+      displayName: string | null;
+      fullName: string | null;
+      avatarUrl: string | null;
+    } | null;
+    organization: {
+      id: string;
+      name: string;
+      slug: string;
+      ownerId: string;
+      defaultBrandId: string | null;
+      onboardingStatus: string;
+      timezone: string;
+    } | null;
+    organizationId: string | null;
+    organizationRole: string | null;
+    brand: {
+      id: string;
+      organizationId: string;
+      name: string;
+      slug: string;
+      businessName: string | null;
+      isDefault: boolean;
+    } | null;
+    brandId: string | null;
+    brands: Array<{
+      id: string;
+      organizationId: string;
+      name: string;
+      slug: string;
+      businessName: string | null;
+      isDefault: boolean;
+    }>;
+    organizations: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      ownerId: string;
+      defaultBrandId: string | null;
+      onboardingStatus: string;
+      timezone: string;
+    }>;
+    permissions: WorkspacePermissions;
+    missingSetupSteps: string[];
+    supabaseConfigured: boolean;
+  };
+}
+
+export const workspaceApi = {
+  get: (params?: { organizationId?: string; brandId?: string }) =>
+    apiClient.get<WorkspaceResponse>(buildUrlWithParams(`${API_BASE}/workspace`, params)),
+
+  select: (body: { organizationId: string; brandId?: string }) =>
+    apiClient.put<WorkspaceResponse>(`${API_BASE}/workspace`, body),
+};
+
+// ============================================================================
+// AI JOBS
+// ============================================================================
+
+export interface AiJobSummary {
+  id: string;
+  organization_id: string;
+  brand_id: string | null;
+  user_id: string | null;
+  operation: string;
+  status: string;
+  model: string | null;
+  prompt_name: string;
+  prompt_version: string | null;
+  validation_status: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  token_input: number;
+  token_output: number;
+  token_total: number;
+  estimated_cost_cents: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  related_post_id: string | null;
+  related_asset_id: string | null;
+  context_snapshot_available: boolean;
+  safety_review_status: string | null;
+}
+
+export const aiJobsApi = {
+  list: (params: {
+    organizationId: string;
+    brandId?: string;
+    operation?: string;
+    status?: string;
+    limit?: number;
+    cursor?: string;
+    from?: string;
+    to?: string;
+  }) => apiClient.get<{ jobs: AiJobSummary[]; pagination: { limit: number; hasMore: boolean; nextCursor: string | null } }>(
+    buildUrlWithParams(`${API_BASE}/ai/jobs`, params)
+  ),
+
+  get: (jobId: string) =>
+    apiClient.get<{
+      job: AiJobSummary;
+      input_summary: Record<string, unknown>;
+      output: Record<string, unknown> | null;
+      validation_errors: unknown;
+      error_message: string | null;
+      related: Record<string, unknown>;
+      context_snapshot_summary: Record<string, unknown> | null;
+      can_retry: boolean;
+    }>(`${API_BASE}/ai/jobs/${jobId}`),
+};
+
+// ============================================================================
+// PUBLISH HEALTH
+// ============================================================================
+
+export const publishHealthApi = {
+  get: (params: { organizationId: string; brandId?: string; platform?: string; from?: string; to?: string }) =>
+    apiClient.get<{ health: Record<string, unknown> }>(buildUrlWithParams(`${API_BASE}/publish-jobs/health`, params)),
+};
+
+// ============================================================================
+// ANALYTICS SUMMARY
+// ============================================================================
+
+export const analyticsSummaryApi = {
+  get: (params: {
+    organizationId: string;
+    brandId?: string;
+    platform?: string;
+    campaignId?: string;
+    contentPillarId?: string;
+    from?: string;
+    to?: string;
+  }) => apiClient.get<Record<string, unknown>>(buildUrlWithParams(`${API_BASE}/analytics/summary`, params)),
+};
+
+// ============================================================================
+// MEMORY FACTS
+// ============================================================================
+
+export const memoryFactsApi = {
+  list: (params: { organizationId: string; brandId: string; approved?: string }) =>
+    apiClient.get<{ facts: Record<string, unknown>[] }>(buildUrlWithParams(`${API_BASE}/ai/memory-facts`, params)),
+
+  approve: (id: string, body: { organizationId: string; reason?: string }) =>
+    apiClient.post<{ fact: Record<string, unknown> }>(`${API_BASE}/ai/memory-facts/${id}/approve`, body),
+
+  reject: (id: string, body: { organizationId: string; reason: string }) =>
+    apiClient.post<{ fact: Record<string, unknown> }>(`${API_BASE}/ai/memory-facts/${id}/reject`, body),
+
+  archive: (id: string, body: { organizationId: string }) =>
+    apiClient.post<{ fact: Record<string, unknown> }>(`${API_BASE}/ai/memory-facts/${id}/archive`, body),
 };

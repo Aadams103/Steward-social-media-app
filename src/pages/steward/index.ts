@@ -7,3 +7,4 @@ export { SocialAccountsHubPage } from "./SocialAccountsHubPage";
 export { AIActivityPage } from "./AIActivityPage";
 export { AutomationsHubPage } from "./AutomationsHubPage";
 export { AnalyticsHubPage } from "./AnalyticsHubPage";
+export { OnboardingPage } from "./OnboardingPage";

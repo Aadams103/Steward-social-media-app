@@ -35,7 +35,6 @@ import {
   analyzeMediaHandler,
   generatePlatformVariantsHandler,
   generatePostDraftHandler as aiGeneratePostDraftHandler,
-  getAiJobHandler,
   initAiGatewayRoutes,
   moderateContentHandler,
   recommendScheduleHandler,
@@ -47,6 +46,23 @@ import {
   submitContentFeedbackHandler,
 } from './routes/brand-intelligence.js';
 import { getDashboardSummaryHandler } from './routes/dashboard.js';
+import { getWorkspaceHandler, putWorkspaceHandler } from './routes/workspace.js';
+import { getAiJobDetailHandler, listAiJobsHandler } from './routes/ai-jobs.js';
+import {
+  approvePostHandler,
+  listSupabasePostsHandler,
+  rejectPostHandler,
+  requestChangesPostHandler,
+  sendToReviewPostHandler,
+} from './routes/approvals.js';
+import { getPublishHealthHandler } from './routes/publish-health.js';
+import {
+  approveMemoryFactHandler,
+  archiveMemoryFactHandler,
+  listMemoryFactsHandler,
+  rejectMemoryFactHandler,
+} from './routes/memory-facts.js';
+import { getAnalyticsSummaryHandler } from './routes/analytics.js';
 import { startScheduler } from './workers/scheduler.js';
 
 const app = express();
@@ -170,8 +186,11 @@ app.post('/api/ai/score-content', (req, res) => {
 app.post('/api/ai/moderate-content', (req, res) => {
   void moderateContentHandler(req as AuthenticatedRequest, res);
 });
+app.get('/api/ai/jobs', (req, res) => {
+  void listAiJobsHandler(req as AuthenticatedRequest, res);
+});
 app.get('/api/ai/jobs/:jobId', (req, res) => {
-  void getAiJobHandler(req as AuthenticatedRequest, res);
+  void getAiJobDetailHandler(req as AuthenticatedRequest, res);
 });
 
 // WebSocket clients
@@ -231,6 +250,11 @@ function getPlatformUrl(platform: string, postId: string): string {
 
 // GET /api/posts
 app.get('/api/posts', (req, res) => {
+  const orgId = req.query.organizationId as string | undefined;
+  if (orgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orgId)) {
+    void listSupabasePostsHandler(req as AuthenticatedRequest, res);
+    return;
+  }
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   const { platform, status, campaignId } = req.query;
@@ -699,6 +723,11 @@ app.post('/api/posts/bulk', (req, res) => {
 
 // POST /api/posts/:id/approve
 app.post('/api/posts/:id/approve', (req, res) => {
+  const orgId = (req.body as { organizationId?: string })?.organizationId;
+  if (orgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orgId)) {
+    void approvePostHandler(req as AuthenticatedRequest, res);
+    return;
+  }
   const post = posts.get(req.params.id);
   if (!post) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Post not found' });
@@ -3818,6 +3847,54 @@ app.post('/api/brand-intelligence/feedback', (req, res) => {
 
 app.get('/api/dashboard/summary', (req, res) => {
   void getDashboardSummaryHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
+// WORKSPACE API
+// ============================================================================
+
+app.get('/api/workspace', (req, res) => {
+  void getWorkspaceHandler(req as AuthenticatedRequest, res);
+});
+app.put('/api/workspace', (req, res) => {
+  void putWorkspaceHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
+// APPROVAL MUTATIONS (Supabase-backed)
+// ============================================================================
+
+app.post('/api/posts/:id/request-changes', (req, res) => {
+  void requestChangesPostHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/posts/:id/reject', (req, res) => {
+  void rejectPostHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/posts/:id/send-to-review', (req, res) => {
+  void sendToReviewPostHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
+// PUBLISH HEALTH + ANALYTICS + MEMORY FACTS
+// ============================================================================
+
+app.get('/api/publish-jobs/health', (req, res) => {
+  void getPublishHealthHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/analytics/summary', (req, res) => {
+  void getAnalyticsSummaryHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/ai/memory-facts', (req, res) => {
+  void listMemoryFactsHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/memory-facts/:id/approve', (req, res) => {
+  void approveMemoryFactHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/memory-facts/:id/reject', (req, res) => {
+  void rejectMemoryFactHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/memory-facts/:id/archive', (req, res) => {
+  void archiveMemoryFactHandler(req as AuthenticatedRequest, res);
 });
 
 // ============================================================================

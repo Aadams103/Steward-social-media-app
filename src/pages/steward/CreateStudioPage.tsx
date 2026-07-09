@@ -128,7 +128,7 @@ export function CreateStudioPage() {
                           selectedAssetId === a.id ? "bg-primary/10 font-medium" : "hover:bg-muted"
                         }`}
                       >
-                        {a.fileName ?? a.id}
+                        {a.metadata?.filename ?? a.id}
                       </button>
                     ))
                   )}

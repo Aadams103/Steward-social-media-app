@@ -18,6 +18,7 @@ import { Route as AuthenticatedImport } from './routes/_authenticated'
 import { Route as AuthIndexImport } from './routes/auth/index'
 import { Route as AppIndexImport } from './routes/app/index'
 import { Route as MarketingIndexImport } from './routes/_marketing.index'
+import { Route as AppViewImport } from './routes/app/$view'
 import { Route as MarketingSecurityPrivacyImport } from './routes/_marketing.security-privacy'
 import { Route as MarketingProductImport } from './routes/_marketing.product'
 import { Route as MarketingPricingImport } from './routes/_marketing.pricing'
@@ -66,6 +67,12 @@ const MarketingIndexRoute = MarketingIndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRoute,
+} as any)
+
+const AppViewRoute = AppViewImport.update({
+  id: '/$view',
+  path: '/$view',
+  getParentRoute: () => AppRoute,
 } as any)
 
 const MarketingSecurityPrivacyRoute = MarketingSecurityPrivacyImport.update({
@@ -191,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingSecurityPrivacyImport
       parentRoute: typeof MarketingImport
     }
+    '/app/$view': {
+      id: '/app/$view'
+      path: '/$view'
+      fullPath: '/app/$view'
+      preLoaderRoute: typeof AppViewImport
+      parentRoute: typeof AppImport
+    }
     '/_marketing/': {
       id: '/_marketing/'
       path: '/'
@@ -244,10 +258,12 @@ const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppViewRoute: typeof AppViewRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppViewRoute: AppViewRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -264,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof MarketingPricingRoute
   '/product': typeof MarketingProductRoute
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/app/$view': typeof AppViewRoute
   '/': typeof MarketingIndexRoute
   '/app/': typeof AppIndexRoute
   '/auth': typeof AuthIndexRoute
@@ -279,6 +296,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof MarketingPricingRoute
   '/product': typeof MarketingProductRoute
   '/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/app/$view': typeof AppViewRoute
   '/': typeof MarketingIndexRoute
   '/app': typeof AppIndexRoute
   '/auth': typeof AuthIndexRoute
@@ -297,6 +315,7 @@ export interface FileRoutesById {
   '/_marketing/pricing': typeof MarketingPricingRoute
   '/_marketing/product': typeof MarketingProductRoute
   '/_marketing/security-privacy': typeof MarketingSecurityPrivacyRoute
+  '/app/$view': typeof AppViewRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/app/': typeof AppIndexRoute
   '/auth/': typeof AuthIndexRoute
@@ -315,6 +334,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/product'
     | '/security-privacy'
+    | '/app/$view'
     | '/'
     | '/app/'
     | '/auth'
@@ -329,6 +349,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/product'
     | '/security-privacy'
+    | '/app/$view'
     | '/'
     | '/app'
     | '/auth'
@@ -345,6 +366,7 @@ export interface FileRouteTypes {
     | '/_marketing/pricing'
     | '/_marketing/product'
     | '/_marketing/security-privacy'
+    | '/app/$view'
     | '/_marketing/'
     | '/app/'
     | '/auth/'
@@ -403,6 +425,7 @@ export const routeTree = rootRoute
     "/app": {
       "filePath": "app.tsx",
       "children": [
+        "/app/$view",
         "/app/"
       ]
     },
@@ -436,6 +459,10 @@ export const routeTree = rootRoute
     "/_marketing/security-privacy": {
       "filePath": "_marketing.security-privacy.tsx",
       "parent": "/_marketing"
+    },
+    "/app/$view": {
+      "filePath": "app/$view.tsx",
+      "parent": "/app"
     },
     "/_marketing/": {
       "filePath": "_marketing.index.tsx",

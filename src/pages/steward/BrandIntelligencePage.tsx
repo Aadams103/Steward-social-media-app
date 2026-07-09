@@ -2,7 +2,7 @@ import * as React from "react";
 import { BrandIntelligenceSettings } from "@/pages/settings/BrandIntelligenceSettings";
 import { BrandCompletenessCard, MetricCard, StewardEmptyState } from "@/components/steward";
 import { brandIntelligenceApi } from "@/sdk/services/api-services";
-import { useAppStore } from "@/store/app-store";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,20 +11,18 @@ import { Brain, Hash, Megaphone, Shield, Users } from "lucide-react";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function BrandIntelligencePage() {
-  const { currentOrganization, activeBrandId } = useAppStore();
-  const orgId = currentOrganization?.id;
-  const brandId = activeBrandId !== "all" ? activeBrandId : undefined;
-  const canLoad = Boolean(orgId && brandId && UUID_RE.test(orgId) && UUID_RE.test(brandId));
+  const { organizationId, brandId, isRealWorkspace, permissions } = useCurrentWorkspace();
+  const canLoad = isRealWorkspace;
 
   const [ctx, setCtx] = React.useState<Awaited<ReturnType<typeof brandIntelligenceApi.getContext>> | null>(null);
 
   React.useEffect(() => {
-    if (!canLoad || !orgId || !brandId) return;
+    if (!canLoad || !organizationId || !brandId) return;
     void brandIntelligenceApi
-      .getContext({ organizationId: orgId, brandId, operation: "brand_intelligence_dashboard" })
+      .getContext({ organizationId, brandId, operation: "brand_intelligence_dashboard" })
       .then(setCtx)
       .catch(() => setCtx(null));
-  }, [canLoad, orgId, brandId]);
+  }, [canLoad, organizationId, brandId]);
 
   const missing = ctx?.context.missingContext ?? [];
   const completeness = Math.max(0, Math.min(100, Math.round(((10 - missing.length) / 10) * 100)));

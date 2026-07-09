@@ -19,11 +19,11 @@ function isUuid(value: string): boolean {
  * Brand Intelligence admin preview — shows what Steward knows before AI generates content.
  */
 export function BrandIntelligenceSettings() {
-  const { organization, activeBrandId, brands } = useAppStore();
+  const { currentOrganization, activeBrandId, brands } = useAppStore();
   const defaultBrandId =
     activeBrandId && activeBrandId !== "all" ? activeBrandId : brands[0]?.id ?? "";
 
-  const [organizationId, setOrganizationId] = React.useState(organization?.id ?? "");
+  const [organizationId, setOrganizationId] = React.useState(currentOrganization?.id ?? "");
   const [brandId, setBrandId] = React.useState(defaultBrandId);
   const [loading, setLoading] = React.useState(false);
   const [preview, setPreview] = React.useState<Awaited<

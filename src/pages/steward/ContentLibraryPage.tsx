@@ -20,7 +20,7 @@ export function ContentLibraryPage() {
   const [query, setQuery] = React.useState("");
 
   const assets = (data?.assets ?? []).filter((a) =>
-    (a.fileName ?? "").toLowerCase().includes(query.toLowerCase()),
+    (a.metadata?.filename ?? "").toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
@@ -90,9 +90,9 @@ export function ContentLibraryPage() {
                 )}
               </div>
               <CardContent className="space-y-2 p-3">
-                <p className="truncate text-sm font-medium">{asset.fileName ?? "Untitled"}</p>
+                <p className="truncate text-sm font-medium">{asset.metadata?.filename ?? "Untitled"}</p>
                 <div className="flex flex-wrap gap-1">
-                  <StatusChip label={asset.mimeType?.startsWith("video") ? "Video" : "Image"} tone="muted" />
+                  <StatusChip label={asset.metadata?.mimeType?.startsWith("video") ? "Video" : "Image"} tone="muted" />
                   <StatusChip label="Not analyzed" tone="info" />
                 </div>
                 <div className="flex gap-1">
@@ -117,8 +117,8 @@ export function ContentLibraryPage() {
               className="flex items-center justify-between rounded-lg border border-border/60 bg-background p-3"
             >
               <div>
-                <p className="font-medium">{asset.fileName}</p>
-                <p className="text-xs text-muted-foreground">{asset.mimeType}</p>
+                <p className="font-medium">{asset.metadata?.filename}</p>
+                <p className="text-xs text-muted-foreground">{asset.metadata?.mimeType}</p>
               </div>
               <Button size="sm" variant="outline" onClick={() => setActiveView("studio")}>
                 Create post

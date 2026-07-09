@@ -1368,7 +1368,7 @@ export const useAppStore = create<AppState>((set, get) => {
   // ==========================================
 
   // Current Organization
-  currentOrganization: generateSampleOrganization(),
+  currentOrganization: null,
   setCurrentOrganization: (org) => set({ currentOrganization: org }),
   updateOrganization: (updates) => set((state) => ({
     currentOrganization: state.currentOrganization

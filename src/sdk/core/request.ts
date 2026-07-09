@@ -81,12 +81,16 @@ export async function platformRequest(
 		headers.set("Authorization", `Bearer ${token}`);
 	}
 	
-	// Add x-brand-id header from localStorage (frontend owns brand selection)
-	// Note: Store syncs to localStorage, so this is always up-to-date
+	// Add x-brand-id and x-organization-id headers from localStorage
 	if (typeof window !== 'undefined') {
 		const activeBrandId = localStorage.getItem('steward_active_brand_id');
 		const brandId = activeBrandId || 'all';
 		headers.set("x-brand-id", brandId);
+
+		const organizationId = localStorage.getItem('steward_organization_id');
+		if (organizationId) {
+			headers.set("x-organization-id", organizationId);
+		}
 		
 		// Log in dev mode for verification (only first few requests to avoid spam)
 		if (import.meta.env.DEV && Math.random() < 0.1) {
