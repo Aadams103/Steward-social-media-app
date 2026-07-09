@@ -18,6 +18,8 @@ import {
   seedKineticGrapplingDemo,
   upsertBrandProfile,
 } from '../services/steward-db.js';
+import { verifyOrgMembership } from '../services/ai-jobs-db.js';
+import { getSupabaseClient } from '../supabase.js';
 
 function supabaseRequired(res: Response): boolean {
   if (!isSupabaseServiceConfigured()) {
@@ -27,8 +29,92 @@ function supabaseRequired(res: Response): boolean {
   return true;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function getBrandId(req: AuthenticatedRequest): string | undefined {
-  return (req.headers['x-brand-id'] as string | undefined) ?? req.body?.brandId;
+  const raw = (req.headers['x-brand-id'] as string | undefined) ?? req.body?.brandId;
+  // The frontend sends "all" when no specific brand is selected — never treat
+  // that (or any non-UUID) as a real brand id.
+  return raw && UUID_RE.test(raw) ? raw : undefined;
+}
+
+/**
+ * Security guard: these routes run with the service-role client, which
+ * bypasses RLS. Every handler must verify the caller is a member of the
+ * target organization and (when applicable) that the brand belongs to it.
+ * Sends the error response and returns false on failure.
+ */
+async function requireOrgAccess(
+  req: AuthenticatedRequest,
+  res: Response,
+  organizationId: string | undefined,
+  brandId?: string
+): Promise<boolean> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+    return false;
+  }
+  if (!organizationId) {
+    res.status(400).json({ code: 'ORG_REQUIRED', message: 'organizationId is required' });
+    return false;
+  }
+  try {
+    await verifyOrgMembership(userId, organizationId);
+  } catch {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'You are not a member of this organization.' });
+    return false;
+  }
+  if (brandId && UUID_RE.test(brandId)) {
+    const client = getSupabaseClient();
+    if (client) {
+      const { data } = await client
+        .from('brands')
+        .select('id')
+        .eq('id', brandId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      if (!data) {
+        res.status(403).json({ code: 'FORBIDDEN', message: 'Brand does not belong to this organization.' });
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** Resolve a brand's organization and verify caller membership (for brand-scoped routes). */
+async function requireBrandAccess(
+  req: AuthenticatedRequest,
+  res: Response,
+  brandId: string
+): Promise<boolean> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+    return false;
+  }
+  const client = getSupabaseClient();
+  if (!client) {
+    res.status(503).json({ code: 'SUPABASE_NOT_CONFIGURED', message: 'Supabase not configured' });
+    return false;
+  }
+  const { data: brand } = await client
+    .from('brands')
+    .select('organization_id')
+    .eq('id', brandId)
+    .maybeSingle();
+  if (!brand) {
+    res.status(404).json({ code: 'BRAND_NOT_FOUND', message: 'Brand not found' });
+    return false;
+  }
+  try {
+    await verifyOrgMembership(userId, brand.organization_id as string);
+    return true;
+  } catch {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'You are not a member of this organization.' });
+    return false;
+  }
 }
 
 export async function getBrandProfileHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -38,6 +124,7 @@ export async function getBrandProfileHandler(req: AuthenticatedRequest, res: Res
     res.status(400).json({ code: 'BRAND_ID_REQUIRED', message: 'brandId is required' });
     return;
   }
+  if (!(await requireBrandAccess(req, res, brandId))) return;
   try {
     const profile = await getBrandProfile(brandId);
     res.json({ profile });
@@ -53,6 +140,7 @@ export async function patchBrandProfileHandler(req: AuthenticatedRequest, res: R
     res.status(400).json({ code: 'BRAND_ID_REQUIRED', message: 'brandId is required' });
     return;
   }
+  if (!(await requireBrandAccess(req, res, brandId))) return;
   try {
     const profile = await upsertBrandProfile(brandId, req.body ?? {});
     res.json({ profile });
@@ -68,6 +156,7 @@ export async function createAssetMetadataHandler(req: AuthenticatedRequest, res:
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     return;
   }
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const asset = await createAssetMetadata({
       organizationId: req.body.organizationId,
@@ -97,6 +186,7 @@ export async function createPostDraftHandler(req: AuthenticatedRequest, res: Res
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     return;
   }
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const post = await createPostDraft({
       organizationId: req.body.organizationId,
@@ -123,6 +213,7 @@ export async function createPostDraftHandler(req: AuthenticatedRequest, res: Res
 
 export async function createPostVariantHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const variant = await createPostVariant({
       postId: req.body.postId,
@@ -146,6 +237,7 @@ export async function createPostVariantHandler(req: AuthenticatedRequest, res: R
 
 export async function scheduleCalendarEntryHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const entry = await scheduleContentCalendarEntry({
       organizationId: req.body.organizationId,
@@ -171,6 +263,7 @@ export async function createPublishJobHandler(req: AuthenticatedRequest, res: Re
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     return;
   }
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const job = await createPublishJob({
       organizationId: req.body.organizationId,
@@ -197,6 +290,7 @@ export async function createPublishJobHandler(req: AuthenticatedRequest, res: Re
 
 export async function createAutomationRuleHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const rule = await createAutomationRule({
       organizationId: req.body.organizationId,
@@ -217,6 +311,7 @@ export async function createAutomationRuleHandler(req: AuthenticatedRequest, res
 
 export async function createAiJobHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
     const job = await createAiJob({
       organizationId: req.body.organizationId,
@@ -236,6 +331,7 @@ export async function createAiJobHandler(req: AuthenticatedRequest, res: Respons
 
 export async function ingestMetricsHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId))) return;
   try {
     const snapshot = await ingestMetricsSnapshot({
       organizationId: req.body.organizationId,
@@ -250,6 +346,7 @@ export async function ingestMetricsHandler(req: AuthenticatedRequest, res: Respo
 
 export async function seedDemoBrandHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!supabaseRequired(res)) return;
+  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId))) return;
   try {
     await seedKineticGrapplingDemo(req.body.organizationId, req.body.brandId, req.user?.id);
     res.json({ ok: true, message: 'Kinetic Grappling brand intelligence demo data seeded.' });

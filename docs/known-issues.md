@@ -49,9 +49,19 @@ The production **frontend** build (`npm run build` at repo root) succeeds. Recen
 | AI job safe retry | Detail drawer exposes `can_retry` flag; retry endpoint not implemented |
 | Shim vs Supabase posts | In-memory shim still serves demo when `organizationId` query is absent |
 | `routeTree.gen.ts` | Regenerates on `vite` dev/build after new `/app/$view` route |
+| Agent memory proposals | Agent records decisions; automated `ai_memory_facts` proposals from insights are a future step |
+| Supabase advisor warnings (accepted) | `pg_graphql_*_table_exposed` (config-level; GraphQL endpoint), `multiple_permissive_policies` (structural policy overlap), `auth_leaked_password_protection` (dashboard toggle), `stripe_events` deny-all RLS (intentional, service-role writes only) |
 
 ---
 
 ## Security notes
 
 All new endpoints require authenticated user and verify organization membership via `verifyOrgMembership` / `assertWorkspaceAccess`. AI job responses use `ai_jobs_safe` view and redact error messages. Analytics returns `has_data: false` when tables are empty — no fabricated metrics.
+
+### Hardening applied (2026-07-09)
+
+- `ai_jobs_safe` / `social_accounts_safe` views switched to `security_invoker` (RLS of base tables now applies to view readers) — cleared both ERROR-level advisors.
+- `search_path` pinned on all flagged functions (public + stripe schemas).
+- `EXECUTE` revoked from `anon`/`public` on RLS helpers and from everyone but `service_role` on seed/worker functions and `handle_new_user`.
+- All `auth.uid()` RLS policies rewritten to initplan form `( SELECT auth.uid() )` — cleared 34 performance advisors.
+- `steward.ts` (12 handlers), `dashboard.ts`, and `/api/cron/ingest` gained org-membership / brand-ownership / fail-closed secret guards (service-role routes previously trusted client-supplied org IDs).

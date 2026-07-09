@@ -63,7 +63,15 @@ import {
   rejectMemoryFactHandler,
 } from './routes/memory-facts.js';
 import { getAnalyticsSummaryHandler } from './routes/analytics.js';
+import {
+  createAgentRuleHandler,
+  getAgentStatusHandler,
+  listAgentDecisionsHandler,
+  patchAgentRuleHandler,
+  runAgentHandler,
+} from './routes/agent.js';
 import { startScheduler } from './workers/scheduler.js';
+import { startAgentWorker } from './agent/worker.js';
 
 const app = express();
 const server = createServer(app);
@@ -843,6 +851,12 @@ app.get('/api/publish-jobs', (req, res) => {
     jobs: filteredJobs,
     total: filteredJobs.length,
   });
+});
+
+// GET /api/publish-jobs/health — must be registered before /:id or Express
+// captures "health" as an id.
+app.get('/api/publish-jobs/health', (req, res) => {
+  void getPublishHealthHandler(req as AuthenticatedRequest, res);
 });
 
 // GET /api/publish-jobs/:id
@@ -3743,6 +3757,10 @@ const INGEST_RATE_MS = 55 * 60 * 1000;
 app.post('/api/cron/ingest', async (req, res) => {
   const secret = req.headers['x-ingest-secret'] || req.headers['authorization']?.replace(/^Bearer /, '');
   const want = process.env.INGEST_SECRET || process.env.CRON_SECRET;
+  // Fail closed in production: never allow unauthenticated cron triggers.
+  if (!want && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ code: 'CRON_NOT_CONFIGURED', message: 'INGEST_SECRET is not configured' });
+  }
   if (want && secret !== want) {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid or missing secret' });
   }
@@ -3878,9 +3896,6 @@ app.post('/api/posts/:id/send-to-review', (req, res) => {
 // PUBLISH HEALTH + ANALYTICS + MEMORY FACTS
 // ============================================================================
 
-app.get('/api/publish-jobs/health', (req, res) => {
-  void getPublishHealthHandler(req as AuthenticatedRequest, res);
-});
 app.get('/api/analytics/summary', (req, res) => {
   void getAnalyticsSummaryHandler(req as AuthenticatedRequest, res);
 });
@@ -3895,6 +3910,26 @@ app.post('/api/ai/memory-facts/:id/reject', (req, res) => {
 });
 app.post('/api/ai/memory-facts/:id/archive', (req, res) => {
   void archiveMemoryFactHandler(req as AuthenticatedRequest, res);
+});
+
+// ============================================================================
+// AI SOCIAL MEDIA AGENT
+// ============================================================================
+
+app.post('/api/agent/run', (req, res) => {
+  void runAgentHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/agent/status', (req, res) => {
+  void getAgentStatusHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/agent/decisions', (req, res) => {
+  void listAgentDecisionsHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/agent/rules', (req, res) => {
+  void createAgentRuleHandler(req as AuthenticatedRequest, res);
+});
+app.patch('/api/agent/rules/:id', (req, res) => {
+  void patchAgentRuleHandler(req as AuthenticatedRequest, res);
 });
 
 // ============================================================================
@@ -3923,4 +3958,6 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
   // Scheduled publishing worker (no-op unless PUBLISH_WORKER_ENABLED=true)
   startScheduler();
+  // AI agent worker (no-op unless AGENT_WORKER_ENABLED=true)
+  startAgentWorker();
 });

@@ -1,14 +1,15 @@
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BrandIntelligenceSettings } from "@/pages/settings/BrandIntelligenceSettings";
-import { BrandCompletenessCard, MetricCard, StewardEmptyState } from "@/components/steward";
-import { brandIntelligenceApi } from "@/sdk/services/api-services";
+import { BrandCompletenessCard, MetricCard, StewardEmptyState, StatusChip } from "@/components/steward";
+import { brandIntelligenceApi, memoryFactsApi } from "@/sdk/services/api-services";
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Brain, Hash, Megaphone, Shield, Users } from "lucide-react";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { toast } from "sonner";
 
 export function BrandIntelligencePage() {
   const { organizationId, brandId, isRealWorkspace, permissions } = useCurrentWorkspace();
@@ -138,29 +139,160 @@ export function BrandIntelligencePage() {
         </TabsContent>
 
         <TabsContent value="memory" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Approved memory facts</CardTitle>
-              <CardDescription>Only approved facts are trusted in AI context.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {(ctx?.context.approvedMemoryFacts ?? []).length === 0 ? (
-                <p className="text-muted-foreground">No approved memory yet. Proposed facts require admin approval.</p>
-              ) : (
-                ctx!.context.approvedMemoryFacts.map((f, i) => (
-                  <p key={String(f.id ?? i)}>
-                    <span className="font-medium">{String(f.fact_key)}:</span> {JSON.stringify(f.fact_value)}
-                  </p>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          {organizationId && brandId && (
+            <MemoryReviewQueue
+              organizationId={organizationId}
+              brandId={brandId}
+              canApprove={permissions?.canApproveMemory ?? false}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="manage" className="mt-4">
           <BrandIntelligenceSettings />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function MemoryReviewQueue({
+  organizationId,
+  brandId,
+  canApprove,
+}: {
+  organizationId: string;
+  brandId: string;
+  canApprove: boolean;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["memory-facts", organizationId, brandId],
+    queryFn: () => memoryFactsApi.list({ organizationId, brandId }),
+  });
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["memory-facts", organizationId, brandId] });
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => memoryFactsApi.approve(id, { organizationId }),
+    onSuccess: () => {
+      toast.success("Memory fact approved");
+      invalidate();
+    },
+    onError: (e: Error & { statusCode?: number }) => {
+      if (e.statusCode === 409) {
+        toast.error("Conflicts with an existing approved fact — resolve it from the archive first.");
+      } else {
+        toast.error(e.message);
+      }
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) =>
+      memoryFactsApi.reject(id, { organizationId, reason: "Rejected from Brand Intelligence review queue" }),
+    onSuccess: () => {
+      toast.success("Memory fact rejected");
+      invalidate();
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  const facts = (data?.facts ?? []) as {
+    id: string;
+    fact_type: string;
+    fact_key: string;
+    fact_value: unknown;
+    confidence: number;
+    source: string;
+    approved: boolean;
+    created_at: string;
+  }[];
+  const proposed = facts.filter((f) => !f.approved);
+  const approved = facts.filter((f) => f.approved);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Proposed facts awaiting review</CardTitle>
+          <CardDescription>
+            The AI proposes facts from analysis and feedback — nothing enters trusted context until a human approves
+            it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading…</p>
+          ) : proposed.length === 0 ? (
+            <p className="text-muted-foreground">No proposed facts waiting for review.</p>
+          ) : (
+            proposed.map((f) => (
+              <div key={f.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <p>
+                    <span className="font-medium">{f.fact_key}</span>{" "}
+                    <span className="text-xs text-muted-foreground">({f.fact_type})</span>
+                  </p>
+                  <p className="break-all text-xs text-muted-foreground">{JSON.stringify(f.fact_value)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Source: {f.source} · Confidence: {Math.round(Number(f.confidence) * 100)}%
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    size="sm"
+                    disabled={!canApprove || approveMutation.isPending}
+                    onClick={() => approveMutation.mutate(f.id)}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={!canApprove || rejectMutation.isPending}
+                    onClick={() => rejectMutation.mutate(f.id)}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+          {!canApprove && proposed.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Your role cannot approve memory. Owners, admins, or strategists can.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Approved memory facts</CardTitle>
+          <CardDescription>Only approved facts are trusted in AI context.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {approved.length === 0 ? (
+            <p className="text-muted-foreground">No approved memory yet.</p>
+          ) : (
+            approved.map((f) => (
+              <div key={f.id} className="flex items-center gap-2">
+                <StatusChip label="Approved" tone="success" />
+                <p className="min-w-0">
+                  <span className="font-medium">{f.fact_key}:</span>{" "}
+                  <span className="break-all text-muted-foreground">{JSON.stringify(f.fact_value)}</span>
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

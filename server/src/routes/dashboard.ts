@@ -83,6 +83,26 @@ export async function getDashboardSummaryHandler(req: AuthenticatedRequest, res:
     return;
   }
 
+  // Security: verify membership and that the brand belongs to the org before
+  // returning any counts or brand names.
+  try {
+    const { verifyOrgMembership } = await import('../services/ai-jobs-db.js');
+    await verifyOrgMembership(userId, organizationId);
+    const { data: brandCheck } = await client
+      .from('brands')
+      .select('id')
+      .eq('id', brandId)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+    if (!brandCheck) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'Brand does not belong to this organization.' });
+      return;
+    }
+  } catch {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'You are not a member of this organization.' });
+    return;
+  }
+
   try {
     const weekEnd = new Date();
     weekEnd.setDate(weekEnd.getDate() + 7);

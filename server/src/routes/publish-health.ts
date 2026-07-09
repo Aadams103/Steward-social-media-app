@@ -74,7 +74,10 @@ export async function getPublishHealthHandler(req: AuthenticatedRequest, res: Re
         baseFilter('retrying'),
         baseFilter('canceled'),
         (() => {
-          let q = client.from('social_accounts').select('id, platform, status, brand_id');
+          let q = client
+            .from('social_accounts')
+            .select('id, platform, status, brand_id')
+            .eq('organization_id', query.organizationId);
           if (query.brandId) q = q.eq('brand_id', query.brandId);
           return q;
         })(),

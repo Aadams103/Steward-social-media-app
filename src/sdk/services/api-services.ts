@@ -962,6 +962,96 @@ export const analyticsSummaryApi = {
 // MEMORY FACTS
 // ============================================================================
 
+// ============================================================================
+// AI SOCIAL MEDIA AGENT
+// ============================================================================
+
+export interface AgentActionResult {
+  action: { type: string; reason: string; targetId?: string; params?: Record<string, unknown> };
+  status: "succeeded" | "failed" | "skipped" | "planned";
+  aiJobId?: string;
+  resultSummary?: string;
+  error?: string;
+}
+
+export interface AgentRunReport {
+  organizationId: string;
+  brandId: string;
+  startedAt: string;
+  completedAt: string;
+  dryRun: boolean;
+  snapshot: {
+    draftCount: number;
+    needsReviewCount: number;
+    scheduledNext7Days: number;
+    weeklyPostingTarget: number;
+    connectedAccountPlatforms: string[];
+    missingBrandContext: string[];
+    hasAnalyticsSource: boolean;
+    ingestedPostCount: number;
+  };
+  plannedActions: { type: string; reason: string; targetId?: string }[];
+  results: AgentActionResult[];
+  decisionLogId: string | null;
+  warnings: string[];
+}
+
+export interface AgentRule {
+  id: string;
+  brand_id: string;
+  name: string;
+  enabled: boolean;
+  trigger_type: string;
+  trigger_config: Record<string, unknown>;
+  action_type: string;
+  action_config: Record<string, unknown>;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
+
+export const agentApi = {
+  run: (body: { organizationId: string; brandId: string; dryRun?: boolean; maxDraftsPerCycle?: number }) =>
+    apiClient.post<{ report: AgentRunReport }>(`${API_BASE}/agent/run`, body),
+
+  status: (params: { organizationId: string; brandId?: string }) =>
+    apiClient.get<{
+      status: {
+        worker_enabled: boolean;
+        last_run: {
+          id: string;
+          brand_id: string;
+          recommendation: Record<string, unknown>;
+          reasoning_summary: string | null;
+          created_at: string;
+        } | null;
+        rules: AgentRule[];
+      };
+    }>(buildUrlWithParams(`${API_BASE}/agent/status`, params)),
+
+  decisions: (params: { organizationId: string; brandId?: string; limit?: number }) =>
+    apiClient.get<{
+      decisions: {
+        id: string;
+        brand_id: string | null;
+        decision_type: string;
+        recommendation: Record<string, unknown>;
+        reasoning_summary: string | null;
+        created_at: string;
+      }[];
+    }>(buildUrlWithParams(`${API_BASE}/agent/decisions`, params)),
+
+  createRule: (body: {
+    organizationId: string;
+    brandId: string;
+    name?: string;
+    intervalMinutes?: number;
+    maxDraftsPerCycle?: number;
+  }) => apiClient.post<{ rule: AgentRule }>(`${API_BASE}/agent/rules`, body),
+
+  patchRule: (id: string, body: { organizationId: string; enabled: boolean }) =>
+    apiClient.patch<{ rule: AgentRule }>(`${API_BASE}/agent/rules/${id}`, body),
+};
+
 export const memoryFactsApi = {
   list: (params: { organizationId: string; brandId: string; approved?: string }) =>
     apiClient.get<{ facts: Record<string, unknown>[] }>(buildUrlWithParams(`${API_BASE}/ai/memory-facts`, params)),
