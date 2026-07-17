@@ -69,8 +69,14 @@ export function AppLogo({
     return brandLogoUrl;
   }, [brandLogoUrl, currentBrand]);
 
-  // Steward fallback: /brand/steward-mark.svg and /brand/steward-lockup.svg
-  const stewardFallback = variant === "mark" ? "/brand/steward-mark.svg" : "/brand/steward-lockup.svg";
+  const stewardFallback =
+    variant === "mark"
+      ? theme === "light"
+        ? "/brand/steward/steward-mark-silver.svg"
+        : "/brand/steward/steward-mark-navy.svg"
+      : theme === "light"
+        ? "/brand/steward/steward-lockup-silver.svg"
+        : "/brand/steward/steward-lockup-navy.svg";
   const logoSrc = brandLogoUrlWithCache && !imageError 
     ? brandLogoUrlWithCache 
     : stewardFallback;

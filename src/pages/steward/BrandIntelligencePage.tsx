@@ -1,6 +1,5 @@
-import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BrandIntelligenceSettings } from "@/pages/settings/BrandIntelligenceSettings";
+import { useNavigate } from "@tanstack/react-router";
 import { BrandCompletenessCard, MetricCard, StewardEmptyState, StatusChip } from "@/components/steward";
 import { brandIntelligenceApi, memoryFactsApi } from "@/sdk/services/api-services";
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
@@ -8,33 +7,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Brain, Hash, Megaphone, Shield, Users } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { Brain, Hash, Megaphone, PencilLine, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export function BrandIntelligencePage() {
+  const navigate = useNavigate();
   const { organizationId, brandId, isRealWorkspace, permissions } = useCurrentWorkspace();
   const canLoad = isRealWorkspace;
 
-  const [ctx, setCtx] = React.useState<Awaited<ReturnType<typeof brandIntelligenceApi.getContext>> | null>(null);
-
-  React.useEffect(() => {
-    if (!canLoad || !organizationId || !brandId) return;
-    void brandIntelligenceApi
-      .getContext({ organizationId, brandId, operation: "brand_intelligence_dashboard" })
-      .then(setCtx)
-      .catch(() => setCtx(null));
-  }, [canLoad, organizationId, brandId]);
+  const contextQuery = useQuery({
+    queryKey: ["brand-intelligence-context", organizationId, brandId],
+    queryFn: () =>
+      brandIntelligenceApi.getContext({
+        organizationId: organizationId!,
+        brandId: brandId!,
+        operation: "brand_intelligence_dashboard",
+      }),
+    enabled: Boolean(canLoad && organizationId && brandId),
+  });
+  const ctx = contextQuery.data ?? null;
 
   const missing = ctx?.context.missingContext ?? [];
   const completeness = Math.max(0, Math.min(100, Math.round(((10 - missing.length) / 10) * 100)));
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Brand Intelligence</h1>
-        <p className="text-sm text-muted-foreground">
-          What Steward knows about your business — voice, audiences, rules, and approved memory.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Brand</h1>
+          <p className="text-sm text-muted-foreground">
+            What Steward knows about your business — voice, audiences, rules, and approved memory.
+          </p>
+        </div>
+        <Button className="min-h-11" onClick={() => void navigate({ to: "/app/onboarding" })}>
+          <PencilLine className="mr-2 h-4 w-4" /> Edit brand context
+        </Button>
       </div>
 
       {!canLoad && (
@@ -43,6 +52,13 @@ export function BrandIntelligencePage() {
           title="Connect a Supabase organization"
           description="Brand Intelligence requires real organization and brand UUIDs. Enter them below or complete onboarding."
         />
+      )}
+
+      {contextQuery.isLoading && <LoadingSkeleton className="h-48 w-full" />}
+      {contextQuery.error && (
+        <Alert variant="destructive">
+          <AlertDescription>{contextQuery.error.message}</AlertDescription>
+        </Alert>
       )}
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -149,7 +165,19 @@ export function BrandIntelligencePage() {
         </TabsContent>
 
         <TabsContent value="manage" className="mt-4">
-          <BrandIntelligenceSettings />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Brand operating system</CardTitle>
+              <CardDescription>
+                Update identity, audiences, voice, content pillars, offers, rules, visual direction, and secure references.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="min-h-11" onClick={() => void navigate({ to: "/app/onboarding" })}>
+                <PencilLine className="mr-2 h-4 w-4" /> Open brand editor
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

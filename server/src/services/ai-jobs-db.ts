@@ -74,6 +74,46 @@ export async function insertAiJobRecord(input: {
   return data.id as string;
 }
 
+export async function insertProposedMemoryFacts(input: {
+  organizationId: string;
+  brandId: string;
+  userId: string;
+  aiJobId: string;
+  sourceRecordId?: string;
+  facts: Array<{
+    fact_type: string;
+    fact_key: string;
+    fact_value: Record<string, unknown>;
+    confidence: number;
+  }>;
+}): Promise<number> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+  let inserted = 0;
+  for (const fact of input.facts) {
+    const { error } = await client.from('ai_memory_facts').insert({
+      organization_id: input.organizationId,
+      brand_id: input.brandId,
+      user_id: input.userId,
+      fact_type: fact.fact_type,
+      fact_key: fact.fact_key,
+      fact_value: fact.fact_value,
+      confidence: fact.confidence,
+      source: 'ai_proposal',
+      source_record_type: input.sourceRecordId ? 'asset' : 'ai_job',
+      source_record_id: input.sourceRecordId ?? input.aiJobId,
+      approved: false,
+      metadata: { aiJobId: input.aiJobId, requiresApproval: true },
+    });
+    if (!error) {
+      inserted += 1;
+      continue;
+    }
+    if (error.code !== '23505') throw error;
+  }
+  return inserted;
+}
+
 export async function updateAiJobRecord(
   aiJobId: string,
   patch: Record<string, unknown>

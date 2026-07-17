@@ -10,8 +10,8 @@ export const APP_HEADLINE = "First-Class Care for Your Brand\u2019s Presence.";
 
 /** Subhead that explains what Steward actually does. */
 export const APP_SUBHEAD =
-	"Steward autonomously publishes, monitors, and protects your social media\u2014so you don\u2019t have to.";
+	"Steward plans, drafts, analyzes, and schedules social content while you keep final publishing approval.";
 
 /** Short descriptor for headers, tooltips, and meta defaults. */
 export const APP_SHORT_TAGLINE =
-	"Autonomous social media management with brand-safe guardrails.";
+	"Approval-first AI social media management with brand-safe guardrails.";

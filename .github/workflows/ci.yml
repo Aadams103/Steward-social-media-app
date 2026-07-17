@@ -1,21 +1,61 @@
-# CI: typecheck backend and optionally keep schema/types in sync
-name: CI
+name: Steward CI
+
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steward-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  typecheck-server:
-    name: Typecheck server
+  frontend:
+    name: Frontend tests and production build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  server:
+    name: Strict server tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
         working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm test
       - run: npm run typecheck
-        working-directory: server
+      - run: npm run build
+
+  repository-safety:
+    name: Migrations and secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-migrations.mjs
+      - run: node scripts/check-secrets.mjs

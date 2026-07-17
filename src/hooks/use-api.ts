@@ -61,6 +61,7 @@ import type {
   StrategyPlan,
   Brand,
 } from '@/types/app';
+import type { SocialConnectionSafe } from '@/types/steward';
 
 // ============================================================================
 // POSTS HOOKS
@@ -337,11 +338,12 @@ export function useOrganization(id: string, options?: UseQueryOptions<Organizati
 
 export function useOAuthConnections(
   organizationId?: string,
-  options?: UseQueryOptions<{ connections: OAuthConnection[] }, Error>,
+  options?: Omit<UseQueryOptions<{ connections: SocialConnectionSafe[] }, Error>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery({
     queryKey: ['oauth-connections', organizationId],
-    queryFn: () => oauthApi.list(organizationId),
+    queryFn: () => oauthApi.list(organizationId!),
+    enabled: Boolean(organizationId),
     staleTime: 60 * 1000, // 1 minute
     ...options,
   });
@@ -457,8 +459,8 @@ export function useScheduledSlots(
 // ============================================================================
 
 export function useAssets(
-  params?: { type?: string; search?: string; tags?: string | string[] },
-  options?: UseQueryOptions<{ assets: Asset[]; total: number }, Error>,
+  params?: { organizationId?: string; brandId?: string; type?: string; search?: string; tags?: string | string[] },
+  options?: Omit<UseQueryOptions<{ assets: Asset[]; total: number }, Error>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery({
     queryKey: ['assets', params],
@@ -490,12 +492,17 @@ export function useCreateAsset(options?: UseMutationOptions<Asset, Error, Omit<A
 }
 
 export function useUploadAssets(
-  options?: UseMutationOptions<{ assets: Asset[] }, Error, { files: File[]; tags?: string[] }>
+  options?: UseMutationOptions<
+    { assets: Asset[] },
+    Error,
+    { files: File[]; organizationId: string; brandId: string; tags?: string[] }
+  >
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ files, tags }) => assetsApi.upload(files, tags),
+    mutationFn: ({ files, organizationId, brandId, tags }) =>
+      assetsApi.upload(files, { organizationId, brandId }, tags),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
     },

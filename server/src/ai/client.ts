@@ -3,6 +3,7 @@
  */
 
 import OpenAI from 'openai';
+import type { ResponseInputContent } from 'openai/resources/responses/responses';
 import { requireAiGatewayConfig, type AiGatewayConfig } from './config.js';
 import { AiGatewayError } from './errors.js';
 import { logAiEvent } from './logging.js';
@@ -17,10 +18,53 @@ export function getOpenAiClient(cfg?: AiGatewayConfig): OpenAI {
     client = new OpenAI({
       apiKey: config.openaiApiKey!,
       timeout: config.requestTimeoutMs,
-      maxRetries: 0,
+      maxRetries: config.maxRetries,
     });
   }
   return client;
+}
+
+export interface ModerationScreenResult {
+  flagged: boolean;
+  categories: string[];
+  model: string;
+}
+
+/** Safety pre-screen. Content is never logged and moderation models are not used for generation. */
+export async function screenTextWithModeration(input: {
+  cfg: AiGatewayConfig;
+  text: string;
+  operation: string;
+  aiJobId?: string;
+}): Promise<ModerationScreenResult> {
+  const openai = getOpenAiClient(input.cfg);
+  try {
+    const response = await openai.moderations.create({
+      model: input.cfg.models.moderation as 'omni-moderation-latest',
+      input: input.text.slice(0, 20_000),
+    });
+    const result = response.results[0];
+    const categories = result
+      ? Object.entries(result.categories)
+          .filter(([, flagged]) => flagged === true)
+          .map(([category]) => category)
+      : [];
+    return {
+      flagged: Boolean(result?.flagged),
+      categories,
+      model: input.cfg.models.moderation,
+    };
+  } catch (err) {
+    logAiEvent('error', 'OpenAI moderation request failed', {
+      operation: input.operation,
+      aiJobId: input.aiJobId,
+      model: input.cfg.models.moderation,
+      status: 'failed',
+      errorCode: 'MODERATION_ERROR',
+    });
+    const message = err instanceof Error ? err.message : 'Moderation request failed';
+    throw new AiGatewayError('OPENAI_ERROR', message, 502);
+  }
 }
 
 export function resetOpenAiClientForTests(): void {
@@ -36,6 +80,11 @@ export interface StructuredResponseResult<T> {
   totalTokens: number;
 }
 
+export type AiInputAttachment = Extract<
+  ResponseInputContent,
+  { type: 'input_image' | 'input_file' }
+>;
+
 export async function callOpenAiStructured<T>(input: {
   cfg: AiGatewayConfig;
   model: string;
@@ -46,6 +95,7 @@ export async function callOpenAiStructured<T>(input: {
   operation: string;
   aiJobId?: string;
   isRepair?: boolean;
+  attachments?: AiInputAttachment[];
 }): Promise<StructuredResponseResult<T>> {
   const openai = getOpenAiClient(input.cfg);
   const started = Date.now();
@@ -57,7 +107,13 @@ export async function callOpenAiStructured<T>(input: {
       max_output_tokens: input.cfg.maxOutputTokens,
       input: [
         { role: 'system', content: input.systemPrompt },
-        { role: 'user', content: input.userPrompt },
+        {
+          role: 'user',
+          content: [
+            { type: 'input_text', text: input.userPrompt },
+            ...(input.attachments ?? []),
+          ],
+        },
       ],
       text: {
         format: {
@@ -115,7 +171,7 @@ export async function callOpenAiStructured<T>(input: {
 
 export function resolveModelKey(
   cfg: AiGatewayConfig,
-  key: 'default' | 'reasoning' | 'vision' | 'draft' | 'embedding'
+  key: 'default' | 'reasoning' | 'vision' | 'draft' | 'embedding' | 'image' | 'moderation'
 ): string {
   return cfg.models[key];
 }

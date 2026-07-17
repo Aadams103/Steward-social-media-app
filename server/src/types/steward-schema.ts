@@ -23,14 +23,30 @@ export type StewardPostStatus =
   | 'idea'
   | 'draft'
   | 'generated'
+  | 'in_review'
   | 'needs_review'
   | 'needs_approval'
+  | 'revision_requested'
+  | 'rejected'
   | 'approved'
   | 'scheduled'
   | 'publishing'
+  | 'retrying'
   | 'published'
   | 'failed'
   | 'archived';
+
+export type PostWorkflowStatus =
+  | 'draft'
+  | 'in_review'
+  | 'revision_requested'
+  | 'rejected'
+  | 'approved'
+  | 'scheduled'
+  | 'publishing'
+  | 'retrying'
+  | 'published'
+  | 'failed';
 
 export type StewardPublishJobStatus =
   | 'queued'

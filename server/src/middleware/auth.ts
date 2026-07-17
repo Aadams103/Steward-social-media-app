@@ -11,18 +11,22 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  // #region agent log
-  console.log('🔒 Middleware: Received Token:', req.headers.authorization ? 'Yes' : 'No');
-  // #endregion
-
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   const supabase = getSupabaseClient();
   if (!supabase) {
-    // No Supabase configured: allow through with dev user (local development)
-    req.user = { id: 'dev-user', email: 'dev@localhost' };
-    next();
+    const explicitDevelopmentMode =
+      process.env.NODE_ENV !== 'production' && process.env.STEWARD_ENABLE_DEMO_DATA === 'true';
+    if (explicitDevelopmentMode) {
+      req.user = { id: '00000000-0000-0000-0000-000000000001', email: 'dev@localhost' };
+      next();
+      return;
+    }
+    res.status(503).json({
+      code: 'SUPABASE_NOT_CONFIGURED',
+      message: 'Authentication service is unavailable.',
+    });
     return;
   }
 

@@ -1,6 +1,6 @@
 /**
  * Supabase client for Steward backend.
- * Use only when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.
+ * Use only when SUPABASE_URL and a server-only Supabase secret key are set.
  * Service role bypasses RLS — use only server-side; never expose to frontend.
  */
 
@@ -14,7 +14,7 @@ const oauthStatesMemory = new Map<string, { brandId: string; purpose: string; pr
 export function getSupabaseClient(): SupabaseClient | null {
   if (_client) return _client;
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   _client = createClient(url, key, { auth: { persistSession: false } });
   return _client;
@@ -172,6 +172,7 @@ export async function listIngestedPosts(options: {
   if (options.brandId) q = q.eq('brand_id', options.brandId);
   if (options.platform) q = q.eq('platform', options.platform);
   if (options.limit) q = q.limit(options.limit);
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) throw error;
   return (data ?? []) as IngestedPostRow[];
 }

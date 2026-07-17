@@ -69,7 +69,7 @@ describe('rate limits', () => {
 
 describe('cost estimation', () => {
   it('returns positive cents', () => {
-    expect(estimateCostCents('gpt-4.1-mini', 1000, 500)).toBeGreaterThan(0);
+    expect(estimateCostCents('gpt-5.6-luna', 1000, 500)).toBeGreaterThan(0);
   });
 });
 

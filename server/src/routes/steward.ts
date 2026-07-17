@@ -3,6 +3,7 @@
  */
 
 import type { Response } from 'express';
+import { z } from 'zod';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import {
   createAiJob,
@@ -186,27 +187,45 @@ export async function createPostDraftHandler(req: AuthenticatedRequest, res: Res
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     return;
   }
-  if (!(await requireOrgAccess(req, res, req.body.organizationId, req.body.brandId ?? getBrandId(req)))) return;
   try {
+    const body = z.object({
+      organizationId: z.string().uuid(),
+      brandId: z.string().uuid(),
+      content: z.string().trim().min(1).max(20_000),
+      platform: z.enum(['facebook', 'instagram']),
+      title: z.string().trim().max(300).optional(),
+      hook: z.string().trim().max(1000).optional(),
+      cta: z.string().trim().max(1000).optional(),
+      campaignId: z.string().uuid().optional(),
+      contentPillarId: z.string().uuid().optional(),
+      hashtags: z.array(z.string().trim().max(100)).max(40).optional(),
+      mediaAssetIds: z.array(z.string().uuid()).max(10).optional(),
+      scheduledTime: z.string().datetime().optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+    }).parse(req.body);
+    if (!(await requireOrgAccess(req, res, body.organizationId, body.brandId))) return;
     const post = await createPostDraft({
-      organizationId: req.body.organizationId,
-      brandId: req.body.brandId ?? getBrandId(req),
+      organizationId: body.organizationId,
+      brandId: body.brandId,
       authorId: userId,
-      content: req.body.content,
-      platform: req.body.platform,
-      status: req.body.status,
-      title: req.body.title,
-      hook: req.body.hook,
-      cta: req.body.cta,
-      campaignId: req.body.campaignId,
-      contentPillarId: req.body.contentPillarId,
-      hashtags: req.body.hashtags,
-      mediaAssetIds: req.body.mediaAssetIds,
-      scheduledTime: req.body.scheduledTime ? new Date(req.body.scheduledTime) : undefined,
-      metadata: req.body.metadata,
+      content: body.content,
+      platform: body.platform,
+      title: body.title,
+      hook: body.hook,
+      cta: body.cta,
+      campaignId: body.campaignId,
+      contentPillarId: body.contentPillarId,
+      hashtags: body.hashtags,
+      mediaAssetIds: body.mediaAssetIds,
+      scheduledTime: body.scheduledTime ? new Date(body.scheduledTime) : undefined,
+      metadata: { ...(body.metadata ?? {}), requiresApproval: true },
     });
     res.status(201).json({ post });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Check the draft details and try again.', details: err.flatten() });
+      return;
+    }
     res.status(500).json({ code: 'POST_DRAFT_ERROR', message: String(err) });
   }
 }

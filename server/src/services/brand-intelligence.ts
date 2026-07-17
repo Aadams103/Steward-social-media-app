@@ -68,7 +68,7 @@ export async function getStewardBrandContext(
     client.from('brand_ctas').select('*').eq('brand_id', input.brandId).eq('active', true),
     client.from('business_locations').select('*').eq('brand_id', input.brandId).eq('active', true),
     client.from('recurring_schedules').select('*').eq('brand_id', input.brandId).eq('is_active', true).is('archived_at', null),
-    client.from('offers').select('*').eq('brand_id', input.brandId).eq('is_active', true),
+    client.from('brand_offers').select('*').eq('brand_id', input.brandId).eq('is_active', true),
     client.from('reusable_snippets').select('*').eq('brand_id', input.brandId).eq('is_active', true),
     client.from('brand_rules').select('*').eq('brand_id', input.brandId).eq('active', true),
     client.from('platform_strategy').select('*').eq('brand_id', input.brandId).eq('enabled', true),

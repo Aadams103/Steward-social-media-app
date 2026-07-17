@@ -5,32 +5,21 @@ import {
   Home,
   CalendarDays,
   Plus,
-  Inbox,
   BarChart3,
-  Megaphone,
   Bot,
-  MoreHorizontal,
-  Bell,
   ChevronDown,
   LogOut,
   User,
-  CreditCard,
   Layers,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
-  Settings,
   Users,
-  Image,
-  ClipboardList,
   PenSquare,
-  History,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Brain,
   Library,
-  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -55,15 +44,13 @@ import { viewToPath } from "@/lib/steward-routes";
 import { APP_NAME } from "@/config/brand";
 import { AppLogo } from "@/components/AppLogo";
 import { BackButton } from "@/components/BackButton";
-import { SettingsOverlay, type SettingsSectionId } from "@/components/SettingsOverlay";
-import { CreateMenu, CreatePostButton } from "@/components/create/CreateMenu";
+import { supabase } from "@/lib/supabase";
 
 interface NavItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
-  isCreate?: boolean;
 }
 
 interface AppShellProps {
@@ -73,20 +60,6 @@ interface AppShellProps {
   showCreateButton?: boolean;
 }
 
-const MORE_VIEWS = [
-  "settings",
-  "accounts",
-  "assets",
-  "compose",
-  "email",
-  "brand",
-  "audit",
-  "inbox",
-  "queue",
-  "flight-ai",
-  "compose",
-];
-
 export function AppShell({
   children,
   pageTitle,
@@ -94,7 +67,7 @@ export function AppShell({
   showCreateButton = true,
 }: AppShellProps) {
   const queryClient = useQueryClient();
-  const { sidebarCollapsed, setSidebarCollapsed, conversations } = useAppStore();
+  const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
   const { data: brandsData } = useBrands();
   const brands = brandsData?.brands || [];
   const { data: currentBrand } = useCurrentBrand();
@@ -106,7 +79,7 @@ export function AppShell({
   const activeView = useAppStore((state) => state.activeView);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const navigate = useNavigate();
-  const { organization, brand, isRealWorkspace } = useCurrentWorkspace();
+  const workspace = useCurrentWorkspace();
 
   const goToView = React.useCallback(
     (view: string) => {
@@ -116,32 +89,31 @@ export function AppShell({
     [navigate, setActiveView]
   );
 
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [settingsSection, setSettingsSection] = React.useState<SettingsSectionId>("my-account");
+  const handleLogout = React.useCallback(async () => {
+    try {
+      await supabase?.auth.signOut();
+    } finally {
+      localStorage.removeItem("steward_organization_id");
+      localStorage.removeItem("steward_active_brand_id");
+      toast.success("Signed out securely");
+      void navigate({ to: "/login" });
+    }
+  }, [navigate]);
 
-  const openSettings = React.useCallback((section?: SettingsSectionId) => {
-    if (section) setSettingsSection(section);
-    setSettingsOpen(true);
-  }, []);
-
-  const unreadCount = conversations.filter((c) => c.status === "unread").length;
   const needsReview = (postsData?.posts ?? []).filter((p) =>
-    ["pending", "pending_approval", "needs_review", "draft"].includes(p.status),
+    ["pending", "pending_approval", "needs_review", "in_review"].includes(p.status),
   ).length;
 
   const primaryNav: NavItem[] = [
-    { id: "dashboard", label: "Command", icon: Home },
+    { id: "dashboard", label: "Command Center", icon: Home },
     { id: "studio", label: "Create", icon: PenSquare },
-    { id: "assets", label: "Library", icon: Library },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "approvals", label: "Approvals", icon: ShieldCheck, badge: needsReview || undefined },
-    { id: "campaigns", label: "Campaigns", icon: Megaphone },
-    { id: "autopilot", label: "Autopilot", icon: Bot },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "assets", label: "Library", icon: Library },
     { id: "brand-intelligence", label: "Brand", icon: Brain },
     { id: "accounts", label: "Accounts", icon: Users },
-    { id: "ai-activity", label: "AI", icon: Activity },
-    { id: "more", label: "More", icon: MoreHorizontal },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "automations", label: "Automations", icon: Bot },
   ];
 
   const isRiskyActionPage = ["compose", "studio", "flight-ai", "autopilot", "queue", "approvals"].includes(
@@ -172,10 +144,7 @@ export function AppShell({
   const brandDisplay = getCurrentBrandDisplay();
 
   const renderNavButton = (item: NavItem) => {
-    const isActive =
-      item.id === "more"
-        ? MORE_VIEWS.includes(activeView)
-        : activeView === item.id;
+    const isActive = activeView === item.id;
 
     const inner = (
       <>
@@ -183,14 +152,14 @@ export function AppShell({
           className={cn(
             "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
             isActive
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
+              ? "bg-white/15 text-white shadow-sm ring-1 ring-white/20"
+              : "text-slate-400 group-hover:bg-white/10 group-hover:text-white",
           )}
         >
           <item.icon className="h-5 w-5" />
         </span>
         {!sidebarCollapsed && (
-          <span className="max-w-[4.5rem] truncate text-center text-[10px] font-medium leading-tight">
+          <span className="max-w-[5.5rem] text-center text-[10px] font-medium leading-tight text-slate-300">
             {item.label}
           </span>
         )}
@@ -201,58 +170,6 @@ export function AppShell({
         )}
       </>
     );
-
-    if (item.id === "more") {
-      return (
-        <DropdownMenu key={item.id}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "group relative flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors",
-                isActive && "bg-muted/50",
-              )}
-              aria-label="More navigation"
-            >
-              {inner}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuItem onClick={() => goToView("flight-ai")}>
-              <Sparkles className="mr-2 h-4 w-4" /> Flight AI
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => goToView("compose")}>
-              <PenSquare className="mr-2 h-4 w-4" /> Legacy compose
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => goToView("inbox")}>
-              <Inbox className="mr-2 h-4 w-4" /> Inbox
-              {unreadCount > 0 && (
-                <Badge variant="secondary" className="ml-auto">
-                  {unreadCount}
-                </Badge>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => goToView("queue")}>
-              <ClipboardList className="mr-2 h-4 w-4" /> Listening queue
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => goToView("automations")}>
-              <Bot className="mr-2 h-4 w-4" /> Automations
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => goToView("brand-intelligence")}>
-              <Image className="mr-2 h-4 w-4" /> Brand profile (legacy)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => goToView("audit")}>
-              <History className="mr-2 h-4 w-4" /> Audit log
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openSettings("my-account")}>
-              <Settings className="mr-2 h-4 w-4" /> Settings
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
 
     return (
       <TooltipProvider key={item.id}>
@@ -281,23 +198,23 @@ export function AppShell({
     <div className="flex h-screen bg-muted/40">
       <aside
         className={cn(
-          "flex flex-col border-r border-border/70 bg-background transition-all duration-300",
-          sidebarCollapsed ? "w-[72px]" : "w-[88px]",
+          "hidden flex-col border-r border-white/10 bg-[var(--steward-bg)] text-white transition-all duration-300 md:flex",
+          sidebarCollapsed ? "w-[72px]" : "w-[104px]",
         )}
       >
-        <div className="flex h-14 items-center justify-center border-b border-border/60 px-2">
-          <AppLogo variant="mark" theme="dark" size={28} brandLogoUrl={currentBrand?.logoUrl} />
+        <div className="flex h-16 items-center justify-center border-b border-white/10 px-2">
+          <AppLogo variant="mark" theme="light" size={34} />
         </div>
 
         <ScrollArea className="flex-1">
           <nav className="space-y-0.5 p-1.5">{primaryNav.map(renderNavButton)}</nav>
         </ScrollArea>
 
-        <div className="border-t border-border/60 p-2">
+        <div className="border-t border-white/10 p-2">
           <Button
             variant="ghost"
             size="icon"
-            className="mx-auto h-8 w-8"
+            className="mx-auto h-11 w-11 text-slate-300 hover:bg-white/10 hover:text-white"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -311,7 +228,7 @@ export function AppShell({
           <BackButton />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 max-w-[200px] gap-2 px-2.5">
+              <Button variant="outline" size="sm" className="h-11 max-w-[200px] gap-2 px-2.5">
                 <Avatar className="h-6 w-6 shrink-0">
                   <AvatarImage src={brandDisplay.avatar || undefined} alt={brandDisplay.name} />
                   <AvatarFallback className="text-[10px]">
@@ -346,20 +263,19 @@ export function AppShell({
 
           <div className="ml-auto flex items-center gap-2">
             {needsReview > 0 && (
-              <Button variant="outline" size="sm" className="hidden h-9 sm:flex" onClick={() => goToView("approvals")}>
+              <Button variant="outline" size="sm" className="hidden h-11 sm:flex" onClick={() => goToView("approvals")}>
                 <ShieldCheck className="mr-1.5 h-4 w-4" />
                 {needsReview} review
               </Button>
             )}
             {showCreateButton && !["dashboard", "calendar", "studio"].includes(activeView) && (
-              <CreatePostButton size="sm" />
+              <Button size="sm" className="min-h-11" onClick={() => goToView("studio")}>
+                <Plus className="mr-1.5 h-4 w-4" /> Create
+              </Button>
             )}
-            <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
-              <Bell className="h-4 w-4" />
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label="Account menu">
+                <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" aria-label="Account menu">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
                       <User className="h-4 w-4" />
@@ -368,16 +284,23 @@ export function AppShell({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{APP_NAME}</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  <span className="block">{APP_NAME}</span>
+                  {workspace.user?.email ? (
+                    <span className="block truncate text-xs font-normal text-muted-foreground">
+                      {workspace.user.email}
+                    </span>
+                  ) : null}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => openSettings("my-account")}>
-                  <User className="mr-2 h-4 w-4" /> My Account
+                <DropdownMenuItem onClick={() => goToView("brand-intelligence")}>
+                  <Brain className="mr-2 h-4 w-4" /> Brand settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openSettings("billing")}>
-                  <CreditCard className="mr-2 h-4 w-4" /> Billing
+                <DropdownMenuItem onClick={() => goToView("accounts")}>
+                  <Users className="mr-2 h-4 w-4" /> Connected accounts
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem className="text-destructive" onClick={() => void handleLogout()}>
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -400,15 +323,37 @@ export function AppShell({
           </Alert>
         )}
 
-        <main className="flex-1 overflow-auto bg-muted/30 p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto bg-muted/30 p-4 pb-24 md:p-6">{children}</main>
       </div>
 
-      <SettingsOverlay
-        open={settingsOpen}
-        section={settingsSection}
-        onOpenChange={setSettingsOpen}
-        onSectionChange={setSettingsSection}
-      />
+      <nav
+        aria-label="Primary navigation"
+        className="fixed inset-x-0 bottom-0 z-50 flex min-h-16 gap-1 overflow-x-auto border-t border-white/10 bg-[var(--steward-bg)] px-2 py-1.5 md:hidden"
+      >
+        {primaryNav.map((item) => {
+          const isActive = activeView === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => goToView(item.id)}
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-11 min-w-[64px] flex-col items-center justify-center gap-1 rounded-lg px-2 text-[10px] font-medium",
+                isActive ? "bg-white/15 text-white" : "text-slate-400",
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span>{item.label}</span>
+              {item.badge ? (
+                <span className="absolute right-1 top-1 rounded-full bg-red-700 px-1 text-[9px] text-white">
+                  {item.badge > 9 ? "9+" : item.badge}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
