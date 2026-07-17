@@ -20,12 +20,12 @@ function MarketingHeader() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-[var(--steward-steel)]/40 bg-[var(--steward-surface)]">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-3 shrink-0">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+          <Link to="/" className="flex min-w-0 shrink items-center gap-3">
             <StewardLogo variant="mark" size={36} />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-[var(--steward-silver)]">{APP_NAME}</span>
-              <span className="text-xs text-[var(--steward-steel)]">{APP_SHORT_TAGLINE}</span>
+              <span className="hidden text-xs text-[var(--steward-steel)] lg:block">{APP_SHORT_TAGLINE}</span>
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
@@ -39,16 +39,16 @@ function MarketingHeader() {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <Link
               to="/auth"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="hidden min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
             >
               Login
             </Link>
             <Button
               type="button"
-              className="bg-[var(--steward-blue)] text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90"
+              className="min-h-11 bg-[var(--steward-blue)] px-3 text-[var(--steward-silver)] hover:bg-[var(--steward-blue)]/90 sm:px-4"
               onClick={openSignUp}
             >
               Get started
