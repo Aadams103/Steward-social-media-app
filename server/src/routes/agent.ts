@@ -11,6 +11,7 @@
 
 import type { Response } from 'express';
 import { z } from 'zod';
+import { isWorkerEnabled } from '../config.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { getSupabaseClient } from '../supabase.js';
 import { isSupabaseServiceConfigured } from '../services/steward-db.js';
@@ -144,7 +145,7 @@ export async function getAgentStatusHandler(req: AuthenticatedRequest, res: Resp
 
     res.json({
       status: {
-        worker_enabled: process.env.AGENT_WORKER_ENABLED === 'true',
+        worker_enabled: isWorkerEnabled('AGENT_WORKER_ENABLED'),
         last_run: lastRun.data ?? null,
         rules: rules.data ?? [],
       },

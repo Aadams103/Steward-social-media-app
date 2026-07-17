@@ -5,11 +5,12 @@
  * claim_due_publish_jobs RPC (FOR UPDATE SKIP LOCKED — no double-processing)
  * and publishes them sequentially through the platform adapters.
  *
- * Disabled unless PUBLISH_WORKER_ENABLED=true. Requires the Supabase service
- * role client; tokens never leave the backend.
+ * Enabled by default in production. Requires the Supabase service client;
+ * tokens never leave the backend.
  */
 
 import cron, { type ScheduledTask } from 'node-cron';
+import { isWorkerEnabled } from '../config.js';
 import { getSupabaseClient } from '../supabase.js';
 import {
   publishPost,
@@ -334,12 +335,12 @@ async function tick(): Promise<void> {
 }
 
 /**
- * Starts the cron-based scheduler. No-op unless PUBLISH_WORKER_ENABLED=true.
- * Idempotent so dev/watch restarts don't stack intervals.
+ * Starts the cron-based scheduler. Enabled by default in production and
+ * disabled by default elsewhere; PUBLISH_WORKER_ENABLED overrides either.
  */
 export function startScheduler(): void {
-  if (process.env.PUBLISH_WORKER_ENABLED !== 'true') {
-    console.log('[scheduler] PUBLISH_WORKER_ENABLED is not "true"; publishing worker disabled');
+  if (!isWorkerEnabled('PUBLISH_WORKER_ENABLED')) {
+    console.log('[scheduler] Publishing worker disabled by environment configuration');
     return;
   }
   if (task) {
@@ -347,7 +348,7 @@ export function startScheduler(): void {
     return;
   }
   if (!getSupabaseClient()) {
-    console.error('[scheduler] Cannot start: SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured');
+    console.error('[scheduler] Cannot start: SUPABASE_URL and a Supabase secret key are not configured');
     return;
   }
   task = cron.schedule('* * * * *', () => {

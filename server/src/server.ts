@@ -3779,7 +3779,9 @@ app.get('/api/health', async (req, res) => {
   };
   if (
     process.env.SUPABASE_URL &&
-    (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+    (process.env.SUPABASE_SECRET_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_SERVICE_KEY)
   ) {
     const { checkSupabaseConnection } = await import('./supabase.js');
     payload.supabase = await checkSupabaseConnection();
@@ -3982,10 +3984,10 @@ const PORT = Number(process.env.PORT) || 3000;
 logAiGatewayStartupStatus();
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
-  // Scheduled publishing worker (no-op unless PUBLISH_WORKER_ENABLED=true)
+  // Scheduled publishing worker (enabled by default in production)
   startScheduler();
-  // Verified Meta analytics ingestion worker (no-op unless ANALYTICS_WORKER_ENABLED=true)
+  // Verified Meta analytics ingestion worker (enabled by default in production)
   startAnalyticsWorker();
-  // AI agent worker (no-op unless AGENT_WORKER_ENABLED=true)
+  // AI agent worker (enabled by default in production)
   startAgentWorker();
 });

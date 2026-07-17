@@ -14,7 +14,12 @@ const oauthStatesMemory = new Map<string, { brandId: string; purpose: string; pr
 export function getSupabaseClient(): SupabaseClient | null {
   if (_client) return _client;
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key =
+    process.env.SUPABASE_SECRET_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    // Temporary compatibility for the existing Railway service. Remove after
+    // the deployment variable has been renamed to SUPABASE_SECRET_KEY.
+    process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) return null;
   _client = createClient(url, key, { auth: { persistSession: false } });
   return _client;

@@ -1,4 +1,5 @@
 import cron, { type ScheduledTask } from 'node-cron';
+import { isWorkerEnabled } from '../config.js';
 import { getSupabaseClient } from '../supabase.js';
 
 const GRAPH_VERSION = process.env.META_GRAPH_API_VERSION ?? 'v25.0';
@@ -310,8 +311,8 @@ export async function syncMetaAnalytics(): Promise<{
 }
 
 export function startAnalyticsWorker(): void {
-  if (process.env.ANALYTICS_WORKER_ENABLED !== 'true') {
-    console.log('[analytics-worker] ANALYTICS_WORKER_ENABLED is not "true"; metrics worker disabled');
+  if (!isWorkerEnabled('ANALYTICS_WORKER_ENABLED')) {
+    console.log('[analytics-worker] Metrics worker disabled by environment configuration');
     return;
   }
   if (task) return;
