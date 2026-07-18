@@ -54,6 +54,64 @@ function requireMetaConfig(): { appId: string; appSecret: string; redirectUri: s
   return { appId, appSecret, redirectUri: `${base.replace(/\/$/, '')}/api/oauth/meta/callback` };
 }
 
+function configuredFrontendOrigins(): string[] {
+  const configured = [process.env.FRONTEND_URL, ...(process.env.FRONTEND_URLS ?? '').split(',')]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  return configured.flatMap((value) => {
+    try {
+      return [new URL(value).origin];
+    } catch {
+      return [];
+    }
+  });
+}
+
+export function validateMetaReturnOrigin(value?: string): string {
+  const fallback = configuredFrontendOrigins()[0]
+    ?? (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
+  const requested = value ?? fallback;
+  if (!requested) {
+    const error = new Error('INVALID_RETURN_ORIGIN');
+    (error as Error & { code: string }).code = 'INVALID_RETURN_ORIGIN';
+    throw error;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(requested);
+  } catch {
+    const error = new Error('INVALID_RETURN_ORIGIN');
+    (error as Error & { code: string }).code = 'INVALID_RETURN_ORIGIN';
+    throw error;
+  }
+  if (parsed.origin !== requested.replace(/\/$/, '') || parsed.username || parsed.password) {
+    const error = new Error('INVALID_RETURN_ORIGIN');
+    (error as Error & { code: string }).code = 'INVALID_RETURN_ORIGIN';
+    throw error;
+  }
+
+  const exactOrigins = new Set(configuredFrontendOrigins());
+  const previewSuffix = process.env.VERCEL_PREVIEW_SUFFIX?.trim().toLowerCase();
+  const previewPrefix = process.env.VERCEL_PREVIEW_PROJECT_PREFIX?.trim().toLowerCase();
+  const hostname = parsed.hostname.toLowerCase();
+  const isApprovedPreview = Boolean(
+    previewSuffix
+      && parsed.protocol === 'https:'
+      && hostname.endsWith(`-${previewSuffix}`)
+      && (!previewPrefix || hostname.startsWith(previewPrefix)),
+  );
+  const isLocalDevelopment = process.env.NODE_ENV !== 'production'
+    && ['localhost', '127.0.0.1'].includes(hostname)
+    && ['http:', 'https:'].includes(parsed.protocol);
+  if (!exactOrigins.has(parsed.origin) && !isApprovedPreview && !isLocalDevelopment) {
+    const error = new Error('INVALID_RETURN_ORIGIN');
+    (error as Error & { code: string }).code = 'INVALID_RETURN_ORIGIN';
+    throw error;
+  }
+  return parsed.origin;
+}
+
 function metaUserMessage(code?: number): string {
   if (code === 190) return 'Your Meta session expired. Reconnect the account and try again.';
   if (code === 10 || code === 200) return 'Meta did not grant the required Page or Instagram permissions.';
@@ -111,9 +169,8 @@ function safeCandidates(pages: MetaPage[]): MetaCandidate[] {
   });
 }
 
-function callbackHtml(sessionId: string): string {
-  const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-  const frontendOrigin = new URL(frontend).origin;
+function callbackHtml(sessionId: string, returnOrigin: string): string {
+  const frontendOrigin = validateMetaReturnOrigin(returnOrigin);
   const fallback = new URL('/app', frontendOrigin);
   fallback.searchParams.set('metaSelection', sessionId);
   return `<!doctype html><html><head><meta charset="utf-8"><title>Steward · Meta connected</title></head><body style="font-family:system-ui;background:#0b1530;color:#fff;display:grid;place-items:center;min-height:100vh"><main><h1>Choose your accounts in Steward</h1><p>This window will close automatically.</p></main><script>if(window.opener){window.opener.postMessage({type:'steward:meta-selection',sessionId:${JSON.stringify(sessionId)}},${JSON.stringify(frontendOrigin)});window.close()}else{window.location.replace(${JSON.stringify(fallback.toString())})}</script></body></html>`;
@@ -137,6 +194,10 @@ function oauthError(res: Response, err: unknown): void {
     res.status(403).json({ code: 'FORBIDDEN', message: 'You cannot manage connections for this workspace.' });
     return;
   }
+  if (code === 'INVALID_RETURN_ORIGIN') {
+    res.status(400).json({ code: 'INVALID_RETURN_ORIGIN', message: 'Return to Steward from an approved application address.' });
+    return;
+  }
   if (err instanceof Error && err.message === 'META_NOT_CONFIGURED') {
     res.status(503).json({ code: 'META_NOT_CONFIGURED', message: 'Meta connection settings are not configured.' });
     return;
@@ -156,6 +217,7 @@ export async function initiateMetaOAuthHandler(req: AuthenticatedRequest, res: R
       platform: z.enum(['facebook', 'instagram']).optional(),
       organizationId: z.string().uuid(),
       brandId: z.string().uuid(),
+      returnOrigin: z.string().url().optional(),
     }).parse(req.body);
     const role = await assertWorkspaceAccess(userId, body.organizationId, body.brandId);
     if (!getPermissions(role).canManageWorkspace && !['editor', 'strategist'].includes(role)) {
@@ -164,6 +226,7 @@ export async function initiateMetaOAuthHandler(req: AuthenticatedRequest, res: R
       throw error;
     }
     const config = requireMetaConfig();
+    const returnOrigin = validateMetaReturnOrigin(body.returnOrigin);
     const state = randomBytes(32).toString('base64url');
     const nonce = randomBytes(24).toString('base64url');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -176,6 +239,7 @@ export async function initiateMetaOAuthHandler(req: AuthenticatedRequest, res: R
       provider: 'meta',
       nonce,
       redirect_uri: config.redirectUri,
+      return_origin: returnOrigin,
       expires_at: expiresAt,
     });
     if (error) throw error;
@@ -193,7 +257,6 @@ export async function initiateMetaOAuthHandler(req: AuthenticatedRequest, res: R
       'instagram_basic',
       'instagram_content_publish',
       'instagram_manage_insights',
-      'business_management',
     ].join(','));
 
     res.status(201).json({
@@ -250,7 +313,7 @@ export async function metaOAuthCallbackHandler(req: AuthenticatedRequest, res: R
       p_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
     if (sessionError || !sessionId) throw sessionError ?? new Error('OAUTH_SESSION_EMPTY');
-    res.type('html').send(callbackHtml(String(sessionId)));
+    res.type('html').send(callbackHtml(String(sessionId), validateMetaReturnOrigin(state.return_origin)));
   } catch (err) {
     if (err instanceof MetaApiError) return void res.status(400).send(err.userMessage);
     if (err instanceof z.ZodError) return void res.status(400).send('The connection response is invalid. Start again in Steward.');

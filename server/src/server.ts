@@ -63,6 +63,7 @@ import {
   listSupabasePostsHandler,
   rejectPostHandler,
   requestChangesPostHandler,
+  publishApprovedPostHandler,
   scheduleApprovedPostHandler,
   sendToReviewPostHandler,
   updatePostDraftHandler,
@@ -97,6 +98,7 @@ import {
   listSocialConnectionsHandler,
   metaOAuthCallbackHandler,
 } from './routes/oauth-meta.js';
+import { checkUserAccess, getProductionReadiness } from './config.js';
 
 const app = express();
 const server = createServer(app);
@@ -104,15 +106,32 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 const DEMO_DATA_ENABLED = process.env.NODE_ENV !== 'production' && process.env.STEWARD_ENABLE_DEMO_DATA === 'true';
 
 // CORS: allow Vercel frontend and local dev/preview; credentials for cookies/auth
-const allowedOrigins: (string | RegExp)[] = [
+const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  process.env.FRONTEND_URL, // Set in Railway variables
-  /^https:\/\/.*\.vercel\.app$/, // Allow all Vercel preview URLs
-].filter((o): o is string | RegExp => o != null);
+  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_URLS ?? '').split(',').map((value) => value.trim()),
+].filter((origin): origin is string => Boolean(origin));
+const previewSuffix = process.env.VERCEL_PREVIEW_SUFFIX?.trim().toLowerCase();
+const previewPrefix = process.env.VERCEL_PREVIEW_PROJECT_PREFIX?.trim().toLowerCase();
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    return Boolean(
+      previewSuffix
+        && parsed.protocol === 'https:'
+        && host.endsWith(`-${previewSuffix}`)
+        && (!previewPrefix || host.startsWith(previewPrefix)),
+    );
+  } catch {
+    return false;
+  }
+}
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -452,8 +471,16 @@ app.post('/api/posts', (req, res) => {
 // META OAUTH API
 // ============================================================================
 
+// The former Meta routes are intentionally unreachable while older clients migrate.
+app.get('/api/legacy-disabled/oauth/meta/start', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_OAUTH_REMOVED', message: 'Use the secure Meta connection flow.' });
+});
+app.get('/api/legacy-disabled/oauth/meta/callback', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_OAUTH_REMOVED', message: 'Use the secure Meta connection flow.' });
+});
+
 // POST /api/oauth/meta/start?brandId=...&purpose=facebook|instagram
-app.get('/api/oauth/meta/start', async (req, res) => {
+app.get('/api/legacy-disabled/oauth/meta/start', async (req, res) => {
   if (!META_APP_ID || !META_APP_SECRET) {
     return res.status(500).json({ 
       code: 'META_NOT_CONFIGURED', 
@@ -495,7 +522,7 @@ app.get('/api/oauth/meta/start', async (req, res) => {
 });
 
 // GET /api/oauth/meta/callback?code=...&state=...
-app.get('/api/oauth/meta/callback', async (req, res) => {
+app.get('/api/legacy-disabled/oauth/meta/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error) {
@@ -865,7 +892,10 @@ app.post('/api/posts/:id/approve', (req, res) => {
 });
 
 // POST /api/posts/:id/publish
-app.post('/api/posts/:id/publish', (req, res) => {
+app.post('/api/legacy-disabled/posts/:id/publish', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_PUBLISH_REMOVED', message: 'Use the approval-backed publishing queue.' });
+});
+app.post('/api/legacy-disabled/posts/:id/publish', (req, res) => {
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   
@@ -3767,16 +3797,19 @@ app.get('/api/email/triage', (req, res) => {
 
 // GET /health - minimal health for load balancers / platforms that expect /health
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  const readiness = getProductionReadiness();
+  res.status(readiness.ready ? 200 : 503).json({ ok: readiness.ready });
 });
 
 // GET /api/health
-app.get('/api/health', async (req, res) => {
-  const payload: { ok: boolean; time: string; version: string; supabase?: string } = {
-    ok: true,
+app.get('/api/health', async (_req, res) => {
+  const readiness = getProductionReadiness();
+  const payload: { ok: boolean; time: string; version: string; supabase?: string; missing?: string[] } = {
+    ok: readiness.ready,
     time: new Date().toISOString(),
     version: '1.0.0',
   };
+  if (!readiness.ready) payload.missing = readiness.missing;
   if (
     process.env.SUPABASE_URL &&
     (process.env.SUPABASE_SECRET_KEY ||
@@ -3785,14 +3818,36 @@ app.get('/api/health', async (req, res) => {
   ) {
     const { checkSupabaseConnection } = await import('./supabase.js');
     payload.supabase = await checkSupabaseConnection();
+    if (payload.supabase !== 'connected') payload.ok = false;
   }
-  res.json(payload);
+  res.status(payload.ok ? 200 : 503).json(payload);
 });
 
-// GET /api/me - used by auth validateToken; returns minimal user for 200 (auth middleware runs first)
-app.get('/api/me', (req: AuthenticatedRequest, res) => {
-  const user = req.user ?? { id: 'dev-user', email: 'dev@localhost' };
-  res.json({ id: user.id, email: user.email ?? 'dev@localhost' });
+// GET /api/me - verified identity, owner access, and the real Supabase profile.
+app.get('/api/me', async (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+  if (!user) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+  const client = getSupabaseClient();
+  if (!client) return void res.status(503).json({ code: 'SUPABASE_NOT_CONFIGURED', message: 'Profile storage is unavailable' });
+  const { data: profile, error } = await client
+    .from('profiles')
+    .select('id, email, display_name, full_name, avatar_url')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (error) return void res.status(500).json({ code: 'PROFILE_READ_ERROR', message: 'Your profile could not be loaded.' });
+  const access = checkUserAccess(user.id);
+  res.json({
+    id: user.id,
+    email: profile?.email ?? user.email ?? null,
+    profile: profile ? {
+      id: profile.id,
+      email: profile.email ?? user.email ?? null,
+      displayName: profile.display_name ?? null,
+      fullName: profile.full_name ?? null,
+      avatarUrl: profile.avatar_url ?? null,
+    } : null,
+    ownerAccess: { mode: access.mode, allowed: access.allowed },
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3918,6 +3973,9 @@ app.post('/api/posts/:id/send-to-review', (req, res) => {
 });
 app.post('/api/posts/:id/schedule', (req, res) => {
   void scheduleApprovedPostHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/posts/:id/publish', (req, res) => {
+  void publishApprovedPostHandler(req as AuthenticatedRequest, res);
 });
 
 // ============================================================================

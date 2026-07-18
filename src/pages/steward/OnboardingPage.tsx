@@ -6,6 +6,7 @@ import { PENDING_ORGANIZATION_NAME_KEY } from "@/auth/signup";
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { persistWorkspaceSelection } from "@/hooks/use-current-workspace";
 import { assetsApi, brandContextV1Api, workspaceApi } from "@/sdk/services/api-services";
+import { ApiRequestError } from "@/sdk/core/api-client";
 import type { BrandContextV1 } from "@/types/steward";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,21 @@ function platformButtonClass(selected: boolean): string {
   return selected
     ? "min-h-11 rounded-lg border border-primary bg-primary/10 px-4 text-sm font-medium text-primary"
     : "min-h-11 rounded-lg border border-border bg-background px-4 text-sm font-medium text-muted-foreground hover:border-primary/50";
+}
+
+function onboardingErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiRequestError)) {
+    return error instanceof Error ? error.message : "Setup could not continue.";
+  }
+  if (error.statusCode === 403) return "This account is not allowed to create the owner workspace.";
+  if (error.code === "SUPABASE_NOT_CONFIGURED" || error.code === "OWNER_ACCESS_NOT_CONFIGURED" || error.statusCode === 503) {
+    return "The secure backend is not configured yet. Finish the Railway deployment, then try again.";
+  }
+  if (error.statusCode === 404) {
+    return "The deployed backend is out of date and does not include workspace setup yet.";
+  }
+  if ((error.statusCode ?? 0) >= 500) return "The server could not create the workspace. Nothing was lost; try again after checking backend health.";
+  return error.message;
 }
 
 export function OnboardingPage() {
@@ -235,7 +251,7 @@ export function OnboardingPage() {
       if (step === 0) await bootstrapWorkspace();
       if (step < STEPS.length - 1) setStep((current) => current + 1);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Setup could not continue.");
+      setError(onboardingErrorMessage(nextError));
     } finally {
       setSaving(false);
     }
@@ -285,7 +301,7 @@ export function OnboardingPage() {
       toast.success("Your brand is ready for Steward");
       void navigate({ to: "/app" });
     } catch (finishError) {
-      setError(finishError instanceof Error ? finishError.message : "Brand setup could not be saved.");
+      setError(onboardingErrorMessage(finishError));
     } finally {
       setSaving(false);
     }

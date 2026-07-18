@@ -4,6 +4,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
+import { checkUserAccess, isDevelopmentIdentityEnabled } from '../config.js';
 import { getSupabaseClient } from '../supabase.js';
 
 export interface AuthenticatedRequest extends Request {
@@ -16,9 +17,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
 
   const supabase = getSupabaseClient();
   if (!supabase) {
-    const explicitDevelopmentMode =
-      process.env.NODE_ENV !== 'production' && process.env.STEWARD_ENABLE_DEMO_DATA === 'true';
-    if (explicitDevelopmentMode) {
+    if (isDevelopmentIdentityEnabled()) {
       req.user = { id: '00000000-0000-0000-0000-000000000001', email: 'dev@localhost' };
       next();
       return;
@@ -42,6 +41,21 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
         res.status(401).json({
           code: 'UNAUTHENTICATED',
           message: error?.message || 'Invalid or expired token',
+        });
+        return;
+      }
+      const access = checkUserAccess(user.id);
+      if (!access.configured) {
+        res.status(503).json({
+          code: 'OWNER_ACCESS_NOT_CONFIGURED',
+          message: 'Owner access is not configured on this server.',
+        });
+        return;
+      }
+      if (!access.allowed) {
+        res.status(403).json({
+          code: 'ACCESS_NOT_ALLOWED',
+          message: 'Steward is currently a private owner-only build.',
         });
         return;
       }

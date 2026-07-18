@@ -80,6 +80,17 @@ export function AppShell({
   const setActiveView = useAppStore((state) => state.setActiveView);
   const navigate = useNavigate();
   const workspace = useCurrentWorkspace();
+  const profileEmail = workspace.profile?.email ?? workspace.user?.email ?? null;
+  const profileName = workspace.profile?.fullName
+    ?? workspace.profile?.displayName
+    ?? profileEmail?.split("@")[0]
+    ?? APP_NAME;
+  const profileInitials = profileName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "S";
 
   const goToView = React.useCallback(
     (view: string) => {
@@ -284,18 +295,19 @@ export function AppShell({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" aria-label="Account menu">
                   <Avatar className="h-8 w-8">
+                    <AvatarImage src={workspace.profile?.avatarUrl ?? undefined} alt={profileName} />
                     <AvatarFallback>
-                      <User className="h-4 w-4" />
+                      {profileInitials || <User className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <span className="block">{APP_NAME}</span>
-                  {workspace.user?.email ? (
+                  <span className="block">{profileName}</span>
+                  {profileEmail ? (
                     <span className="block truncate text-xs font-normal text-muted-foreground">
-                      {workspace.user.email}
+                      {profileEmail}
                     </span>
                   ) : null}
                 </DropdownMenuLabel>

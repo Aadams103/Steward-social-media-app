@@ -100,10 +100,15 @@ export const postsApi = {
 
   delete: (id: string) => apiClient.delete<void>(`${API_BASE}/posts/${id}`),
 
-  publish: (id: string) => apiClient.post<PublishJob>(`${API_BASE}/posts/${id}/publish`),
+  publish: (id: string, body: { organizationId: string; socialAccountIds?: string[] }) =>
+    apiClient.post<{ post: Post; publishJobs: PublishJob[] }>(`${API_BASE}/posts/${id}/publish`, body),
 
-  schedule: (id: string, scheduledTime: Date) =>
-    apiClient.post<Post>(`${API_BASE}/posts/${id}/schedule`, { scheduledTime }),
+  schedule: (id: string, body: {
+    organizationId: string;
+    scheduledTime: string;
+    timezone?: string;
+    socialAccountIds?: string[];
+  }) => apiClient.post<{ post: Post; publishJobs: PublishJob[] }>(`${API_BASE}/posts/${id}/schedule`, body),
 
   approve: (id: string, body?: { organizationId: string }) =>
     apiClient.post<Post>(`${API_BASE}/posts/${id}/approve`, body),
@@ -283,6 +288,7 @@ export const oauthApi = {
       platform,
       organizationId,
       brandId,
+      returnOrigin: typeof window === 'undefined' ? undefined : window.location.origin,
     }),
 
   callback: (state: string, code: string) =>
@@ -915,6 +921,23 @@ export const dashboardApi = {
 // ============================================================================
 // WORKSPACE
 // ============================================================================
+
+export interface CurrentIdentityResponse {
+  id: string;
+  email: string | null;
+  profile: {
+    id: string;
+    email: string | null;
+    displayName: string | null;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  ownerAccess: { mode: 'owner' | 'open'; allowed: boolean };
+}
+
+export const identityApi = {
+  me: () => apiClient.get<CurrentIdentityResponse>(`${API_BASE}/me`, undefined, { maxRetries: 0 }),
+};
 
 export interface WorkspacePermissions {
   canReadAiJobs: boolean;

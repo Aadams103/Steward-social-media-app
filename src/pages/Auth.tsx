@@ -14,27 +14,32 @@ export function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(() => {
+    const stored = sessionStorage.getItem("steward_auth_error");
+    if (stored) sessionStorage.removeItem("steward_auth_error");
+    return stored;
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     void supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) {
+      if (active && data.session && !message) {
         void navigate({ to: "/app" });
       }
     });
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [message, navigate]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
 
     setMessage(null);
+    sessionStorage.removeItem("steward_auth_error");
     setIsLoading(true);
     try {
       await loginWithEmail(email.trim().toLowerCase(), password);
@@ -65,7 +70,7 @@ export function AuthPage() {
             <div>
               <CardTitle className="text-2xl">Welcome back</CardTitle>
               <CardDescription className="mt-2">
-                Log in to manage your brands, content, approvals, and publishing.
+                Private build—owner access only. Log in to manage content, approvals, and publishing.
               </CardDescription>
             </div>
           </CardHeader>
@@ -128,10 +133,7 @@ export function AuthPage() {
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                New to Steward?{" "}
-                <Link to="/" className="font-medium text-primary hover:underline">
-                  Create your workspace
-                </Link>
+                New accounts will open after the private owner launch is complete.
               </p>
             </form>
           </CardContent>

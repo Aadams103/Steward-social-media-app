@@ -33,6 +33,7 @@ import {
   type BusinessScheduleTemplate,
   type CalendarItem,
 } from '@/sdk/services/api-services';
+import { getCurrentWorkspace } from '@/hooks/use-current-workspace';
 import type {
   Post,
   Campaign,
@@ -143,11 +144,15 @@ export function useBulkCreatePosts(
   });
 }
 
-export function usePublishPost(options?: UseMutationOptions<PublishJob, Error, string>) {
+export function usePublishPost(options?: UseMutationOptions<{ post: Post; publishJobs: PublishJob[] }, Error, string>) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: postsApi.publish,
+    mutationFn: (id: string) => {
+      const workspace = getCurrentWorkspace();
+      if (!workspace?.organizationId) throw new Error('Complete workspace setup before publishing.');
+      return postsApi.publish(id, { organizationId: workspace.organizationId });
+    },
     onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['posts', id] });

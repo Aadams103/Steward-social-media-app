@@ -50,7 +50,10 @@ function mapPostSummary(row: Record<string, unknown>) {
     approvalState: row.approval_state,
     content: row.content,
     title: row.title,
+    hashtags: row.hashtags ?? [],
+    mediaAssetIds: row.media_asset_ids ?? [],
     scheduledTime: row.scheduled_time,
+    publishedId: row.published_id,
     updatedAt: row.updated_at,
   };
 }
@@ -101,6 +104,7 @@ async function createPublishJobsForPost(input: {
   userId: string;
   scheduledAt: string;
   socialAccountIds?: string[];
+  idempotencyScope?: string;
 }): Promise<Record<string, unknown>[]> {
   const client = getSupabaseClient()!;
   const brandId = input.post.brand_id as string | null;
@@ -117,10 +121,39 @@ async function createPublishJobsForPost(input: {
   const { data: accounts, error: accountsError } = await accountsQuery;
   if (accountsError) throw accountsError;
   if (!accounts?.length) return [];
+  if (input.socialAccountIds?.length) {
+    const requestedCount = new Set(input.socialAccountIds).size;
+    if (accounts.length !== requestedCount) {
+      const error = new Error('One or more selected social accounts do not belong to this brand.');
+      (error as Error & { code: string }).code = 'INVALID_SOCIAL_ACCOUNT';
+      throw error;
+    }
+  }
+
+  const mediaAssetIds = (input.post.media_asset_ids as string[] | null) ?? [];
+  const platform = String(input.post.platform);
+  const requestedFormat = String((input.post.metadata as Record<string, unknown> | null)?.format ?? '').toLowerCase();
+  const format = requestedFormat === 'single' || requestedFormat === 'image'
+    ? 'single_image'
+    : requestedFormat === 'video' && platform === 'instagram'
+      ? 'reel'
+      : requestedFormat || (platform === 'instagram' ? 'single_image' : 'text');
+  if (platform === 'instagram') {
+    if (mediaAssetIds.length === 0) {
+      const error = new Error('Instagram publishing requires at least one approved image or video.');
+      (error as Error & { code: string }).code = 'INSTAGRAM_MEDIA_REQUIRED';
+      throw error;
+    }
+    if (!['single_image', 'carousel', 'reel'].includes(format)) {
+      const error = new Error('This Instagram format is not supported for publishing.');
+      (error as Error & { code: string }).code = 'UNSUPPORTED_INSTAGRAM_FORMAT';
+      throw error;
+    }
+  }
 
   const jobs: Record<string, unknown>[] = [];
   for (const account of accounts) {
-    const idempotencyKey = `${input.post.id}:${account.id}:${input.scheduledAt}`;
+    const idempotencyKey = `${input.post.id}:${account.id}:${input.idempotencyScope ?? input.scheduledAt}`;
     const payload = {
       organization_id: input.organizationId,
       brand_id: brandId,
@@ -137,8 +170,9 @@ async function createPublishJobsForPost(input: {
         postId: input.post.id,
         text: input.post.main_caption ?? input.post.content,
         hashtags: input.post.hashtags ?? [],
-        mediaAssetIds: input.post.media_asset_ids ?? [],
-        format: (input.post.metadata as Record<string, unknown> | null)?.format ?? undefined,
+        linkUrl: (input.post.metadata as Record<string, unknown> | null)?.linkUrl ?? undefined,
+        mediaAssetIds,
+        format,
       },
       metadata: { approvalFirst: true },
     };
@@ -226,31 +260,9 @@ export async function approvePostHandler(req: AuthenticatedRequest, res: Respons
       afterState: { status: 'approved', approval_state: 'approved' },
     });
 
-    let finalPost = updated as Record<string, unknown>;
-    let jobs: Record<string, unknown>[] = [];
-    if (post.scheduled_time) {
-      jobs = await createPublishJobsForPost({
-        post: updated as Record<string, unknown>,
-        organizationId: body.organizationId,
-        userId,
-        scheduledAt: String(post.scheduled_time),
-      });
-      if (jobs.length > 0) {
-        const { data: scheduledPost, error: scheduledError } = await client
-          .from('posts')
-          .update({ status: 'scheduled', updated_at: new Date().toISOString() })
-          .eq('id', post.id)
-          .select('*')
-          .single();
-        if (scheduledError) throw scheduledError;
-        finalPost = scheduledPost as Record<string, unknown>;
-      }
-    }
-
     res.json({
-      post: mapPostSummary(finalPost),
-      publishJobs: jobs,
-      warning: post.scheduled_time && jobs.length === 0 ? 'Connect a matching social account before this post can publish.' : undefined,
+      post: mapPostSummary(updated as Record<string, unknown>),
+      publishJobs: [],
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -280,7 +292,7 @@ export async function scheduleApprovedPostHandler(req: AuthenticatedRequest, res
       return void res.status(400).json({ code: 'SCHEDULE_IN_PAST', message: 'Choose a future publishing time.' });
     }
     const role = await assertWorkspaceAccess(userId, body.organizationId);
-    assertPermission(role, 'canEditPosts');
+    assertPermission(role, 'canPublish');
     const post = await getSupabasePost(req.params.id, body.organizationId);
     if (!post) return void res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
     if (post.status !== 'approved' || post.approval_state !== 'approved') {
@@ -328,8 +340,71 @@ export async function scheduleApprovedPostHandler(req: AuthenticatedRequest, res
   } catch (err) {
     if (err instanceof z.ZodError) return void res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Check the schedule and try again.', details: err.flatten() });
     if (err instanceof Error && (err as Error & { code?: string }).code === 'FORBIDDEN') return void res.status(403).json({ code: 'FORBIDDEN', message: err.message });
+    if (err instanceof Error && ['INVALID_SOCIAL_ACCOUNT', 'INSTAGRAM_MEDIA_REQUIRED', 'UNSUPPORTED_INSTAGRAM_FORMAT'].includes((err as Error & { code?: string }).code ?? '')) {
+      return void res.status(409).json({ code: (err as Error & { code: string }).code, message: err.message });
+    }
     console.error('Post schedule failed', err instanceof Error ? err.message : 'unknown error');
     res.status(500).json({ code: 'SCHEDULE_ERROR', message: 'The post could not be scheduled.' });
+  }
+}
+
+export async function publishApprovedPostHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!approvalGuard(res)) return;
+  const userId = req.user?.id;
+  if (!userId) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+
+  try {
+    const body = z.object({
+      organizationId: z.string().uuid(),
+      socialAccountIds: z.array(z.string().uuid()).min(1).max(20).optional(),
+    }).parse(req.body);
+    const role = await assertWorkspaceAccess(userId, body.organizationId);
+    assertPermission(role, 'canPublish');
+    const post = await getSupabasePost(req.params.id, body.organizationId);
+    if (!post) return void res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
+    if (post.status !== 'approved' || post.approval_state !== 'approved') {
+      return void res.status(409).json({ code: 'APPROVAL_REQUIRED', message: 'Approve this post before publishing it.' });
+    }
+
+    const queuedAt = new Date().toISOString();
+    const jobs = await createPublishJobsForPost({
+      post: post as Record<string, unknown>,
+      organizationId: body.organizationId,
+      userId,
+      scheduledAt: queuedAt,
+      socialAccountIds: body.socialAccountIds,
+      idempotencyScope: 'publish-now',
+    });
+    if (jobs.length === 0) {
+      return void res.status(409).json({ code: 'SOCIAL_ACCOUNT_REQUIRED', message: 'Connect a matching social account before publishing.' });
+    }
+
+    const client = getSupabaseClient()!;
+    const { data: updated, error } = await client.from('posts').update({
+      status: 'scheduled',
+      scheduled_time: queuedAt,
+      updated_at: queuedAt,
+    }).eq('id', post.id).select('*').single();
+    if (error) throw error;
+    await logAuditEvent({
+      organizationId: body.organizationId,
+      brandId: post.brand_id as string,
+      actorUserId: userId,
+      action: 'post.publish_now',
+      entityType: 'post',
+      entityId: post.id as string,
+      metadata: { publishJobIds: jobs.map((job) => job.id) },
+    });
+    res.status(202).json({ post: mapPostSummary(updated as Record<string, unknown>), publishJobs: jobs });
+  } catch (err) {
+    if (err instanceof z.ZodError) return void res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Choose a valid connected account.', details: err.flatten() });
+    const code = err instanceof Error ? (err as Error & { code?: string }).code : undefined;
+    if (code === 'FORBIDDEN') return void res.status(403).json({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : 'Forbidden' });
+    if (err instanceof Error && ['INVALID_SOCIAL_ACCOUNT', 'INSTAGRAM_MEDIA_REQUIRED', 'UNSUPPORTED_INSTAGRAM_FORMAT'].includes(code ?? '')) {
+      return void res.status(409).json({ code, message: err.message });
+    }
+    console.error('Post publish queue failed', err instanceof Error ? err.message : 'unknown error');
+    res.status(500).json({ code: 'PUBLISH_ERROR', message: 'The post could not be queued for publishing.' });
   }
 }
 
@@ -667,7 +742,9 @@ export async function listSupabasePostsHandler(req: AuthenticatedRequest, res: R
       status: row.status,
       approvalState: row.approval_state,
       hashtags: row.hashtags ?? [],
+      mediaAssetIds: row.media_asset_ids ?? [],
       scheduledTime: row.scheduled_time,
+      publishedId: row.published_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

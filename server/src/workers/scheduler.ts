@@ -24,6 +24,30 @@ const DEFAULT_BATCH_SIZE = 5;
 
 let task: ScheduledTask | null = null;
 let tickInProgress = false;
+let lastTickAt: string | null = null;
+let lastSuccessfulRunAt: string | null = null;
+let lastError: string | null = null;
+
+export function getPublishWorkerHealth(): {
+  enabled: boolean;
+  running: boolean;
+  ready: boolean;
+  tickInProgress: boolean;
+  lastTickAt: string | null;
+  lastSuccessfulRunAt: string | null;
+  lastError: string | null;
+} {
+  const enabled = isWorkerEnabled('PUBLISH_WORKER_ENABLED');
+  return {
+    enabled,
+    running: task !== null,
+    ready: enabled && task !== null && Boolean(getSupabaseClient()),
+    tickInProgress,
+    lastTickAt,
+    lastSuccessfulRunAt,
+    lastError,
+  };
+}
 
 function getBatchSize(): number {
   const parsed = Number(process.env.PUBLISH_WORKER_BATCH_SIZE);
@@ -306,6 +330,7 @@ async function processJob(job: PublishJobRow): Promise<void> {
 async function tick(): Promise<void> {
   if (tickInProgress) return;
   tickInProgress = true;
+  lastTickAt = new Date().toISOString();
   try {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -317,18 +342,28 @@ async function tick(): Promise<void> {
       limit_count: getBatchSize(),
     });
     if (error) {
+      lastError = error.message;
       console.error('[scheduler] Failed to claim due jobs:', error.message);
       return;
     }
 
     const claimed = (jobs ?? []) as PublishJobRow[];
-    if (claimed.length === 0) return;
+    if (claimed.length === 0) {
+      lastSuccessfulRunAt = new Date().toISOString();
+      lastError = null;
+      return;
+    }
     console.log(`[scheduler] Claimed ${claimed.length} due publish job(s)`);
 
     // Sequential on purpose: keeps platform rate limits manageable.
     for (const job of claimed) {
       await processJob(job);
     }
+    lastSuccessfulRunAt = new Date().toISOString();
+    lastError = null;
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
+    console.error('[scheduler] Unexpected worker error:', lastError);
   } finally {
     tickInProgress = false;
   }
@@ -354,6 +389,7 @@ export function startScheduler(): void {
   task = cron.schedule('* * * * *', () => {
     void tick();
   });
+  lastError = null;
   console.log(`[scheduler] Publishing worker started (batch size ${getBatchSize()}, every minute)`);
 }
 
