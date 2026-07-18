@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkUserAccess, getProductionReadiness, isDevelopmentIdentityEnabled, isWorkerEnabled, type WorkerFlag } from './config.js';
+import {
+  checkUserAccess,
+  getProductionReadiness,
+  getSupabaseServerCredentials,
+  isDevelopmentIdentityEnabled,
+  isWorkerEnabled,
+  type WorkerFlag,
+} from './config.js';
 
 const flags: WorkerFlag[] = [
   'PUBLISH_WORKER_ENABLED',
@@ -14,6 +21,7 @@ const accessVariables = [
   'SUPABASE_URL',
   'SUPABASE_SECRET_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_SERVICE_KEY',
   'STEWARD_ENABLE_DEMO_DATA',
 ] as const;
 const originalAccess = Object.fromEntries(accessVariables.map((key) => [key, process.env[key]]));
@@ -58,6 +66,15 @@ describe('owner access', () => {
     process.env.STEWARD_ACCESS_MODE = 'open';
     process.env.STEWARD_ENABLE_DEMO_DATA = 'true';
     expect(isDevelopmentIdentityEnabled()).toBe(false);
+  });
+
+  it('removes invisible byte-order marks and whitespace from Supabase credentials', () => {
+    process.env.SUPABASE_URL = '\uFEFF https://example.supabase.co \r\n';
+    process.env.SUPABASE_SECRET_KEY = '\uFEFFsb_secret_example';
+    expect(getSupabaseServerCredentials()).toEqual({
+      url: 'https://example.supabase.co',
+      key: 'sb_secret_example',
+    });
   });
 });
 

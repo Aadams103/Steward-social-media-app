@@ -5,19 +5,14 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseServerCredentials } from './config.js';
 import type { SocialAccount } from './types.js';
 
 let _client: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
   if (_client) return _client;
-  const url = process.env.SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SECRET_KEY ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    // Temporary compatibility for the existing Railway service. Remove after
-    // the deployment variable has been renamed to SUPABASE_SECRET_KEY.
-    process.env.SUPABASE_SERVICE_KEY;
+  const { url, key } = getSupabaseServerCredentials();
   if (!url || !key) return null;
   _client = createClient(url, key, { auth: { persistSession: false } });
   return _client;

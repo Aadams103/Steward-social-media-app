@@ -98,7 +98,7 @@ import {
   listSocialConnectionsHandler,
   metaOAuthCallbackHandler,
 } from './routes/oauth-meta.js';
-import { checkUserAccess, getProductionReadiness } from './config.js';
+import { checkUserAccess, getProductionReadiness, getSupabaseServerCredentials } from './config.js';
 
 const app = express();
 const server = createServer(app);
@@ -3810,12 +3810,8 @@ app.get('/api/health', async (_req, res) => {
     version: '1.0.0',
   };
   if (!readiness.ready) payload.missing = readiness.missing;
-  if (
-    process.env.SUPABASE_URL &&
-    (process.env.SUPABASE_SECRET_KEY ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SUPABASE_SERVICE_KEY)
-  ) {
+  const supabaseCredentials = getSupabaseServerCredentials();
+  if (supabaseCredentials.url && supabaseCredentials.key) {
     const { checkSupabaseConnection } = await import('./supabase.js');
     payload.supabase = await checkSupabaseConnection();
     if (payload.supabase !== 'connected') payload.ok = false;

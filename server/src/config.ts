@@ -12,6 +12,24 @@ export function isWorkerEnabled(flag: WorkerFlag): boolean {
 
 export type StewardAccessMode = 'owner' | 'open';
 
+function cleanEnvironmentValue(value: string | undefined): string | undefined {
+  const cleaned = value?.replace(/^[\s\uFEFF]+|[\s\uFEFF]+$/g, '');
+  return cleaned || undefined;
+}
+
+export function getSupabaseServerCredentials(): {
+  url?: string;
+  key?: string;
+} {
+  return {
+    url: cleanEnvironmentValue(process.env.SUPABASE_URL),
+    key:
+      cleanEnvironmentValue(process.env.SUPABASE_SECRET_KEY) ??
+      cleanEnvironmentValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ??
+      cleanEnvironmentValue(process.env.SUPABASE_SERVICE_KEY),
+  };
+}
+
 export function getAccessMode(): StewardAccessMode {
   const configured = process.env.STEWARD_ACCESS_MODE?.trim().toLowerCase();
   if (configured === 'open') return 'open';
@@ -49,10 +67,9 @@ export function getProductionReadiness(): { ready: boolean; missing: string[] } 
   if (process.env.NODE_ENV !== 'production') return { ready: true, missing: [] };
 
   const missing: string[] = [];
-  if (!process.env.SUPABASE_URL) missing.push('SUPABASE_URL');
-  if (!(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
-    missing.push('SUPABASE_SECRET_KEY');
-  }
+  const supabase = getSupabaseServerCredentials();
+  if (!supabase.url) missing.push('SUPABASE_URL');
+  if (!supabase.key) missing.push('SUPABASE_SECRET_KEY');
   if (getAccessMode() === 'owner' && getOwnerUserIds().size === 0) {
     missing.push('STEWARD_OWNER_USER_IDS');
   }
