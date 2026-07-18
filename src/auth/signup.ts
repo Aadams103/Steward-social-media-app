@@ -1,9 +1,12 @@
 import { supabase } from "../lib/supabaseClient";
 
+export const PENDING_ORGANIZATION_NAME_KEY = "steward_pending_organization_name";
+
 export async function signUpWithEmail(
 	email: string,
 	password: string,
 	fullName?: string,
+	organizationName?: string,
 ) {
 	if (!supabase) {
 		throw new Error("Supabase client not initialized");
@@ -13,9 +16,18 @@ export async function signUpWithEmail(
 		email,
 		password,
 		options: {
-			data: fullName
-				? { full_name: fullName, display_name: fullName }
-				: undefined,
+			emailRedirectTo:
+				typeof window === "undefined"
+					? undefined
+					: `${window.location.origin}/auth`,
+			data:
+				fullName || organizationName
+					? {
+							full_name: fullName,
+							display_name: fullName,
+							organization_name: organizationName,
+						}
+					: undefined,
 		},
 	});
 

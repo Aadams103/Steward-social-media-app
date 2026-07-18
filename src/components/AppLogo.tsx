@@ -1,13 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useCurrentBrand } from "@/hooks/use-api";
 
 /**
  * AppLogo Component
  * 
  * Renders brand logo with fallback to Steward logo.
  * Supports both lockup (logo + wordmark) and mark (icon only) variants.
- * Automatically selects light/dark assets based on theme.
+ * Automatically selects light/dark assets based on theme. A brand logo can be
+ * supplied explicitly by authenticated surfaces without making API requests
+ * from public marketing or authentication pages.
  * 
  * @param variant - "lockup" (full logo) or "mark" (icon only)
  * @param theme - "light" (for dark UI) or "dark" (for light UI)
@@ -22,7 +23,7 @@ interface AppLogoProps {
   theme?: "light" | "dark";
   /** Height in pixels. Width scales to preserve aspect ratio. */
   size?: number;
-  /** Optional brand logo URL (overrides active brand from store) */
+  /** Optional brand logo URL supplied by an authenticated parent surface */
   brandLogoUrl?: string;
   /** Additional CSS classes */
   className?: string;
@@ -35,39 +36,7 @@ export function AppLogo({
   brandLogoUrl: propBrandLogoUrl,
   className,
 }: AppLogoProps) {
-  const { data: currentBrand } = useCurrentBrand();
   const [imageError, setImageError] = useState(false);
-
-  // Determine which brand logo URL to use
-  const brandLogoUrl = useMemo(() => {
-    if (propBrandLogoUrl) return propBrandLogoUrl;
-    // Check if currentBrand has logoUrl
-    const brand = currentBrand;
-    if (brand?.logoUrl) {
-      return brand.logoUrl;
-    }
-    // Fallback to avatarUrl if logoUrl doesn't exist
-    if (brand?.avatarUrl) {
-      return brand.avatarUrl;
-    }
-    return null;
-  }, [propBrandLogoUrl, currentBrand]);
-
-  // Add cache-busting if brand has logoUpdatedAt or updatedAt
-  const brandLogoUrlWithCache = useMemo(() => {
-    if (!brandLogoUrl) return null;
-    const brand = currentBrand;
-    // Prefer logoUpdatedAt if available, otherwise use updatedAt
-    const timestampField = (brand as any)?.logoUpdatedAt || brand?.updatedAt;
-    if (timestampField) {
-      const timestamp = timestampField instanceof Date 
-        ? timestampField.getTime() 
-        : new Date(timestampField).getTime();
-      const separator = brandLogoUrl.includes('?') ? '&' : '?';
-      return `${brandLogoUrl}${separator}v=${timestamp}`;
-    }
-    return brandLogoUrl;
-  }, [brandLogoUrl, currentBrand]);
 
   const stewardFallback =
     variant === "mark"
@@ -77,8 +46,8 @@ export function AppLogo({
       : theme === "light"
         ? "/brand/steward/steward-lockup-silver.svg"
         : "/brand/steward/steward-lockup-navy.svg";
-  const logoSrc = brandLogoUrlWithCache && !imageError 
-    ? brandLogoUrlWithCache 
+  const logoSrc = propBrandLogoUrl && !imageError
+    ? propBrandLogoUrl
     : stewardFallback;
 
   const padding = Math.ceil(size * 0.5);
@@ -100,7 +69,7 @@ export function AppLogo({
         }}
         onError={(e) => {
           const img = e.target as HTMLImageElement;
-          if (brandLogoUrlWithCache && !imageError) {
+          if (propBrandLogoUrl && !imageError) {
             setImageError(true);
             img.src = stewardFallback;
           } else {

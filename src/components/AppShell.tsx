@@ -134,11 +134,16 @@ export function AppShell({
 
   const getCurrentBrandDisplay = () => {
     if (isAllBrandsMode) return { name: "All Brands", avatar: null, isViewOnly: true };
-    if (currentBrand) {
-      return { name: currentBrand.name, avatar: currentBrand.avatarUrl, isViewOnly: false };
+    const currentBrandName = currentBrand?.name?.trim();
+    if (currentBrandName) {
+      return { name: currentBrandName, avatar: currentBrand?.avatarUrl, isViewOnly: false };
     }
     const brand = brands.find((b) => b.id === activeBrandId);
-    return { name: brand?.name || "Select Brand", avatar: brand?.avatarUrl, isViewOnly: false };
+    return {
+      name: brand?.name?.trim() || "Select Brand",
+      avatar: brand?.avatarUrl,
+      isViewOnly: false,
+    };
   };
 
   const brandDisplay = getCurrentBrandDisplay();
@@ -246,7 +251,9 @@ export function AppShell({
                 <DropdownMenuItem key={brand.id} onClick={() => handleBrandSwitch(brand.id)}>
                   <Avatar className="mr-2 h-6 w-6">
                     <AvatarImage src={brand.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xs">{brand.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="text-xs">
+                      {(brand.name?.trim() || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="flex-1">{brand.name}</span>
                   {activeBrandId === brand.id && <CheckCircle2 className="h-4 w-4 text-primary" />}

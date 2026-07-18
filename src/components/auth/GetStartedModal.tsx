@@ -4,10 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
-import { signUpWithEmail } from "@/auth/signup";
+import {
+  PENDING_ORGANIZATION_NAME_KEY,
+  signUpWithEmail,
+} from "@/auth/signup";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +23,6 @@ import {
   User,
   Mail,
   Lock,
-  ArrowRight,
   X,
 } from "lucide-react";
 
@@ -51,6 +55,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [signUpError, setSignUpError] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
   const navigate = useNavigate();
 
   const form = useForm<SignUpFormValues>({
@@ -64,6 +69,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
       const t = setTimeout(() => {
         setStep(1);
         setSignUpError(null);
+        setConfirmationEmail("");
       }, 300);
       return () => clearTimeout(t);
     }
@@ -81,31 +87,33 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
     }
 
     try {
-      await signUpWithEmail(data.email, data.password, data.fullName);
-      setIsLoading(false);
+      const result = await signUpWithEmail(
+        data.email,
+        data.password,
+        data.fullName,
+        data.orgName,
+      );
+      localStorage.setItem(PENDING_ORGANIZATION_NAME_KEY, data.orgName);
+
+      if (result.session) {
+        onOpenChange(false);
+        navigate({ to: "/app/onboarding" });
+        return;
+      }
+
+      setConfirmationEmail(data.email);
       setStep(2);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign up failed. Please try again.";
       setSignUpError(message);
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialConnect = async (provider: "twitter" | "linkedin_oidc") => {
-    const client = supabase;
-    if (!client) return;
-    await client.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/app`,
-      },
-    });
-    // OAuth redirects the user away from the modal; no need to close it here.
-  };
-
-  const onCompleteSetup = () => {
+  const goToLogin = () => {
     onOpenChange(false);
-    navigate({ to: "/app" });
+    navigate({ to: "/auth" });
   };
 
   const handleClose = () => {
@@ -117,6 +125,7 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-[500px] p-0 gap-0 border-border overflow-hidden [&>button]:hidden"
+        showCloseButton={false}
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -132,14 +141,14 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
           </button>
 
           <div className="text-center">
-            <h2 className="text-xl font-bold tracking-tight">
+            <DialogTitle className="text-xl font-bold tracking-tight">
               {step === 1 && "Create your Workspace"}
-              {step === 2 && "Connect a Channel"}
-            </h2>
-            <p className="text-primary-foreground/80 text-sm mt-1.5">
+              {step === 2 && "Check your inbox"}
+            </DialogTitle>
+            <DialogDescription className="text-primary-foreground/80 text-sm mt-1.5">
               {step === 1 && "Start managing your social presence today."}
-              {step === 2 && "Connect one account to get the data flowing. You will be redirected to the provider to sign in."}
-            </p>
+              {step === 2 && "Confirm your email before finishing your brand setup."}
+            </DialogDescription>
           </div>
         </div>
 
@@ -245,35 +254,20 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
             </form>
           )}
 
-          {/* STEP 2: SOCIAL CONNECT - OAuth redirects user away from modal */}
+          {/* STEP 2: EMAIL CONFIRMATION */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div className="grid gap-3">
-                <ConnectButton
-                  icon="/brand/steward/steward-mark-black.svg"
-                  label="Connect X (Twitter)"
-                  provider="twitter"
-                  onConnect={handleSocialConnect}
-                />
-                <ConnectButton
-                  icon="/brand/steward/steward-mark-black.svg"
-                  label="Connect LinkedIn"
-                  provider="linkedin_oidc"
-                  onConnect={handleSocialConnect}
-                />
+            <div className="space-y-5">
+              <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
+                <p className="font-medium">Account created</p>
+                <p className="mt-1 text-muted-foreground">
+                  We sent a confirmation link to {confirmationEmail}. After confirming,
+                  log in and Steward will continue with your saved workspace name.
+                </p>
               </div>
 
-              <div className="flex justify-between items-center pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={onCompleteSetup}
-                  className="text-muted-foreground"
-                >
-                  Skip for now
-                </Button>
-                <Button type="button" onClick={onCompleteSetup} className="gap-2">
-                  Continue to Dashboard <ArrowRight className="h-4 w-4" />
+              <div className="flex justify-end pt-1">
+                <Button type="button" onClick={goToLogin}>
+                  Go to login
                 </Button>
               </div>
             </div>
@@ -282,30 +276,5 @@ export function GetStartedModal({ open, onOpenChange }: GetStartedModalProps) {
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ConnectButton({
-  icon,
-  label,
-  provider,
-  onConnect,
-}: {
-  icon: string;
-  label: string;
-  provider: "twitter" | "linkedin_oidc";
-  onConnect: (provider: "twitter" | "linkedin_oidc") => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onConnect(provider)}
-      className="flex items-center p-3 border border-input rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors text-left w-full group"
-    >
-      <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center mr-3">
-        <img src={icon} alt="" className="h-4 w-4 opacity-70" role="presentation" />
-      </div>
-      <span className="font-medium text-sm">{label}</span>
-    </button>
   );
 }

@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ChevronLeft, ChevronRight, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { PENDING_ORGANIZATION_NAME_KEY } from "@/auth/signup";
 import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { persistWorkspaceSelection } from "@/hooks/use-current-workspace";
 import { assetsApi, brandContextV1Api, workspaceApi } from "@/sdk/services/api-services";
@@ -40,8 +41,15 @@ export function OnboardingPage() {
   const [loadingExisting, setLoadingExisting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [organizationName, setOrganizationName] = React.useState("");
-  const [brandName, setBrandName] = React.useState("");
+  const pendingOrganizationName = React.useMemo(
+    () =>
+      typeof window === "undefined"
+        ? ""
+        : localStorage.getItem(PENDING_ORGANIZATION_NAME_KEY) ?? "",
+    [],
+  );
+  const [organizationName, setOrganizationName] = React.useState(pendingOrganizationName);
+  const [brandName, setBrandName] = React.useState(pendingOrganizationName);
   const [timezone, setTimezone] = React.useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
   );
@@ -273,6 +281,7 @@ export function OnboardingPage() {
       if (!organizationId || !brandId) throw new Error("Workspace details are missing.");
       await brandContextV1Api.put(organizationId, brandId, buildContext());
       await workspace.refetch();
+      localStorage.removeItem(PENDING_ORGANIZATION_NAME_KEY);
       toast.success("Your brand is ready for Steward");
       void navigate({ to: "/app" });
     } catch (finishError) {
