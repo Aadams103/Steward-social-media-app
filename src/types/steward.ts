@@ -23,11 +23,15 @@ export type StewardPostStatus =
   | 'idea'
   | 'draft'
   | 'generated'
+  | 'in_review'
   | 'needs_review'
   | 'needs_approval'
+  | 'revision_requested'
+  | 'rejected'
   | 'approved'
   | 'scheduled'
   | 'publishing'
+  | 'retrying'
   | 'published'
   | 'failed'
   | 'archived';
@@ -128,4 +132,104 @@ export interface PostVariantRow {
   platform: StewardPlatform;
   caption: string | null;
   hashtags: unknown[];
+}
+
+export interface BrandContextV1 {
+  version: '1.0';
+  identity: {
+    businessName: string;
+    publicBrandName: string;
+    businessType?: string;
+    industry?: string;
+    websiteUrl?: string;
+    shortDescription?: string;
+    missionStatement?: string;
+    values: string[];
+  };
+  audience: Array<{
+    name: string;
+    description?: string;
+    painPoints: string[];
+    interests: string[];
+    preferredPlatforms: Array<'facebook' | 'instagram'>;
+    isPrimary: boolean;
+  }>;
+  voice: {
+    summary: string;
+    defaultTone?: string;
+    personalityTraits: string[];
+    wordsToUse: string[];
+    wordsToAvoid: string[];
+  };
+  pillars: Array<{ name: string; description?: string }>;
+  offers: Array<{ name: string; headline?: string; description?: string; ctaText?: string; ctaUrl?: string }>;
+  ctas: Array<{ label: string; text: string; destinationUrl?: string; platform?: 'facebook' | 'instagram' }>;
+  rules: { prohibitedClaims: string[]; complianceNotes: string; safetyNotes: string };
+  platformStrategies: Array<{
+    platform: 'facebook' | 'instagram';
+    enabled: boolean;
+    postingFrequencyGoal: number;
+    targetAudience?: string;
+    contentTypes: string[];
+    notes?: string;
+  }>;
+  visualKit: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+    fonts: string[];
+    styleNotes?: string;
+    logoAssetId?: string;
+    brandDocumentAssetIds: string[];
+  };
+  examples: Array<{ platform: 'facebook' | 'instagram'; content: string; whyItWorks?: string }>;
+  postingGoals: string[];
+  approvedMemory?: Record<string, unknown>[];
+  missingContext?: string[];
+  updatedAt?: string;
+}
+
+export interface AssetUploadIntent {
+  bucket: 'brand-assets' | 'content-media' | 'imports';
+  path: string;
+  token: string;
+  signedUrl: string;
+  expiresAt: string;
+  requiredHeaders: Record<string, string>;
+}
+
+export interface AssetRecord {
+  id: string;
+  organizationId: string;
+  brandId: string | null;
+  storageBucket: string;
+  storagePath: string;
+  checksumSha256: string;
+  analysisStatus: string;
+  safeUrl?: string | null;
+  safeUrlExpiresAt?: string | null;
+}
+
+export type PostWorkflowStatus =
+  | 'draft'
+  | 'in_review'
+  | 'revision_requested'
+  | 'rejected'
+  | 'approved'
+  | 'scheduled'
+  | 'publishing'
+  | 'retrying'
+  | 'published'
+  | 'failed';
+
+export interface SocialConnectionSafe {
+  id: string;
+  provider: 'meta';
+  platform: 'facebook' | 'instagram';
+  accountId: string;
+  accountName: string;
+  username?: string;
+  status: 'connected' | 'expired' | 'error' | 'disconnected';
+  tokenExpiresAt?: string | null;
+  scopes: string[];
 }

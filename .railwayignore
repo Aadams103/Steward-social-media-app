@@ -35,7 +35,6 @@ yarn-error.log*
 .eslintrc*
 .prettierrc*
 biome.json
-tsconfig.json
 
 # Git
 .git/

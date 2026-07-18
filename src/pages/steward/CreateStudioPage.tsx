@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { useAppStore } from "@/store/app-store";
 import { useAssets, useCurrentBrand, useUploadAssets } from "@/hooks/use-api";
 import { UploadDropzone } from "@/components/uploads/UploadDropzone";
@@ -10,9 +11,17 @@ import {
   AIConfidenceBadge,
   StewardEmptyState,
 } from "@/components/steward";
-import { brandIntelligenceApi, type AiGatewayResponse } from "@/sdk/services/api-services";
+import {
+  brandIntelligenceApi,
+  aiApi,
+  contentBriefsApi,
+  postsApi,
+  stewardApi,
+  type AiGatewayResponse,
+} from "@/sdk/services/api-services";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -21,15 +30,18 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Platform } from "@/types/app";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PLATFORMS: Platform[] = ["instagram", "facebook", "tiktok", "linkedin", "youtube"];
+const PLATFORMS: Platform[] = ["instagram", "facebook"];
 
 export function CreateStudioPage() {
   const { currentOrganization, activeBrandId, setActiveView } = useAppStore();
   const { data: brand } = useCurrentBrand();
-  const { data: assetsData, refetch: refetchAssets } = useAssets();
-  const upload = useUploadAssets();
   const orgId = currentOrganization?.id;
-  const brandId = activeBrandId !== "all" ? activeBrandId : undefined;
+  const brandId = activeBrandId && activeBrandId !== "all" ? activeBrandId : undefined;
+  const { data: assetsData, refetch: refetchAssets } = useAssets(
+    { organizationId: orgId, brandId },
+    { enabled: Boolean(orgId && brandId) },
+  );
+  const upload = useUploadAssets();
   const canUseAi = Boolean(orgId && brandId && UUID_RE.test(orgId) && UUID_RE.test(brandId));
 
   const [selectedAssetId, setSelectedAssetId] = React.useState<string | undefined>();
@@ -39,6 +51,11 @@ export function CreateStudioPage() {
   const [pillar, setPillar] = React.useState("");
   const [audience, setAudience] = React.useState("");
   const [lastAi, setLastAi] = React.useState<AiGatewayResponse | null>(null);
+  const [draftPostId, setDraftPostId] = React.useState<string | undefined>();
+  const [saveState, setSaveState] = React.useState<"idle" | "saving" | "saved">("idle");
+  const [visualGenerating, setVisualGenerating] = React.useState(false);
+  const activeBriefId = React.useRef<string | undefined>(undefined);
+  const lastSavedSignature = React.useRef("");
   const [contextLoading, setContextLoading] = React.useState(false);
   const [brandContext, setBrandContext] = React.useState<{
     voice?: string;
@@ -49,13 +66,16 @@ export function CreateStudioPage() {
 
   const assets = assetsData?.assets ?? [];
   const selectedAsset = assets.find((a) => a.id === selectedAssetId);
+  const result = lastAi?.result as Record<string, unknown> | undefined;
 
   React.useEffect(() => {
     if (!canUseAi || !orgId || !brandId) return;
+    let cancelled = false;
     setContextLoading(true);
     void brandIntelligenceApi
       .getContext({ organizationId: orgId, brandId, operation: "post_draft_generation", platform })
       .then((res) => {
+        if (cancelled) return;
         setBrandContext({
           voice: String(res.context.brandProfile?.brand_voice_summary ?? ""),
           missing: res.context.missingContext,
@@ -63,17 +83,151 @@ export function CreateStudioPage() {
           safety: res.context.brandRules?.map((r) => String(r.rule_name)).slice(0, 4),
         });
       })
-      .catch(() => setBrandContext({ missing: ["brand_context_unavailable"] }))
-      .finally(() => setContextLoading(false));
+      .catch(() => {
+        if (!cancelled) setBrandContext({ missing: ["brand_context_unavailable"] });
+      })
+      .finally(() => {
+        if (!cancelled) setContextLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [canUseAi, orgId, brandId, platform]);
 
   const handleAiResult = (result: AiGatewayResponse) => {
     setLastAi(result);
     const draft = result.result as Record<string, unknown>;
-    if (typeof draft.caption === "string") setCaption(draft.caption);
+    if (typeof draft.caption === "string") {
+      setCaption(draft.caption);
+      lastSavedSignature.current = JSON.stringify({
+        caption: draft.caption,
+        platform,
+        assets: selectedAssetId ? [selectedAssetId] : [],
+      });
+    }
+    if (result.relatedPostId) setDraftPostId(result.relatedPostId);
+    if (activeBriefId.current && orgId) {
+      void contentBriefsApi.complete(activeBriefId.current, {
+        organizationId: orgId,
+        aiJobId: result.aiJobId,
+      });
+    }
   };
 
-  const result = lastAi?.result as Record<string, unknown> | undefined;
+  const prepareDraftInput = React.useCallback(async (): Promise<Record<string, unknown>> => {
+    if (!orgId || !brandId) throw new Error("Finish workspace setup before generating content.");
+    const response = await contentBriefsApi.create({
+      organizationId: orgId,
+      brandId,
+      goal: userNotes || undefined,
+      targetAudience: audience || undefined,
+      contentPillar: pillar || undefined,
+      contentFormat: "post",
+      platforms: [platform as "facebook" | "instagram"],
+      assetIds: selectedAssetId ? [selectedAssetId] : [],
+      notes: userNotes || undefined,
+    });
+    activeBriefId.current = response.brief.id as string;
+    return {
+      contentBriefId: activeBriefId.current,
+      assetIds: selectedAssetId ? [selectedAssetId] : [],
+      platforms: [platform],
+      contentPillar: pillar || undefined,
+      targetAudience: audience || undefined,
+    };
+  }, [audience, brandId, orgId, pillar, platform, selectedAssetId, userNotes]);
+
+  const saveDraft = React.useCallback(async (notify = true): Promise<string> => {
+    if (!orgId || !brandId || !caption.trim()) throw new Error("Add a caption before saving.");
+    setSaveState("saving");
+    try {
+      const payload = {
+        organizationId: orgId,
+        content: caption.trim(),
+        platform: platform as "facebook" | "instagram",
+        title: typeof result?.internal_title === "string" ? result.internal_title : undefined,
+        mediaAssetIds: selectedAssetId ? [selectedAssetId] : [],
+        aiJobId: lastAi?.aiJobId,
+      };
+      let postId = draftPostId;
+      if (postId) {
+        await postsApi.updateDraft(postId, payload);
+      } else {
+        const created = await stewardApi.createPostDraft({
+          ...payload,
+          brandId,
+          status: "draft",
+          metadata: { aiJobId: lastAi?.aiJobId, source: lastAi ? "ai-gateway" : "create-studio" },
+        });
+        postId = created.post.id as string;
+        setDraftPostId(postId);
+      }
+      lastSavedSignature.current = JSON.stringify({
+        caption: caption.trim(),
+        platform,
+        assets: selectedAssetId ? [selectedAssetId] : [],
+      });
+      setSaveState("saved");
+      if (notify) toast.success("Draft saved");
+      return postId;
+    } catch (error) {
+      setSaveState("idle");
+      throw error;
+    }
+  }, [brandId, caption, draftPostId, lastAi, orgId, platform, result, selectedAssetId]);
+
+  React.useEffect(() => {
+    if (!draftPostId || !caption.trim()) return;
+    const signature = JSON.stringify({
+      caption: caption.trim(),
+      platform,
+      assets: selectedAssetId ? [selectedAssetId] : [],
+    });
+    if (signature === lastSavedSignature.current) return;
+    const timer = window.setTimeout(() => {
+      void saveDraft(false).catch(() => setSaveState("idle"));
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [caption, draftPostId, platform, saveDraft, selectedAssetId]);
+
+  const sendToReview = async () => {
+    if (!orgId) return;
+    try {
+      const postId = await saveDraft(false);
+      await postsApi.sendToReview(postId, { organizationId: orgId });
+      toast.success("Sent to Approvals");
+      setActiveView("approvals");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The draft could not be sent to review.");
+    }
+  };
+
+  const generateVisual = async () => {
+    if (!orgId || !brandId || !userNotes.trim()) {
+      toast.error("Add a creative brief before generating a visual.");
+      return;
+    }
+    setVisualGenerating(true);
+    try {
+      const response = await aiApi.generateImage({
+        organizationId: orgId,
+        brandId,
+        prompt: userNotes.trim(),
+        sourceAssetId: selectedAsset?.type === "image" ? selectedAsset.id : undefined,
+        size: "1024x1024",
+        quality: "medium",
+        outputFormat: "png",
+      });
+      await refetchAssets();
+      setSelectedAssetId(response.asset.id);
+      toast.success(selectedAsset?.type === "image" ? "Visual edit ready for review" : "Visual ready for review");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Steward could not create that visual.");
+    } finally {
+      setVisualGenerating(false);
+    }
+  };
+
   const safetyFlags = (result?.safety_flags as string[]) ?? [];
   const missingContext = (result?.missing_context as string[]) ?? [];
   const assumptions = (result?.assumptions_made as string[]) ?? [];
@@ -107,8 +261,10 @@ export function CreateStudioPage() {
               <UploadDropzone
                 accept="image/*,video/*"
                 onFilesSelected={(files) => {
-                  void upload.mutateAsync({ files }).then(() => refetchAssets());
+                  if (!orgId || !brandId) return;
+                  void upload.mutateAsync({ files, organizationId: orgId, brandId }).then(() => refetchAssets());
                 }}
+                disabled={!orgId || !brandId}
                 title="Upload to library"
                 helperText="Images and videos for Steward to analyze"
                 isUploading={upload.isPending}
@@ -135,6 +291,15 @@ export function CreateStudioPage() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="studio-audience">Target audience</Label>
+                <Input
+                  id="studio-audience"
+                  value={audience}
+                  onChange={(event) => setAudience(event.target.value)}
+                  placeholder="Who should this post reach?"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="studio-notes">Caption idea / notes</Label>
                 <Textarea
                   id="studio-notes"
@@ -143,6 +308,19 @@ export function CreateStudioPage() {
                   placeholder="Optional direction for Steward…"
                   rows={4}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 w-full"
+                  disabled={visualGenerating || !canUseAi || !userNotes.trim()}
+                  onClick={() => void generateVisual()}
+                >
+                  {visualGenerating
+                    ? "Creating visual…"
+                    : selectedAsset?.type === "image"
+                      ? "Create a branded edit"
+                      : "Generate a branded visual"}
+                </Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -162,16 +340,11 @@ export function CreateStudioPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Content pillar</Label>
-                  <Select value={pillar} onValueChange={setPillar}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="community">Community</SelectItem>
-                      <SelectItem value="offers">Offers / Free Trial</SelectItem>
-                      <SelectItem value="education">Technique Education</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    value={pillar}
+                    onChange={(event) => setPillar(event.target.value)}
+                    placeholder="e.g. Education"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -180,6 +353,9 @@ export function CreateStudioPage() {
             organizationId={canUseAi ? orgId : undefined}
             assetId={selectedAssetId}
             caption={userNotes || caption}
+            platform={platform as "facebook" | "instagram"}
+            postId={draftPostId}
+            prepareDraftInput={prepareDraftInput}
             onDraftGenerated={handleAiResult}
           />
         </div>
@@ -213,11 +389,18 @@ export function CreateStudioPage() {
               )}
               <SafetyWarningCard warnings={[...safetyFlags, ...missingContext.map((m) => `Missing: ${m}`)]} />
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" disabled={!caption} onClick={() => setActiveView("approvals")}>
+                <Button
+                  variant="outline"
+                  disabled={!caption || saveState === "saving"}
+                  onClick={() => void saveDraft().catch((error) => toast.error(error.message))}
+                >
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save draft"}
+                </Button>
+                <Button variant="secondary" disabled={!caption || saveState === "saving"} onClick={() => void sendToReview()}>
                   Send to review
                 </Button>
-                <Button variant="outline" onClick={() => setActiveView("calendar")}>
-                  Schedule
+                <Button variant="ghost" onClick={() => setActiveView("approvals")}>
+                  Approve before scheduling
                 </Button>
               </div>
             </CardContent>

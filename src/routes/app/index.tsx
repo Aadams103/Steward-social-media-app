@@ -3659,10 +3659,14 @@ function AssetsView() {
   const [newAssetTags, setNewAssetTags] = React.useState('');
   const [uploadedFiles, setUploadedFiles] = React.useState<UploadedItem[]>([]);
   
+  const organizationId = localStorage.getItem('steward_organization_id') ?? undefined;
+  const brandId = localStorage.getItem('steward_active_brand_id') ?? undefined;
   const { data, isLoading, error } = useAssets({ 
+    organizationId,
+    brandId: brandId === 'all' ? undefined : brandId,
     type: activeTab, 
     search: searchQuery || undefined 
-  });
+  }, { enabled: Boolean(organizationId && brandId && brandId !== 'all') });
   const createAsset = useCreateAsset();
   const uploadAssets = useUploadAssets();
   const deleteAsset = useDeleteAsset();
@@ -3714,9 +3718,14 @@ function AssetsView() {
     }
 
     try {
-      // Upload multipart to backend
+      if (!organizationId || !brandId || brandId === 'all') {
+        toast.error('Select a real workspace and brand before uploading.');
+        return;
+      }
       await uploadAssets.mutateAsync({
         files: uploadedFiles.map((f) => f.file),
+        organizationId,
+        brandId,
         tags: newAssetTags.split(',').map(t => t.trim()).filter(Boolean),
       });
 
@@ -7809,51 +7818,32 @@ export function StewardAppRoot() {
         return <AutomationsHubPage />;
       case "flight-ai":
       case "owlgpt":
-        return (
-          <UpgradeGate
-            feature="autopilot"
-            description="Flight AI helps you plan, draft, and schedule content with your brand context."
-          >
-            <FlightAIView />
-          </UpgradeGate>
-        );
       case "autopilot":
-        return (
-          <UpgradeGate
-            feature="autopilot"
-            description="Autopilot turns Flight AI strategy into drafts, approvals, and scheduled publish jobs."
-          >
-            <AutopilotView />
-          </UpgradeGate>
-        );
       case "queue":
-        return <QueueView />;
       case "compose":
-        return <ComposeView />;
+        return <CommandCenterPage />;
       case "calendar":
         return (
           <PlanPage calendar={<CalendarViewComponent />} />
         );
       case "notifications":
-        return <NotificationsView />;
       case "inbox":
-        return <InboxView />;
       case "email":
-        return <EmailView />;
+        return <CommandCenterPage />;
       case "analytics":
         return <AnalyticsHubPage />;
       case "brand":
-        return <BrandProfileView />;
+        return <BrandIntelligencePage />;
       case "accounts":
         return <SocialAccountsHubPage />;
       case "campaigns":
-        return <CampaignsView />;
+        return <CommandCenterPage />;
       case "audit":
-        return <AuditLogView />;
+        return <CommandCenterPage />;
       case "settings":
-        return <SettingsView />;
+        return <BrandIntelligencePage />;
       case "vertical-slice":
-        return <PostsVerticalSlice />;
+        return <CommandCenterPage />;
       case "onboarding":
         return <OnboardingPage />;
       default:

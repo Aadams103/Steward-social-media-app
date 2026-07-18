@@ -3,13 +3,14 @@
  *
  * Every 5 minutes, scans automation_rules with trigger_type 'schedule_cron'
  * that are enabled and due (next_run_at <= now), and runs one agent cycle
- * per matched brand. Disabled unless AGENT_WORKER_ENABLED=true.
+ * per matched brand. Enabled by default in production.
  *
  * Acting user: the rule creator when set, else the organization owner —
  * the agent never runs without an accountable human identity.
  */
 
 import cron, { type ScheduledTask } from 'node-cron';
+import { isWorkerEnabled } from '../config.js';
 import { getSupabaseClient } from '../supabase.js';
 import { runAgentCycle } from './orchestrator.js';
 
@@ -127,10 +128,10 @@ async function agentTick(): Promise<void> {
   }
 }
 
-/** Starts the agent worker. No-op unless AGENT_WORKER_ENABLED=true. Idempotent. */
+/** Starts the agent worker. Enabled by default in production. Idempotent. */
 export function startAgentWorker(): void {
-  if (process.env.AGENT_WORKER_ENABLED !== 'true') {
-    console.log('[agent-worker] AGENT_WORKER_ENABLED is not "true"; agent worker disabled');
+  if (!isWorkerEnabled('AGENT_WORKER_ENABLED')) {
+    console.log('[agent-worker] Agent worker disabled by environment configuration');
     return;
   }
   if (task) return;

@@ -15,7 +15,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import type { Post, PublishJob, AutopilotSettings, Organization, Campaign, SocialAccount, Asset, HashtagRecommendation, BestTimeToPost, RSSFeed, RSSFeedItem, RecycledPost, TimeZoneOptimization, PostStatus, Platform, Event, AutopilotBrief, StrategyPlan, Brand, GoogleIntegration, GoogleIntegrationPublic, EmailThread, EmailMessage, TriageStatus, BusinessScheduleTemplate, CalendarItem, AutopilotGenerateResponse, AutopilotDraftPost, AutopilotCalendarSuggestion, AutopilotPlanSummary } from './types.js';
 import { defaultOrg, defaultAutopilotSettings, createDefaultBrand } from './seed.js';
-import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, getInstagramAccountsForIngest, upsertIngestedPost, listIngestedPosts } from './supabase.js';
+import { setOAuthState, getAndDeleteOAuthState, upsertSocialAccountForSupabase, getSupabaseClient, listIngestedPosts } from './supabase.js';
 import { authMiddleware, type AuthenticatedRequest } from './middleware/auth.js';
 import { createCheckoutSessionHandler, stripeWebhookHandler } from './routes/billing.js';
 import {
@@ -38,6 +38,7 @@ import {
   initAiGatewayRoutes,
   moderateContentHandler,
   recommendScheduleHandler,
+  runAiCapabilityHandler,
   scoreContentHandler,
 } from './routes/ai.js';
 import { logAiGatewayStartupStatus } from './ai/gateway.js';
@@ -46,16 +47,31 @@ import {
   submitContentFeedbackHandler,
 } from './routes/brand-intelligence.js';
 import { getDashboardSummaryHandler } from './routes/dashboard.js';
-import { getWorkspaceHandler, putWorkspaceHandler } from './routes/workspace.js';
+import { bootstrapWorkspaceHandler, getWorkspaceHandler, putWorkspaceHandler } from './routes/workspace.js';
+import {
+  completeAssetUploadHandler,
+  createAssetUploadIntentHandler,
+  getAssetHandler,
+  getAssetSafeUrlHandler,
+  listAssetsHandler,
+} from './routes/assets.js';
+import { getBrandContextV1Handler, putBrandContextV1Handler } from './routes/brand-context.js';
 import { getAiJobDetailHandler, listAiJobsHandler } from './routes/ai-jobs.js';
 import {
   approvePostHandler,
+  getSupabasePostHandler,
   listSupabasePostsHandler,
   rejectPostHandler,
   requestChangesPostHandler,
+  publishApprovedPostHandler,
+  scheduleApprovedPostHandler,
   sendToReviewPostHandler,
+  updatePostDraftHandler,
 } from './routes/approvals.js';
 import { getPublishHealthHandler } from './routes/publish-health.js';
+import { completeContentBriefHandler, createContentBriefHandler } from './routes/content-briefs.js';
+import { generateBrandedImageHandler } from './routes/ai-images.js';
+import { listCalendarItemsHandler } from './routes/calendar.js';
 import {
   approveMemoryFactHandler,
   archiveMemoryFactHandler,
@@ -71,29 +87,58 @@ import {
   runAgentHandler,
 } from './routes/agent.js';
 import { startScheduler } from './workers/scheduler.js';
+import { startAnalyticsWorker, syncMetaAnalytics } from './workers/analytics.js';
 import { startAgentWorker } from './agent/worker.js';
+import { assertWorkspaceAccess } from './services/workspace.js';
+import {
+  completeMetaSelectionHandler,
+  disconnectSocialConnectionHandler,
+  initiateMetaOAuthHandler,
+  listMetaSelectionsHandler,
+  listSocialConnectionsHandler,
+  metaOAuthCallbackHandler,
+} from './routes/oauth-meta.js';
+import { checkUserAccess, getProductionReadiness, getSupabaseServerCredentials } from './config.js';
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
+const DEMO_DATA_ENABLED = process.env.NODE_ENV !== 'production' && process.env.STEWARD_ENABLE_DEMO_DATA === 'true';
 
 // CORS: allow Vercel frontend and local dev/preview; credentials for cookies/auth
-const allowedOrigins: (string | RegExp)[] = [
+const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  process.env.FRONTEND_URL, // Set in Railway variables
-  /^https:\/\/.*\.vercel\.app$/, // Allow all Vercel preview URLs
-].filter((o): o is string | RegExp => o != null);
+  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_URLS ?? '').split(',').map((value) => value.trim()),
+].filter((origin): origin is string => Boolean(origin));
+const previewSuffix = process.env.VERCEL_PREVIEW_SUFFIX?.trim().toLowerCase();
+const previewPrefix = process.env.VERCEL_PREVIEW_PROJECT_PREFIX?.trim().toLowerCase();
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    return Boolean(
+      previewSuffix
+        && parsed.protocol === 'https:'
+        && host.endsWith(`-${previewSuffix}`)
+        && (!previewPrefix || host.startsWith(previewPrefix)),
+    );
+  } catch {
+    return false;
+  }
+}
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true, // Required for cookies/auth
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-brand-id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-brand-id', 'x-organization-id'],
   exposedHeaders: ['Content-Type', 'Authorization'],
 }));
 // Stripe webhook MUST receive the raw body for signature verification, so it
@@ -108,10 +153,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static uploads directory
 const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+if (DEMO_DATA_ENABLED) {
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  app.use('/uploads', express.static(uploadsDir));
 }
-app.use('/uploads', express.static(uploadsDir));
 
 // Multer setup for multipart uploads
 const upload = multer({
@@ -161,12 +206,83 @@ let autopilotSettings: AutopilotSettings = { ...defaultAutopilotSettings };
 app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const p = req.path;
   if (p === '/health') return next();
-  if (p.startsWith('/oauth/')) return next();
+  if (p === '/oauth/meta/callback') return next();
   if (p.startsWith('/cron/')) return next();
   // Webhooks authenticate via provider signatures (route is mounted earlier,
   // before JSON parsing; this guard is defensive).
   if (p.startsWith('/webhooks/')) return next();
   authMiddleware(req as AuthenticatedRequest, res, next);
+});
+
+app.post('/api/oauth/initiate', (req, res) => {
+  void initiateMetaOAuthHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/oauth/meta/callback', (req, res) => {
+  void metaOAuthCallbackHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/oauth/connections', (req, res) => {
+  void listSocialConnectionsHandler(req as AuthenticatedRequest, res);
+});
+app.delete('/api/oauth/connections/:id', (req, res) => {
+  void disconnectSocialConnectionHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/oauth/selections/:id', (req, res) => {
+  void listMetaSelectionsHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/oauth/selections/:id/complete', (req, res) => {
+  void completeMetaSelectionHandler(req as AuthenticatedRequest, res);
+});
+
+// The original export included broad in-memory demo APIs. They are available
+// only behind an explicit local-development flag and can never run in production.
+app.use('/api', (req, res, next) => {
+  if (DEMO_DATA_ENABLED) return next();
+  const blockedPrefixes = [
+    '/autopilot',
+    '/organizations',
+    '/campaigns',
+    '/conversations',
+    '/alerts',
+    '/rss-feeds',
+    '/recycle',
+    '/events',
+    '/schedule/templates',
+    '/google',
+    '/email',
+    '/brands',
+    '/social-accounts',
+  ];
+  const isBlockedPrefix = blockedPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`));
+  const isRandomAnalytics = req.path === '/analytics/best-time-to-post' || req.path === '/hashtags/recommendations';
+  const blockedExactPaths = new Set([
+    '/oauth/meta/start',
+    '/steward/publish-jobs',
+    '/steward/ai-jobs',
+    '/steward/analytics/metrics',
+    '/steward/demo/seed-kinetic-grappling',
+  ]);
+  const isUnsupportedOAuth = req.path.startsWith('/oauth/google/');
+  const isLegacyAssetMutation =
+    ['PATCH', 'DELETE'].includes(req.method) && /^\/assets\/[^/]+$/.test(req.path);
+  const isLegacyPublish =
+    (req.path === '/publish-jobs' || (req.path.startsWith('/publish-jobs/') && req.path !== '/publish-jobs/health')) ||
+    /^\/posts\/[^/]+\/publish$/.test(req.path) ||
+    req.path === '/posts/bulk';
+  if (
+    isBlockedPrefix ||
+    blockedExactPaths.has(req.path) ||
+    isUnsupportedOAuth ||
+    isLegacyAssetMutation ||
+    isRandomAnalytics ||
+    isLegacyPublish
+  ) {
+    res.status(410).json({
+      code: 'LEGACY_DEMO_DISABLED',
+      message: 'This legacy demo endpoint is disabled. Use the live Steward workflow.',
+    });
+    return;
+  }
+  next();
 });
 
 // Billing: checkout session creation (Supabase-authenticated via the gate above)
@@ -176,6 +292,12 @@ app.post('/api/billing/create-checkout-session', (req, res) => {
 
 // Steward AI Gateway (OpenAI — server-side only)
 initAiGatewayRoutes();
+app.post('/api/ai/run', (req, res) => {
+  void runAiCapabilityHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/ai/generate-image', (req, res) => {
+  void generateBrandedImageHandler(req as AuthenticatedRequest, res);
+});
 app.post('/api/ai/analyze-media', (req, res) => {
   void analyzeMediaHandler(req as AuthenticatedRequest, res);
 });
@@ -199,6 +321,17 @@ app.get('/api/ai/jobs', (req, res) => {
 });
 app.get('/api/ai/jobs/:jobId', (req, res) => {
   void getAiJobDetailHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/content/briefs', (req, res) => {
+  void createContentBriefHandler(req as AuthenticatedRequest, res);
+});
+app.patch('/api/content/briefs/:id/complete', (req, res) => {
+  void completeContentBriefHandler(req as AuthenticatedRequest, res);
+});
+
+// Real draft persistence is registered before the retired in-memory post shim.
+app.patch('/api/posts/:id', (req, res) => {
+  void updatePostDraftHandler(req as AuthenticatedRequest, res);
 });
 
 // WebSocket clients
@@ -263,6 +396,10 @@ app.get('/api/posts', (req, res) => {
     void listSupabasePostsHandler(req as AuthenticatedRequest, res);
     return;
   }
+  if (!DEMO_DATA_ENABLED) {
+    res.status(400).json({ code: 'ORG_REQUIRED', message: 'A valid organizationId is required.' });
+    return;
+  }
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   const { platform, status, campaignId } = req.query;
@@ -291,6 +428,10 @@ app.get('/api/posts', (req, res) => {
 
 // GET /api/posts/:id
 app.get('/api/posts/:id', (req, res) => {
+  if (!DEMO_DATA_ENABLED) {
+    void getSupabasePostHandler(req as AuthenticatedRequest, res);
+    return;
+  }
   const post = posts.get(req.params.id);
   if (!post) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Post not found' });
@@ -300,6 +441,10 @@ app.get('/api/posts/:id', (req, res) => {
 
 // POST /api/posts
 app.post('/api/posts', (req, res) => {
+  if (!DEMO_DATA_ENABLED) {
+    res.status(410).json({ code: 'LEGACY_CREATE_DISABLED', message: 'Create drafts through Create Studio.' });
+    return;
+  }
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   
@@ -326,8 +471,16 @@ app.post('/api/posts', (req, res) => {
 // META OAUTH API
 // ============================================================================
 
+// The former Meta routes are intentionally unreachable while older clients migrate.
+app.get('/api/legacy-disabled/oauth/meta/start', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_OAUTH_REMOVED', message: 'Use the secure Meta connection flow.' });
+});
+app.get('/api/legacy-disabled/oauth/meta/callback', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_OAUTH_REMOVED', message: 'Use the secure Meta connection flow.' });
+});
+
 // POST /api/oauth/meta/start?brandId=...&purpose=facebook|instagram
-app.get('/api/oauth/meta/start', async (req, res) => {
+app.get('/api/legacy-disabled/oauth/meta/start', async (req, res) => {
   if (!META_APP_ID || !META_APP_SECRET) {
     return res.status(500).json({ 
       code: 'META_NOT_CONFIGURED', 
@@ -358,7 +511,7 @@ app.get('/api/oauth/meta/start', async (req, res) => {
     'business_management',
   ].join(' ');
 
-  const authUrl = new URL('https://www.facebook.com/v18.0/dialog/oauth');
+  const authUrl = new URL(`https://www.facebook.com/${META_GRAPH_API_VERSION}/dialog/oauth`);
   authUrl.searchParams.set('client_id', META_APP_ID);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('scope', scopes);
@@ -369,7 +522,7 @@ app.get('/api/oauth/meta/start', async (req, res) => {
 });
 
 // GET /api/oauth/meta/callback?code=...&state=...
-app.get('/api/oauth/meta/callback', async (req, res) => {
+app.get('/api/legacy-disabled/oauth/meta/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error) {
@@ -444,13 +597,13 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
   try {
     // Exchange code for tokens
     const redirectUri = `${META_OAUTH_REDIRECT_BASE}/api/oauth/meta/callback`;
-    const tokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
+    const tokenResponse = await fetch(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       // Meta uses query params
     });
 
-    const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    const tokenUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`);
     tokenUrl.searchParams.set('client_id', META_APP_ID);
     tokenUrl.searchParams.set('client_secret', META_APP_SECRET);
     tokenUrl.searchParams.set('code', code as string);
@@ -470,7 +623,7 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
     }
 
     // Get long-lived token (60 days)
-    const longLivedUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    const longLivedUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`);
     longLivedUrl.searchParams.set('grant_type', 'fb_exchange_token');
     longLivedUrl.searchParams.set('client_id', META_APP_ID);
     longLivedUrl.searchParams.set('client_secret', META_APP_SECRET);
@@ -483,11 +636,11 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
     const expiresIn = longLivedData.expires_in || tokenData.expires_in || 5184000; // 60 days default
 
     // Fetch user/Page info
-    const meResponse = await fetch(`https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${accessToken}`);
+    const meResponse = await fetch(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me?fields=id,name&access_token=${accessToken}`);
     const meData = parseJsonResponse<{ id?: string; name?: string }>(meResponse.ok ? await meResponse.json() : { id: 'unknown', name: 'Meta Account' });
 
     // Fetch Pages
-    const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}`);
+    const pagesResponse = await fetch(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/accounts?access_token=${accessToken}`);
     const pagesData = parseJsonResponse<{ data?: Array<{ id: string; name: string; access_token: string }> }>(pagesResponse.ok ? await pagesResponse.json() : { data: [] });
 
     if (purpose === 'facebook' && pagesData.data && pagesData.data.length > 0) {
@@ -545,14 +698,14 @@ app.get('/api/oauth/meta/callback', async (req, res) => {
     } else if (purpose === 'instagram' && pagesData.data && pagesData.data.length > 0) {
       // For Instagram, need to get IG Business Account linked to Page
       const page = pagesData.data[0];
-      const igAccountResponse = await fetch(`https://graph.facebook.com/v18.0/${page.id}?fields=instagram_business_account&access_token=${accessToken}`);
+      const igAccountResponse = await fetch(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`);
       const igAccountData = parseJsonResponse<{ instagram_business_account?: { id: string } }>(igAccountResponse.ok ? await igAccountResponse.json() : {});
 
       if (igAccountData.instagram_business_account) {
         const igAccountId = igAccountData.instagram_business_account.id;
         
         // Fetch IG account info
-        const igInfoResponse = await fetch(`https://graph.facebook.com/v18.0/${igAccountId}?fields=username,profile_picture_url&access_token=${accessToken}`);
+        const igInfoResponse = await fetch(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igAccountId}?fields=username,profile_picture_url&access_token=${accessToken}`);
         const igInfo = parseJsonResponse<{ username?: string; profile_picture_url?: string }>(igInfoResponse.ok ? await igInfoResponse.json() : { username: 'instagram_account', profile_picture_url: undefined });
 
         const existingAccount = Array.from(socialAccounts.values())
@@ -649,6 +802,10 @@ app.patch('/api/posts/:id', (req, res) => {
 
 // DELETE /api/posts/:id
 app.delete('/api/posts/:id', (req, res) => {
+  if (!DEMO_DATA_ENABLED) {
+    res.status(410).json({ code: 'LEGACY_DELETE_DISABLED', message: 'Post deletion is unavailable in the production workflow.' });
+    return;
+  }
   if (!posts.has(req.params.id)) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Post not found' });
   }
@@ -731,25 +888,14 @@ app.post('/api/posts/bulk', (req, res) => {
 
 // POST /api/posts/:id/approve
 app.post('/api/posts/:id/approve', (req, res) => {
-  const orgId = (req.body as { organizationId?: string })?.organizationId;
-  if (orgId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orgId)) {
-    void approvePostHandler(req as AuthenticatedRequest, res);
-    return;
-  }
-  const post = posts.get(req.params.id);
-  if (!post) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Post not found' });
-  }
-
-  const updated = { ...post, status: 'approved' as const, updatedAt: new Date() };
-  posts.set(req.params.id, updated);
-
-  broadcast({ type: 'post_updated', data: updated });
-  res.json(updated);
+  void approvePostHandler(req as AuthenticatedRequest, res);
 });
 
 // POST /api/posts/:id/publish
-app.post('/api/posts/:id/publish', (req, res) => {
+app.post('/api/legacy-disabled/posts/:id/publish', (_req, res) => {
+  res.status(410).json({ code: 'LEGACY_PUBLISH_REMOVED', message: 'Use the approval-backed publishing queue.' });
+});
+app.post('/api/legacy-disabled/posts/:id/publish', (req, res) => {
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   
@@ -1132,15 +1278,32 @@ app.post('/api/social-accounts', (req, res) => {
 
 // GET /api/ingested-posts — real data from Instagram (and future Facebook) ingest
 app.get('/api/ingested-posts', async (req, res) => {
-  const brandId = getBrandIdFromRequest(req);
-  const { platform, limit } = req.query;
-  const opts: { brandId?: string; platform?: string; limit?: number } = {};
-  if (brandId !== 'all') opts.brandId = brandId;
-  if (typeof platform === 'string') opts.platform = platform;
-  if (typeof limit === 'string' && /^\d+$/.test(limit)) opts.limit = Math.min(parseInt(limit, 10), 200);
-  else opts.limit = 100;
-  const items = await listIngestedPosts(opts);
-  res.json({ items });
+  const userId = (req as AuthenticatedRequest).user?.id;
+  const organizationId = req.headers['x-organization-id'] as string | undefined;
+  const brandId = req.headers['x-brand-id'] as string | undefined;
+  if (!userId || !organizationId || !brandId || brandId === 'all') {
+    return void res.status(400).json({
+      code: 'WORKSPACE_REQUIRED',
+      message: 'Select a real organization and brand to load provider posts.',
+    });
+  }
+  try {
+    await assertWorkspaceAccess(userId, organizationId, brandId);
+    const { platform, limit } = req.query;
+    const opts: { brandId: string; platform?: string; limit: number } = {
+      brandId,
+      limit: typeof limit === 'string' && /^\d+$/.test(limit) ? Math.min(parseInt(limit, 10), 200) : 100,
+    };
+    if (platform === 'facebook' || platform === 'instagram') opts.platform = platform;
+    const items = await listIngestedPosts(opts);
+    res.json({ items, source: 'supabase' });
+  } catch (error) {
+    const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined;
+    if (code === 'ORG_ACCESS_DENIED' || code === 'BRAND_ACCESS_DENIED') {
+      return void res.status(403).json({ code: 'FORBIDDEN', message: 'You cannot access these provider posts.' });
+    }
+    res.status(500).json({ code: 'INGESTED_POSTS_ERROR', message: 'Provider posts could not be loaded.' });
+  }
 });
 
 // POST /api/social-accounts/:id/sync
@@ -1207,123 +1370,28 @@ function inferAssetType(mimeType?: string): 'image' | 'video' | 'template' | 'ha
 
 // GET /api/assets
 app.get('/api/assets', (req, res) => {
-  const { type, search, tags } = req.query;
-  const brandId = getBrandIdFromRequest(req);
-  let filteredAssets = Array.from(assets.values());
-
-  // Brand scoping (allow all to view everything)
-  if (brandId !== 'all') {
-    filteredAssets = filteredAssets.filter((a) => !a.brandId || a.brandId === brandId);
-  }
-
-  if (type) {
-    filteredAssets = filteredAssets.filter((a) => a.type === type);
-  }
-  if (tags) {
-    // Handle comma-separated tags from query string
-    const tagArray = typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : (Array.isArray(tags) ? tags : [tags]);
-    filteredAssets = filteredAssets.filter((a) => 
-      a.tags && tagArray.some((tag) => a.tags?.includes(tag as string))
-    );
-  }
-  if (search) {
-    const searchLower = (search as string).toLowerCase();
-    filteredAssets = filteredAssets.filter((a) =>
-      a.url?.toLowerCase().includes(searchLower) ||
-      a.tags?.some((tag) => tag.toLowerCase().includes(searchLower))
-    );
-  }
-
-  res.json({
-    assets: filteredAssets,
-    total: filteredAssets.length,
-  });
+  void listAssetsHandler(req as AuthenticatedRequest, res);
 });
 
 // GET /api/assets/:id
 app.get('/api/assets/:id', (req, res) => {
-  const asset = assets.get(req.params.id);
-  if (!asset) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Asset not found' });
-  }
-  res.json(asset);
+  void getAssetHandler(req as AuthenticatedRequest, res);
 });
 
 // POST /api/assets (JSON body) - legacy URL uploads
 app.post('/api/assets', (req, res) => {
-  const brandId = getBrandIdFromRequest(req);
-  if (brandId === 'all') {
-    return res.status(400).json({ code: 'VIEW_ONLY', message: 'Select a brand to upload assets.' });
-  }
-
-  const assetData = req.body;
-  const asset: Asset = {
-    id: generateId(),
-    ...assetData,
-    brandId,
-    organizationId: assetData.organizationId || defaultOrg.id,
-    version: assetData.version || '1.0.0',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-  assets.set(asset.id, asset);
-
-  broadcast({ type: 'asset_created', data: asset });
-  res.status(201).json(asset);
+  res.status(410).json({
+    code: 'SIGNED_UPLOAD_REQUIRED',
+    message: 'Use the signed asset upload flow.',
+  });
 });
 
 // POST /api/assets/upload (multipart)
 app.post('/api/assets/upload', (req, res, next) => {
-  const brandId = getBrandIdFromRequest(req);
-  if (brandId === 'all') {
-    return res.status(400).json({ code: 'VIEW_ONLY', message: 'Select a brand to upload assets.' });
-  }
-  upload.array('files')(req, res, (err: any) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({ message: 'File too large. Max is 10 MB.' });
-      }
-      return next(err);
-    }
-
-    const files = ((req as ExpressRequest & { files?: Express.Multer.File[] }).files) || [];
-    if (files.length === 0) {
-      return res.status(400).json({ message: 'No files uploaded' });
-    }
-
-    const tagsRaw = Array.isArray((req.body as any).tags)
-      ? (req.body as any).tags.join(',')
-      : (req.body as any).tags;
-    const parsedTags = typeof tagsRaw === 'string'
-      ? tagsRaw.split(',').map((t) => t.trim()).filter(Boolean)
-      : undefined;
-
-    const newAssets: Asset[] = files.map((file) => {
-      const urlPath = `/uploads/${file.filename}`;
-      const asset: Asset = {
-        id: generateId(),
-        type: inferAssetType(file.mimetype),
-        url: urlPath,
-        brandId,
-        organizationId: defaultOrg.id,
-        version: '1.0.0',
-        tags: parsedTags,
-        metadata: {
-          size: file.size,
-          mimeType: file.mimetype,
-          filename: file.originalname,
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      assets.set(asset.id, asset);
-      return asset;
-    });
-
-    newAssets.forEach((asset) => {
-      broadcast({ type: 'asset_created', data: asset });
-    });
-    res.status(201).json({ assets: newAssets });
+  void next;
+  res.status(410).json({
+    code: 'SIGNED_UPLOAD_REQUIRED',
+    message: 'Railway disk uploads are disabled. Use the signed asset upload flow.',
   });
 });
 
@@ -2658,6 +2726,10 @@ app.delete('/api/schedule/templates/:id', (req, res) => {
 
 // GET /api/calendar
 app.get('/api/calendar', (req, res) => {
+  if (!DEMO_DATA_ENABLED) {
+    void listCalendarItemsHandler(req as AuthenticatedRequest, res);
+    return;
+  }
   ensureDefaultBrand();
   const brandId = getBrandIdFromRequest(req);
   const { from, to } = req.query;
@@ -2760,6 +2832,7 @@ const GOOGLE_OAUTH_REDIRECT_BASE = process.env.GOOGLE_OAUTH_REDIRECT_BASE || 'ht
 const META_APP_ID = process.env.META_APP_ID || '';
 const META_APP_SECRET = process.env.META_APP_SECRET || '';
 const META_OAUTH_REDIRECT_BASE = process.env.META_OAUTH_REDIRECT_BASE || 'http://localhost:8080';
+const META_GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || 'v25.0';
 
 // purpose: 'gmail' | 'gbp' | 'youtube' (Google OAuth purposes)
 // purpose: 'facebook' | 'instagram' (Meta OAuth purposes)
@@ -3724,36 +3797,59 @@ app.get('/api/email/triage', (req, res) => {
 
 // GET /health - minimal health for load balancers / platforms that expect /health
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  const readiness = getProductionReadiness();
+  res.status(readiness.ready ? 200 : 503).json({ ok: readiness.ready });
 });
 
 // GET /api/health
-app.get('/api/health', async (req, res) => {
-  const payload: { ok: boolean; time: string; version: string; supabase?: string } = {
-    ok: true,
+app.get('/api/health', async (_req, res) => {
+  const readiness = getProductionReadiness();
+  const payload: { ok: boolean; time: string; version: string; supabase?: string; missing?: string[] } = {
+    ok: readiness.ready,
     time: new Date().toISOString(),
     version: '1.0.0',
   };
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!readiness.ready) payload.missing = readiness.missing;
+  const supabaseCredentials = getSupabaseServerCredentials();
+  if (supabaseCredentials.url && supabaseCredentials.key) {
     const { checkSupabaseConnection } = await import('./supabase.js');
     payload.supabase = await checkSupabaseConnection();
+    if (payload.supabase !== 'connected') payload.ok = false;
   }
-  res.json(payload);
+  res.status(payload.ok ? 200 : 503).json(payload);
 });
 
-// GET /api/me - used by auth validateToken; returns minimal user for 200 (auth middleware runs first)
-app.get('/api/me', (req: AuthenticatedRequest, res) => {
-  const user = req.user ?? { id: 'dev-user', email: 'dev@localhost' };
-  res.json({ id: user.id, email: user.email ?? 'dev@localhost' });
+// GET /api/me - verified identity, owner access, and the real Supabase profile.
+app.get('/api/me', async (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+  if (!user) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+  const client = getSupabaseClient();
+  if (!client) return void res.status(503).json({ code: 'SUPABASE_NOT_CONFIGURED', message: 'Profile storage is unavailable' });
+  const { data: profile, error } = await client
+    .from('profiles')
+    .select('id, email, display_name, full_name, avatar_url')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (error) return void res.status(500).json({ code: 'PROFILE_READ_ERROR', message: 'Your profile could not be loaded.' });
+  const access = checkUserAccess(user.id);
+  res.json({
+    id: user.id,
+    email: profile?.email ?? user.email ?? null,
+    profile: profile ? {
+      id: profile.id,
+      email: profile.email ?? user.email ?? null,
+      displayName: profile.display_name ?? null,
+      fullName: profile.full_name ?? null,
+      avatarUrl: profile.avatar_url ?? null,
+    } : null,
+    ownerAccess: { mode: access.mode, allowed: access.allowed },
+  });
 });
 
 // ---------------------------------------------------------------------------
 // POST /api/cron/ingest - Instagram ingestion (guarded by INGEST_SECRET)
 // Rate limit: ~1 run per account per 55 minutes. Idempotent upsert by (platform, external_id).
 // ---------------------------------------------------------------------------
-const ingestLastRun = new Map<string, number>();
-const INGEST_RATE_MS = 55 * 60 * 1000;
-
 app.post('/api/cron/ingest', async (req, res) => {
   const secret = req.headers['x-ingest-secret'] || req.headers['authorization']?.replace(/^Bearer /, '');
   const want = process.env.INGEST_SECRET || process.env.CRON_SECRET;
@@ -3765,50 +3861,11 @@ app.post('/api/cron/ingest', async (req, res) => {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid or missing secret' });
   }
 
-  type Acc = { id: string; brand_id: string; provider_account_id: string; oauth_access_token: string };
-  let accounts: Acc[];
-
-  if (getSupabaseClient()) {
-    accounts = await getInstagramAccountsForIngest();
-  } else {
-    accounts = Array.from(socialAccounts.values())
-      .filter((sa) => sa.platform === 'instagram' && sa.oauthToken?.accessToken)
-      .map((sa) => ({
-        id: sa.id,
-        brand_id: sa.brandId,
-        provider_account_id: sa.providerAccountId || sa.id,
-        oauth_access_token: sa.oauthToken!.accessToken,
-      }));
+  try {
+    res.json(await syncMetaAnalytics());
+  } catch {
+    res.status(503).json({ code: 'ANALYTICS_SYNC_UNAVAILABLE', message: 'Meta analytics sync is unavailable.' });
   }
-
-  let ok = 0;
-  let skipped = 0;
-  for (const acc of accounts) {
-    const key = acc.id;
-    const last = ingestLastRun.get(key) ?? 0;
-    if (Date.now() - last < INGEST_RATE_MS) {
-      skipped++;
-      continue;
-    }
-    try {
-      const url = `https://graph.facebook.com/v18.0/${acc.provider_account_id}/media?fields=id,caption,media_type,media_url,timestamp&access_token=${encodeURIComponent(acc.oauth_access_token)}`;
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const json = (await r.json()) as { data?: Array<{ id?: string; caption?: string; media_type?: string; media_url?: string; timestamp?: string }> };
-      const list = json.data ?? [];
-      for (const item of list) {
-        if (item.id) {
-          try { await upsertIngestedPost('instagram', item.id, acc.brand_id, item); } catch { /* skip */ }
-        }
-      }
-      ingestLastRun.set(key, Date.now());
-      ok++;
-    } catch {
-      // skip on error
-    }
-  }
-
-  res.json({ ok, skipped, accounts: accounts.length });
 });
 
 // ============================================================================
@@ -3877,6 +3934,25 @@ app.get('/api/workspace', (req, res) => {
 app.put('/api/workspace', (req, res) => {
   void putWorkspaceHandler(req as AuthenticatedRequest, res);
 });
+app.get('/api/steward/brands/:brandId/context', (req, res) => {
+  void getBrandContextV1Handler(req as AuthenticatedRequest, res);
+});
+app.put('/api/steward/brands/:brandId/context', (req, res) => {
+  void putBrandContextV1Handler(req as AuthenticatedRequest, res);
+});
+app.post('/api/workspace/bootstrap', (req, res) => {
+  void bootstrapWorkspaceHandler(req as AuthenticatedRequest, res);
+});
+
+app.post('/api/assets/upload-intent', (req, res) => {
+  void createAssetUploadIntentHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/assets/complete', (req, res) => {
+  void completeAssetUploadHandler(req as AuthenticatedRequest, res);
+});
+app.get('/api/assets/:id/url', (req, res) => {
+  void getAssetSafeUrlHandler(req as AuthenticatedRequest, res);
+});
 
 // ============================================================================
 // APPROVAL MUTATIONS (Supabase-backed)
@@ -3890,6 +3966,12 @@ app.post('/api/posts/:id/reject', (req, res) => {
 });
 app.post('/api/posts/:id/send-to-review', (req, res) => {
   void sendToReviewPostHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/posts/:id/schedule', (req, res) => {
+  void scheduleApprovedPostHandler(req as AuthenticatedRequest, res);
+});
+app.post('/api/posts/:id/publish', (req, res) => {
+  void publishApprovedPostHandler(req as AuthenticatedRequest, res);
 });
 
 // ============================================================================
@@ -3956,8 +4038,10 @@ const PORT = Number(process.env.PORT) || 3000;
 logAiGatewayStartupStatus();
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
-  // Scheduled publishing worker (no-op unless PUBLISH_WORKER_ENABLED=true)
+  // Scheduled publishing worker (enabled by default in production)
   startScheduler();
-  // AI agent worker (no-op unless AGENT_WORKER_ENABLED=true)
+  // Verified Meta analytics ingestion worker (enabled by default in production)
+  startAnalyticsWorker();
+  // AI agent worker (enabled by default in production)
   startAgentWorker();
 });

@@ -13,6 +13,7 @@ export function ConnectedAccountCard({
   analyticsEnabled,
   lastSync,
   onConnect,
+  onDisconnect,
   onStrategy,
 }: {
   platform: Platform | string;
@@ -22,6 +23,7 @@ export function ConnectedAccountCard({
   analyticsEnabled?: boolean;
   lastSync?: string;
   onConnect?: () => void;
+  onDisconnect?: () => void;
   onStrategy?: () => void;
 }) {
   const label = mapAccountStatus(status);
@@ -43,12 +45,17 @@ export function ConnectedAccountCard({
         </div>
         <div className="flex flex-wrap gap-2">
           {onConnect && (
-            <Button size="sm" variant={label === "Connected" ? "outline" : "default"} onClick={onConnect}>
+            <Button size="sm" className="min-h-11" variant={label === "Connected" ? "outline" : "default"} onClick={onConnect}>
               {label === "Connected" ? "Reconnect" : "Connect"}
             </Button>
           )}
+          {label === "Connected" && onDisconnect && (
+            <Button size="sm" className="min-h-11" variant="ghost" onClick={onDisconnect}>
+              Disconnect
+            </Button>
+          )}
           {onStrategy && (
-            <Button size="sm" variant="ghost" onClick={onStrategy}>
+            <Button size="sm" className="min-h-11" variant="ghost" onClick={onStrategy}>
               Platform strategy
             </Button>
           )}

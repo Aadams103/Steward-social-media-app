@@ -110,7 +110,17 @@ export const BrandSafetyResultSchema = ModerationResultSchema;
 export const MemoryExtractionResultSchema = z.object({
   proposed_memory_facts: z.array(
     z.object({
-      fact_type: z.string(),
+      fact_type: z.enum([
+        'business_fact',
+        'brand_preference',
+        'user_preference',
+        'audience_fact',
+        'content_rule',
+        'platform_preference',
+        'learned_insight',
+        'schedule_fact',
+        'offer_fact',
+      ]),
       fact_key: z.string(),
       fact_value: z.record(z.string(), z.unknown()),
       confidence: z.number().min(0).max(1),
@@ -127,6 +137,189 @@ export const ContentFeedbackLearningResultSchema = z.object({
   disliked_patterns: z.array(z.string()),
   preferred_patterns: z.array(z.string()),
   update_memory_recommendations: z.array(z.string()),
+});
+
+const EvidenceSchema = z.object({
+  statement: z.string(),
+  evidence: z.string(),
+  confidence: z.number().min(0).max(1),
+});
+
+export const HashtagResultSchema = z.object({
+  hashtags: z.array(z.string()),
+  groups: z.array(
+    z.object({
+      label: z.string(),
+      hashtags: z.array(z.string()),
+      purpose: z.string(),
+    })
+  ),
+  warnings: z.array(z.string()),
+});
+
+export const CaptionResultSchema = z.object({
+  hook: z.string(),
+  caption: z.string(),
+  cta: z.string(),
+  hashtags: z.array(z.string()),
+  platform: z.string(),
+  tone: z.string(),
+  brand_facts_used: z.array(z.string()),
+  assumptions_made: z.array(z.string()),
+  missing_brand_context: z.array(z.string()),
+  safety_flags: z.array(z.string()),
+  needs_human_review: z.boolean(),
+});
+
+export const HookResultSchema = z.object({
+  hooks: z.array(
+    z.object({
+      text: z.string(),
+      angle: z.string(),
+      platform: z.string(),
+      risk_flags: z.array(z.string()),
+    })
+  ),
+  recommended_index: z.number().int().min(0),
+  reasoning_summary: z.string(),
+  missing_brand_context: z.array(z.string()),
+});
+
+export const ContentStrategyResultSchema = z.object({
+  strategy_summary: z.string(),
+  objectives: z.array(z.string()),
+  audience_priorities: z.array(z.string()),
+  pillars: z.array(
+    z.object({
+      name: z.string(),
+      purpose: z.string(),
+      formats: z.array(z.string()),
+      cadence_per_week: z.number().int().min(0),
+    })
+  ),
+  platform_priorities: z.array(
+    z.object({ platform: z.string(), role: z.string(), cadence_per_week: z.number().int().min(0) })
+  ),
+  campaign_ideas: z.array(z.string()),
+  metrics_to_watch: z.array(z.string()),
+  risks: z.array(z.string()),
+  missing_brand_context: z.array(z.string()),
+  confidence_score: z.number().min(0).max(1),
+  needs_human_review: z.boolean(),
+});
+
+export const ContentCalendarResultSchema = z.object({
+  timezone: z.string(),
+  date_range: z.string(),
+  entries: z.array(
+    z.object({
+      title: z.string(),
+      publish_date: z.string(),
+      publish_time: z.string(),
+      platform: z.string(),
+      format: z.string(),
+      pillar: z.string(),
+      goal: z.string(),
+      brief: z.string(),
+      asset_needs: z.array(z.string()),
+      requires_approval: z.boolean(),
+    })
+  ),
+  conflicts: z.array(z.string()),
+  missing_brand_context: z.array(z.string()),
+});
+
+export const CarouselResultSchema = z.object({
+  title: z.string(),
+  slides: z.array(
+    z.object({
+      slide_number: z.number().int().min(1),
+      headline: z.string(),
+      body: z.string(),
+      visual_direction: z.string(),
+    })
+  ),
+  caption: z.string(),
+  cta: z.string(),
+  hashtags: z.array(z.string()),
+  missing_brand_context: z.array(z.string()),
+  safety_flags: z.array(z.string()),
+  needs_human_review: z.boolean(),
+});
+
+export const RepurposeResultSchema = z.object({
+  source_summary: z.string(),
+  variants: z.array(
+    z.object({
+      platform: z.string(),
+      format: z.string(),
+      hook: z.string(),
+      content: z.string(),
+      cta: z.string(),
+      hashtags: z.array(z.string()),
+      asset_direction: z.string(),
+      warnings: z.array(z.string()),
+    })
+  ),
+  missing_brand_context: z.array(z.string()),
+  needs_human_review: z.boolean(),
+});
+
+export const PerformanceAnalysisResultSchema = z.object({
+  summary: z.string(),
+  observations: z.array(EvidenceSchema),
+  strongest_content: z.array(EvidenceSchema),
+  weakest_content: z.array(EvidenceSchema),
+  recommendations: z.array(
+    z.object({ action: z.string(), reason: z.string(), confidence: z.number().min(0).max(1) })
+  ),
+  insufficient_data: z.array(z.string()),
+  needs_human_review: z.boolean(),
+});
+
+export const PatternDetectionResultSchema = z.object({
+  patterns: z.array(
+    z.object({
+      pattern: z.string(),
+      evidence: z.array(z.string()),
+      confidence: z.number().min(0).max(1),
+      recommended_test: z.string(),
+    })
+  ),
+  rejected_patterns: z.array(z.string()),
+  insufficient_data: z.array(z.string()),
+});
+
+export const GrowthTrackingResultSchema = z.object({
+  period: z.string(),
+  verified_metrics: z.array(
+    z.object({ metric: z.string(), start_value: z.number(), end_value: z.number(), change: z.number() })
+  ),
+  milestones: z.array(z.string()),
+  risks: z.array(z.string()),
+  recommended_actions: z.array(
+    z.object({ action: z.string(), confidence: z.number().min(0).max(1), rationale: z.string() })
+  ),
+  insufficient_data: z.array(z.string()),
+});
+
+export const OptimizationAdviceResultSchema = z.object({
+  priorities: z.array(
+    z.object({
+      priority: z.number().int().min(1),
+      action: z.string(),
+      expected_signal: z.string(),
+      evidence: z.array(z.string()),
+      confidence: z.number().min(0).max(1),
+    })
+  ),
+  experiments: z.array(
+    z.object({ hypothesis: z.string(), change: z.string(), success_metric: z.string(), duration: z.string() })
+  ),
+  keep_doing: z.array(z.string()),
+  stop_doing: z.array(z.string()),
+  insufficient_data: z.array(z.string()),
+  needs_human_review: z.boolean(),
 });
 
 export type MediaAnalysisResult = z.infer<typeof MediaAnalysisResultSchema>;

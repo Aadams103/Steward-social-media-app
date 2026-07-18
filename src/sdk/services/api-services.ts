@@ -5,6 +5,8 @@
  */
 
 import { apiClient, apiRequest } from '../core/api-client';
+import { supabase } from '@/lib/supabase';
+import type { AssetUploadIntent, BrandContextV1, SocialConnectionSafe } from '@/types/steward';
 import type {
   Post,
   Campaign,
@@ -87,12 +89,26 @@ export const postsApi = {
   update: (id: string, updates: Partial<Post>) =>
     apiClient.patch<Post>(`${API_BASE}/posts/${id}`, updates),
 
+  updateDraft: (id: string, payload: {
+    organizationId: string;
+    content: string;
+    platform: 'facebook' | 'instagram';
+    title?: string;
+    mediaAssetIds?: string[];
+    aiJobId?: string;
+  }) => apiClient.patch<{ post: Post }>(`${API_BASE}/posts/${id}`, payload),
+
   delete: (id: string) => apiClient.delete<void>(`${API_BASE}/posts/${id}`),
 
-  publish: (id: string) => apiClient.post<PublishJob>(`${API_BASE}/posts/${id}/publish`),
+  publish: (id: string, body: { organizationId: string; socialAccountIds?: string[] }) =>
+    apiClient.post<{ post: Post; publishJobs: PublishJob[] }>(`${API_BASE}/posts/${id}/publish`, body),
 
-  schedule: (id: string, scheduledTime: Date) =>
-    apiClient.post<Post>(`${API_BASE}/posts/${id}/schedule`, { scheduledTime }),
+  schedule: (id: string, body: {
+    organizationId: string;
+    scheduledTime: string;
+    timezone?: string;
+    socialAccountIds?: string[];
+  }) => apiClient.post<{ post: Post; publishJobs: PublishJob[] }>(`${API_BASE}/posts/${id}/schedule`, body),
 
   approve: (id: string, body?: { organizationId: string }) =>
     apiClient.post<Post>(`${API_BASE}/posts/${id}/approve`, body),
@@ -259,17 +275,20 @@ export const membersApi = {
 // ============================================================================
 
 export const oauthApi = {
-  list: (organizationId?: string) =>
-    apiClient.get<{ connections: OAuthConnection[] }>(
-      organizationId ? `${API_BASE}/organizations/${organizationId}/oauth/connections` : `${API_BASE}/oauth/connections`,
+  list: (organizationId: string, brandId?: string) =>
+    apiClient.get<{ connections: SocialConnectionSafe[] }>(
+      buildUrlWithParams(`${API_BASE}/oauth/connections`, { organizationId, brandId }),
     ),
 
   get: (id: string) => apiClient.get<OAuthConnection>(`${API_BASE}/oauth/connections/${id}`),
 
-  initiate: (platform: string, organizationId: string) =>
-    apiClient.post<{ authUrl: string; state: string }>(`${API_BASE}/oauth/initiate`, {
+  initiate: (platform: 'facebook' | 'instagram', organizationId: string, brandId: string) =>
+    apiClient.post<{ authUrl: string; callbackOrigin: string; state: string; expiresAt: string }>(`${API_BASE}/oauth/initiate`, {
+      provider: 'meta',
       platform,
       organizationId,
+      brandId,
+      returnOrigin: typeof window === 'undefined' ? undefined : window.location.origin,
     }),
 
   callback: (state: string, code: string) =>
@@ -277,7 +296,31 @@ export const oauthApi = {
 
   refresh: (id: string) => apiClient.post<OAuthConnection>(`${API_BASE}/oauth/connections/${id}/refresh`),
 
-  disconnect: (id: string) => apiClient.delete<void>(`${API_BASE}/oauth/connections/${id}`),
+  disconnect: (id: string, organizationId: string) =>
+    apiClient.delete<void>(buildUrlWithParams(`${API_BASE}/oauth/connections/${id}`, { organizationId })),
+
+  getSelection: (id: string) => apiClient.get<{
+    session: {
+      id: string;
+      organization_id: string;
+      brand_id: string;
+      expires_at: string;
+      candidates: Array<{
+        key: string;
+        platform: 'facebook' | 'instagram';
+        accountId: string;
+        accountName: string;
+        username?: string;
+        avatarUrl?: string;
+        pageName: string;
+      }>;
+    };
+  }>(`${API_BASE}/oauth/selections/${id}`),
+
+  completeSelection: (id: string, selectedKeys: string[]) =>
+    apiClient.post<{ connections: SocialConnectionSafe[] }>(`${API_BASE}/oauth/selections/${id}/complete`, {
+      selectedKeys,
+    }),
 
   update: (id: string, updates: Partial<OAuthConnection>) =>
     apiClient.patch<OAuthConnection>(`${API_BASE}/oauth/connections/${id}`, updates),
@@ -390,12 +433,14 @@ export const autopilotApi = {
 // ============================================================================
 
 export const assetsApi = {
-  list: (params?: { type?: string; search?: string; tags?: string | string[] }) => {
+  list: (params?: { organizationId?: string; brandId?: string; type?: string; search?: string; tags?: string | string[] }) => {
     // Convert tags array to query params if needed
     const queryParams: Record<string, string | number | boolean | undefined> = {};
     if (params) {
       if (params.type) queryParams.type = params.type;
       if (params.search) queryParams.search = params.search;
+      if (params.organizationId) queryParams.organizationId = params.organizationId;
+      if (params.brandId) queryParams.brandId = params.brandId;
       if (params.tags) {
         // Handle tags as array - backend will handle parsing
         queryParams.tags = Array.isArray(params.tags) ? params.tags.join(',') : params.tags;
@@ -409,16 +454,64 @@ export const assetsApi = {
   create: (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>) =>
     apiClient.post<Asset>(`${API_BASE}/assets`, asset),
 
-  upload: (files: File[], tags?: string[]) => {
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    if (tags && tags.length > 0) {
-      formData.append('tags', tags.join(','));
+  upload: async (
+    files: File[],
+    workspace: { organizationId: string; brandId: string },
+    tags?: string[],
+    preferredBucket?: AssetUploadIntent['bucket'],
+  ) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+    const uploaded: Asset[] = [];
+    for (const file of files) {
+      const checksumBuffer = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      const checksumSha256 = Array.from(new Uint8Array(checksumBuffer))
+        .map((value) => value.toString(16).padStart(2, '0'))
+        .join('');
+      const bucket: AssetUploadIntent['bucket'] = preferredBucket ??
+        (file.type.startsWith('image/') || file.type.startsWith('video/') ? 'content-media' : 'imports');
+      const intent = await apiClient.post<{ upload: AssetUploadIntent }>(`${API_BASE}/assets/upload-intent`, {
+        ...workspace,
+        bucket,
+        fileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size,
+        checksumSha256,
+        assetType: file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'document',
+      });
+      const { error: uploadError } = await supabase.storage
+        .from(intent.upload.bucket)
+        .uploadToSignedUrl(intent.upload.path, intent.upload.token, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const completed = await apiClient.post<{ asset: Record<string, unknown> }>(`${API_BASE}/assets/complete`, {
+        ...workspace,
+        bucket,
+        path: intent.upload.path,
+        fileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size,
+        checksumSha256,
+        assetType: file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'document',
+        tags: tags ?? [],
+      });
+      const row = completed.asset;
+      uploaded.push({
+        id: String(row.id),
+        type: String(row.type) as Asset['type'],
+        brandId: String(row.brand_id),
+        organizationId: String(row.organization_id),
+        version: String(row.version ?? '1'),
+        tags: (row.tags as string[] | undefined) ?? [],
+        metadata: {
+          filename: String(row.file_name ?? file.name),
+          mimeType: String(row.mime_type ?? file.type),
+          size: Number(row.file_size ?? file.size),
+          analysisStatus: row.analysis_status,
+        },
+        createdAt: new Date(String(row.created_at ?? new Date().toISOString())),
+        updatedAt: new Date(String(row.updated_at ?? new Date().toISOString())),
+      });
     }
-    return apiRequest<{ assets: Asset[] }>(`${API_BASE}/assets/upload`, {
-      method: 'POST',
-      body: formData,
-    });
+    return { assets: uploaded };
   },
 
   update: (id: string, updates: Partial<Asset>) =>
@@ -702,9 +795,37 @@ export interface AiGatewayResponse<T = Record<string, unknown>> {
   promptVersion: string;
   estimatedCostCents: number;
   totalTokens: number;
+  relatedPostId?: string;
 }
 
 export const aiApi = {
+  run: (payload: {
+    organizationId: string;
+    brandId: string;
+    operation: string;
+    input: Record<string, unknown>;
+    relatedPostId?: string;
+    relatedAssetId?: string;
+    persistDraft?: boolean;
+    persistVariants?: boolean;
+  }) => apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/run`, payload),
+
+  generateImage: (payload: {
+    organizationId: string;
+    brandId: string;
+    prompt: string;
+    sourceAssetId?: string;
+    size?: '1024x1024' | '1536x1024' | '1024x1536';
+    quality?: 'low' | 'medium' | 'high';
+    outputFormat?: 'png' | 'jpeg' | 'webp';
+  }) => apiClient.post<{
+    aiJobId: string;
+    asset: { id: string; fileName: string; url: string | null; approvalStatus: string };
+    model: string;
+    estimatedCostCents: number;
+    needsHumanReview: true;
+  }>(`${API_BASE}/ai/generate-image`, payload),
+
   analyzeMedia: (payload: Record<string, unknown>) =>
     apiClient.post<AiGatewayResponse>(`${API_BASE}/ai/analyze-media`, payload),
 
@@ -801,6 +922,23 @@ export const dashboardApi = {
 // WORKSPACE
 // ============================================================================
 
+export interface CurrentIdentityResponse {
+  id: string;
+  email: string | null;
+  profile: {
+    id: string;
+    email: string | null;
+    displayName: string | null;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  ownerAccess: { mode: 'owner' | 'open'; allowed: boolean };
+}
+
+export const identityApi = {
+  me: () => apiClient.get<CurrentIdentityResponse>(`${API_BASE}/me`, undefined, { maxRetries: 0 }),
+};
+
 export interface WorkspacePermissions {
   canReadAiJobs: boolean;
   canReadAiJobDetails: boolean;
@@ -874,6 +1012,38 @@ export const workspaceApi = {
 
   select: (body: { organizationId: string; brandId?: string }) =>
     apiClient.put<WorkspaceResponse>(`${API_BASE}/workspace`, body),
+
+  bootstrap: (body: { organizationName: string; brandName: string; timezone: string }) =>
+    apiClient.post<WorkspaceResponse & { created: boolean }>(`${API_BASE}/workspace/bootstrap`, body),
+};
+
+export const contentBriefsApi = {
+  create: (payload: {
+    organizationId: string;
+    brandId: string;
+    goal?: string;
+    targetAudience?: string;
+    contentPillar?: string;
+    contentFormat?: 'post' | 'carousel' | 'story' | 'reel' | 'video';
+    platforms: Array<'facebook' | 'instagram'>;
+    assetIds?: string[];
+    notes?: string;
+  }) => apiClient.post<{ brief: Record<string, unknown> }>(`${API_BASE}/content/briefs`, payload),
+
+  complete: (id: string, payload: { organizationId: string; aiJobId: string }) =>
+    apiClient.patch<{ brief: Record<string, unknown> }>(`${API_BASE}/content/briefs/${id}/complete`, payload),
+};
+
+export const brandContextV1Api = {
+  get: (organizationId: string, brandId: string) =>
+    apiClient.get<{ context: BrandContextV1 }>(
+      buildUrlWithParams(`${API_BASE}/steward/brands/${brandId}/context`, { organizationId })
+    ),
+  put: (organizationId: string, brandId: string, context: BrandContextV1) =>
+    apiClient.put<{ context: BrandContextV1 }>(`${API_BASE}/steward/brands/${brandId}/context`, {
+      organizationId,
+      context,
+    }),
 };
 
 // ============================================================================

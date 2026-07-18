@@ -6,16 +6,25 @@ import { getSupabaseClient } from '../supabase.js';
 import { AiGatewayError } from './errors.js';
 import type { AiGatewayConfig } from './config.js';
 
-/** Approximate USD per 1M tokens — update as OpenAI pricing changes. */
+/** Standard-processing USD per 1M tokens, with environment overrides for pricing changes. */
 const MODEL_PRICING_USD_PER_M: Record<string, { input: number; output: number }> = {
-  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
-  'gpt-4.1': { input: 2.0, output: 8.0 },
-  'gpt-4o': { input: 2.5, output: 10.0 },
-  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-5.6-luna': { input: 1, output: 6 },
+  'gpt-5.6-terra': { input: 2.5, output: 15 },
 };
 
+function pricingFor(model: string): { input: number; output: number } {
+  const known = MODEL_PRICING_USD_PER_M[model] ?? MODEL_PRICING_USD_PER_M['gpt-5.6-terra']!;
+  const key = model.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+  const inputOverride = Number(process.env[`OPENAI_PRICE_${key}_INPUT_USD_PER_M`]);
+  const outputOverride = Number(process.env[`OPENAI_PRICE_${key}_OUTPUT_USD_PER_M`]);
+  return {
+    input: Number.isFinite(inputOverride) && inputOverride >= 0 ? inputOverride : known.input,
+    output: Number.isFinite(outputOverride) && outputOverride >= 0 ? outputOverride : known.output,
+  };
+}
+
 export function estimateCostCents(model: string, inputTokens: number, outputTokens: number): number {
-  const pricing = MODEL_PRICING_USD_PER_M[model] ?? MODEL_PRICING_USD_PER_M['gpt-4.1-mini']!;
+  const pricing = pricingFor(model);
   const usd =
     (inputTokens / 1_000_000) * pricing.input + (outputTokens / 1_000_000) * pricing.output;
   return Math.max(1, Math.ceil(usd * 100));

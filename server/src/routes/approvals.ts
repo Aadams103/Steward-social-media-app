@@ -18,6 +18,15 @@ const reasonSchema = z.object({
   comment: z.string().min(1).max(2000).optional(),
 });
 
+const editDraftSchema = z.object({
+  organizationId: z.string().uuid(),
+  content: z.string().trim().min(1).max(20_000),
+  platform: z.enum(['facebook', 'instagram']),
+  title: z.string().trim().max(300).optional(),
+  mediaAssetIds: z.array(z.string().uuid()).max(10).default([]),
+  aiJobId: z.string().uuid().optional(),
+});
+
 async function getSupabasePost(postId: string, organizationId: string) {
   const client = getSupabaseClient();
   if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
@@ -41,7 +50,10 @@ function mapPostSummary(row: Record<string, unknown>) {
     approvalState: row.approval_state,
     content: row.content,
     title: row.title,
+    hashtags: row.hashtags ?? [],
+    mediaAssetIds: row.media_asset_ids ?? [],
     scheduledTime: row.scheduled_time,
+    publishedId: row.published_id,
     updatedAt: row.updated_at,
   };
 }
@@ -84,6 +96,102 @@ async function upsertContentApproval(input: {
       requested_by: input.userId,
     });
   }
+}
+
+async function createPublishJobsForPost(input: {
+  post: Record<string, unknown>;
+  organizationId: string;
+  userId: string;
+  scheduledAt: string;
+  socialAccountIds?: string[];
+  idempotencyScope?: string;
+}): Promise<Record<string, unknown>[]> {
+  const client = getSupabaseClient()!;
+  const brandId = input.post.brand_id as string | null;
+  if (!brandId) throw new Error('BRAND_REQUIRED');
+  let accountsQuery = client
+    .from('social_accounts')
+    .select('id, platform')
+    .eq('organization_id', input.organizationId)
+    .eq('brand_id', brandId)
+    .eq('platform', input.post.platform as string)
+    .eq('connection_status', 'connected')
+    .is('archived_at', null);
+  if (input.socialAccountIds?.length) accountsQuery = accountsQuery.in('id', input.socialAccountIds);
+  const { data: accounts, error: accountsError } = await accountsQuery;
+  if (accountsError) throw accountsError;
+  if (!accounts?.length) return [];
+  if (input.socialAccountIds?.length) {
+    const requestedCount = new Set(input.socialAccountIds).size;
+    if (accounts.length !== requestedCount) {
+      const error = new Error('One or more selected social accounts do not belong to this brand.');
+      (error as Error & { code: string }).code = 'INVALID_SOCIAL_ACCOUNT';
+      throw error;
+    }
+  }
+
+  const mediaAssetIds = (input.post.media_asset_ids as string[] | null) ?? [];
+  const platform = String(input.post.platform);
+  const requestedFormat = String((input.post.metadata as Record<string, unknown> | null)?.format ?? '').toLowerCase();
+  const format = requestedFormat === 'single' || requestedFormat === 'image'
+    ? 'single_image'
+    : requestedFormat === 'video' && platform === 'instagram'
+      ? 'reel'
+      : requestedFormat || (platform === 'instagram' ? 'single_image' : 'text');
+  if (platform === 'instagram') {
+    if (mediaAssetIds.length === 0) {
+      const error = new Error('Instagram publishing requires at least one approved image or video.');
+      (error as Error & { code: string }).code = 'INSTAGRAM_MEDIA_REQUIRED';
+      throw error;
+    }
+    if (!['single_image', 'carousel', 'reel'].includes(format)) {
+      const error = new Error('This Instagram format is not supported for publishing.');
+      (error as Error & { code: string }).code = 'UNSUPPORTED_INSTAGRAM_FORMAT';
+      throw error;
+    }
+  }
+
+  const jobs: Record<string, unknown>[] = [];
+  for (const account of accounts) {
+    const idempotencyKey = `${input.post.id}:${account.id}:${input.idempotencyScope ?? input.scheduledAt}`;
+    const payload = {
+      organization_id: input.organizationId,
+      brand_id: brandId,
+      post_id: input.post.id,
+      social_account_id: account.id,
+      connection_id: account.id,
+      platform: account.platform,
+      status: 'queued',
+      scheduled_at: input.scheduledAt,
+      scheduled_for: input.scheduledAt,
+      created_by_user_id: input.userId,
+      idempotency_key: idempotencyKey,
+      post_content: {
+        postId: input.post.id,
+        text: input.post.main_caption ?? input.post.content,
+        hashtags: input.post.hashtags ?? [],
+        linkUrl: (input.post.metadata as Record<string, unknown> | null)?.linkUrl ?? undefined,
+        mediaAssetIds,
+        format,
+      },
+      metadata: { approvalFirst: true },
+    };
+    const { data: job, error } = await client.from('publish_jobs').insert(payload).select('*').single();
+    if (error?.code === '23505') {
+      const { data: existing, error: existingError } = await client
+        .from('publish_jobs')
+        .select('*')
+        .eq('idempotency_key', idempotencyKey)
+        .single();
+      if (existingError) throw existingError;
+      jobs.push(existing as Record<string, unknown>);
+    } else if (error) {
+      throw error;
+    } else if (job) {
+      jobs.push(job as Record<string, unknown>);
+    }
+  }
+  return jobs;
 }
 
 function approvalGuard(res: Response): boolean {
@@ -152,7 +260,10 @@ export async function approvePostHandler(req: AuthenticatedRequest, res: Respons
       afterState: { status: 'approved', approval_state: 'approved' },
     });
 
-    res.json({ post: mapPostSummary(updated as Record<string, unknown>) });
+    res.json({
+      post: mapPostSummary(updated as Record<string, unknown>),
+      publishJobs: [],
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ code: 'VALIDATION_ERROR', message: err.message });
@@ -163,6 +274,137 @@ export async function approvePostHandler(req: AuthenticatedRequest, res: Respons
       return;
     }
     res.status(500).json({ code: 'APPROVE_ERROR', message: String(err) });
+  }
+}
+
+export async function scheduleApprovedPostHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!approvalGuard(res)) return;
+  const userId = req.user?.id;
+  if (!userId) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+  try {
+    const body = z.object({
+      organizationId: z.string().uuid(),
+      scheduledTime: z.string().datetime(),
+      timezone: z.string().min(1).max(100).optional(),
+      socialAccountIds: z.array(z.string().uuid()).max(20).optional(),
+    }).parse(req.body);
+    if (new Date(body.scheduledTime).getTime() <= Date.now()) {
+      return void res.status(400).json({ code: 'SCHEDULE_IN_PAST', message: 'Choose a future publishing time.' });
+    }
+    const role = await assertWorkspaceAccess(userId, body.organizationId);
+    assertPermission(role, 'canPublish');
+    const post = await getSupabasePost(req.params.id, body.organizationId);
+    if (!post) return void res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
+    if (post.status !== 'approved' || post.approval_state !== 'approved') {
+      return void res.status(409).json({ code: 'APPROVAL_REQUIRED', message: 'Approve this post before scheduling it.' });
+    }
+    const jobs = await createPublishJobsForPost({
+      post: post as Record<string, unknown>,
+      organizationId: body.organizationId,
+      userId,
+      scheduledAt: body.scheduledTime,
+      socialAccountIds: body.socialAccountIds,
+    });
+    if (jobs.length === 0) {
+      return void res.status(409).json({ code: 'SOCIAL_ACCOUNT_REQUIRED', message: 'Connect a matching social account before scheduling.' });
+    }
+    const client = getSupabaseClient()!;
+    const { data: updated, error } = await client.from('posts').update({
+      status: 'scheduled',
+      scheduled_time: body.scheduledTime,
+      updated_at: new Date().toISOString(),
+    }).eq('id', post.id).select('*').single();
+    if (error) throw error;
+    await client.from('content_calendar_entries').insert({
+      organization_id: body.organizationId,
+      brand_id: post.brand_id,
+      post_id: post.id,
+      title: post.title ?? `Scheduled ${post.platform} post`,
+      scheduled_for: body.scheduledTime,
+      timezone: body.timezone ?? 'UTC',
+      platform: post.platform,
+      status: 'scheduled',
+      requires_approval: true,
+      metadata: { approvalFirst: true, publishJobIds: jobs.map((job) => job.id) },
+    });
+    await logAuditEvent({
+      organizationId: body.organizationId,
+      brandId: post.brand_id as string,
+      actorUserId: userId,
+      action: 'post.schedule',
+      entityType: 'post',
+      entityId: post.id as string,
+      metadata: { scheduledTime: body.scheduledTime, publishJobIds: jobs.map((job) => job.id) },
+    });
+    res.json({ post: mapPostSummary(updated as Record<string, unknown>), publishJobs: jobs });
+  } catch (err) {
+    if (err instanceof z.ZodError) return void res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Check the schedule and try again.', details: err.flatten() });
+    if (err instanceof Error && (err as Error & { code?: string }).code === 'FORBIDDEN') return void res.status(403).json({ code: 'FORBIDDEN', message: err.message });
+    if (err instanceof Error && ['INVALID_SOCIAL_ACCOUNT', 'INSTAGRAM_MEDIA_REQUIRED', 'UNSUPPORTED_INSTAGRAM_FORMAT'].includes((err as Error & { code?: string }).code ?? '')) {
+      return void res.status(409).json({ code: (err as Error & { code: string }).code, message: err.message });
+    }
+    console.error('Post schedule failed', err instanceof Error ? err.message : 'unknown error');
+    res.status(500).json({ code: 'SCHEDULE_ERROR', message: 'The post could not be scheduled.' });
+  }
+}
+
+export async function publishApprovedPostHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!approvalGuard(res)) return;
+  const userId = req.user?.id;
+  if (!userId) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+
+  try {
+    const body = z.object({
+      organizationId: z.string().uuid(),
+      socialAccountIds: z.array(z.string().uuid()).min(1).max(20).optional(),
+    }).parse(req.body);
+    const role = await assertWorkspaceAccess(userId, body.organizationId);
+    assertPermission(role, 'canPublish');
+    const post = await getSupabasePost(req.params.id, body.organizationId);
+    if (!post) return void res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
+    if (post.status !== 'approved' || post.approval_state !== 'approved') {
+      return void res.status(409).json({ code: 'APPROVAL_REQUIRED', message: 'Approve this post before publishing it.' });
+    }
+
+    const queuedAt = new Date().toISOString();
+    const jobs = await createPublishJobsForPost({
+      post: post as Record<string, unknown>,
+      organizationId: body.organizationId,
+      userId,
+      scheduledAt: queuedAt,
+      socialAccountIds: body.socialAccountIds,
+      idempotencyScope: 'publish-now',
+    });
+    if (jobs.length === 0) {
+      return void res.status(409).json({ code: 'SOCIAL_ACCOUNT_REQUIRED', message: 'Connect a matching social account before publishing.' });
+    }
+
+    const client = getSupabaseClient()!;
+    const { data: updated, error } = await client.from('posts').update({
+      status: 'scheduled',
+      scheduled_time: queuedAt,
+      updated_at: queuedAt,
+    }).eq('id', post.id).select('*').single();
+    if (error) throw error;
+    await logAuditEvent({
+      organizationId: body.organizationId,
+      brandId: post.brand_id as string,
+      actorUserId: userId,
+      action: 'post.publish_now',
+      entityType: 'post',
+      entityId: post.id as string,
+      metadata: { publishJobIds: jobs.map((job) => job.id) },
+    });
+    res.status(202).json({ post: mapPostSummary(updated as Record<string, unknown>), publishJobs: jobs });
+  } catch (err) {
+    if (err instanceof z.ZodError) return void res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Choose a valid connected account.', details: err.flatten() });
+    const code = err instanceof Error ? (err as Error & { code?: string }).code : undefined;
+    if (code === 'FORBIDDEN') return void res.status(403).json({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : 'Forbidden' });
+    if (err instanceof Error && ['INVALID_SOCIAL_ACCOUNT', 'INSTAGRAM_MEDIA_REQUIRED', 'UNSUPPORTED_INSTAGRAM_FORMAT'].includes(code ?? '')) {
+      return void res.status(409).json({ code, message: err.message });
+    }
+    console.error('Post publish queue failed', err instanceof Error ? err.message : 'unknown error');
+    res.status(500).json({ code: 'PUBLISH_ERROR', message: 'The post could not be queued for publishing.' });
   }
 }
 
@@ -189,7 +431,7 @@ export async function requestChangesPostHandler(req: AuthenticatedRequest, res: 
     const { data: updated, error } = await client
       .from('posts')
       .update({
-        status: 'needs_review',
+        status: 'revision_requested',
         approval_state: 'revision_requested',
         updated_at: new Date().toISOString(),
         metadata: { ...(post.metadata as object), change_request_comment: body.comment },
@@ -328,7 +570,7 @@ export async function sendToReviewPostHandler(req: AuthenticatedRequest, res: Re
     const { data: updated, error } = await client
       .from('posts')
       .update({
-        status: 'needs_review',
+        status: 'in_review',
         approval_state: 'in_review',
         updated_at: new Date().toISOString(),
       })
@@ -366,6 +608,97 @@ export async function sendToReviewPostHandler(req: AuthenticatedRequest, res: Re
       return;
     }
     res.status(500).json({ code: 'SEND_TO_REVIEW_ERROR', message: String(err) });
+  }
+}
+
+export async function updatePostDraftHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!approvalGuard(res)) return;
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const body = editDraftSchema.parse(req.body);
+    const role = await assertWorkspaceAccess(userId, body.organizationId);
+    assertPermission(role, 'canEditPosts');
+    const post = await getSupabasePost(req.params.id, body.organizationId);
+    if (!post) {
+      res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
+      return;
+    }
+    if (!['draft', 'revision_requested', 'rejected'].includes(String(post.status))) {
+      res.status(409).json({
+        code: 'POST_LOCKED',
+        message: 'Only drafts or posts returned for revision can be edited.',
+      });
+      return;
+    }
+
+    const client = getSupabaseClient()!;
+    const before = {
+      content: post.content,
+      platform: post.platform,
+      title: post.title,
+      media_asset_ids: post.media_asset_ids,
+      status: post.status,
+    };
+    const { data: updated, error } = await client
+      .from('posts')
+      .update({
+        content: body.content,
+        main_caption: body.content,
+        platform: body.platform,
+        title: body.title ?? post.title,
+        media_asset_ids: body.mediaAssetIds,
+        status: 'draft',
+        approval_state: 'pending',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', post.id)
+      .eq('organization_id', body.organizationId)
+      .select('*')
+      .single();
+    if (error) throw error;
+
+    await client.from('post_revisions').insert({
+      organization_id: body.organizationId,
+      brand_id: post.brand_id,
+      post_id: post.id,
+      edited_by: userId,
+      before_state: before,
+      after_state: {
+        content: body.content,
+        platform: body.platform,
+        title: body.title ?? post.title,
+        media_asset_ids: body.mediaAssetIds,
+        status: 'draft',
+      },
+      ai_job_id: body.aiJobId ?? null,
+    });
+
+    await logAuditEvent({
+      organizationId: body.organizationId,
+      brandId: post.brand_id as string | undefined,
+      actorUserId: userId,
+      action: 'post.edit',
+      entityType: 'post',
+      entityId: post.id as string,
+      beforeState: before,
+      afterState: { content: body.content, platform: body.platform, status: 'draft' },
+    });
+    res.json({ post: mapPostSummary(updated as Record<string, unknown>) });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ code: 'VALIDATION_ERROR', message: err.message });
+      return;
+    }
+    if (err instanceof Error && (err as Error & { code?: string }).code === 'FORBIDDEN') {
+      res.status(403).json({ code: 'FORBIDDEN', message: err.message });
+      return;
+    }
+    res.status(500).json({ code: 'POST_EDIT_ERROR', message: 'The draft could not be saved.' });
   }
 }
 
@@ -409,7 +742,9 @@ export async function listSupabasePostsHandler(req: AuthenticatedRequest, res: R
       status: row.status,
       approvalState: row.approval_state,
       hashtags: row.hashtags ?? [],
+      mediaAssetIds: row.media_asset_ids ?? [],
       scheduledTime: row.scheduled_time,
+      publishedId: row.published_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -421,5 +756,31 @@ export async function listSupabasePostsHandler(req: AuthenticatedRequest, res: R
       return;
     }
     res.status(500).json({ code: 'POSTS_LIST_ERROR', message: String(err) });
+  }
+}
+
+export async function getSupabasePostHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  if (!approvalGuard(res)) return;
+  const userId = req.user?.id;
+  if (!userId) return void res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Authentication required' });
+  const client = getSupabaseClient()!;
+  try {
+    const postId = z.string().uuid().parse(req.params.id);
+    const { data: post, error } = await client.from('posts').select('*').eq('id', postId).maybeSingle();
+    if (error) throw error;
+    if (!post) return void res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Post not found' });
+    await assertWorkspaceAccess(userId, post.organization_id as string, post.brand_id as string | undefined);
+    res.json(mapPostSummary(post as Record<string, unknown>));
+  } catch (error) {
+    if (error instanceof z.ZodError) return void res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Invalid post ID' });
+    if (
+      error instanceof Error &&
+      ((error as Error & { code?: string }).code === 'FORBIDDEN' ||
+        (error as Error & { code?: string }).code === 'BRAND_ACCESS_DENIED' ||
+        error.message === 'ORG_ACCESS_DENIED')
+    ) {
+      return void res.status(403).json({ code: 'FORBIDDEN', message: 'You cannot access this post.' });
+    }
+    res.status(500).json({ code: 'POST_READ_ERROR', message: 'The post could not be loaded.' });
   }
 }

@@ -1,20 +1,18 @@
 /**
  * Supabase client for Steward backend.
- * Use only when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.
+ * Use only when SUPABASE_URL and a server-only Supabase secret key are set.
  * Service role bypasses RLS — use only server-side; never expose to frontend.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseServerCredentials } from './config.js';
 import type { SocialAccount } from './types.js';
 
 let _client: SupabaseClient | null = null;
 
-const oauthStatesMemory = new Map<string, { brandId: string; purpose: string; provider: string; expiresAt: number }>();
-
 export function getSupabaseClient(): SupabaseClient | null {
   if (_client) return _client;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { url, key } = getSupabaseServerCredentials();
   if (!url || !key) return null;
   _client = createClient(url, key, { auth: { persistSession: false } });
   return _client;
@@ -32,43 +30,33 @@ export async function checkSupabaseConnection(): Promise<'connected' | 'disconne
   }
 }
 
-// --- OAuth state: persist in Supabase when configured, else in-memory ---
+// --- OAuth state: always durable and fail closed when Supabase is unavailable ---
 
 export async function setOAuthState(
   state: string,
   data: { brandId: string; purpose: string; provider: string; expiresAt: number }
 ): Promise<void> {
   const client = getSupabaseClient();
-  if (client) {
-    await client.from('oauth_states').insert({
-      state,
-      brand_id: data.brandId,
-      purpose: data.purpose,
-      provider: data.provider,
-      expires_at: new Date(data.expiresAt).toISOString(),
-    });
-  } else {
-    for (const [k, v] of oauthStatesMemory.entries()) {
-      if (v.expiresAt < Date.now()) oauthStatesMemory.delete(k);
-    }
-    oauthStatesMemory.set(state, data);
-  }
+  if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+  const { error } = await client.from('oauth_states').insert({
+    state,
+    brand_id: data.brandId,
+    purpose: data.purpose,
+    provider: data.provider,
+    expires_at: new Date(data.expiresAt).toISOString(),
+  });
+  if (error) throw error;
 }
 
 export async function getAndDeleteOAuthState(
   state: string
 ): Promise<{ brandId: string; purpose: string; provider: string; expiresAt: number } | null> {
   const client = getSupabaseClient();
-  if (client) {
-    const { data: row } = await client.from('oauth_states').select('brand_id, purpose, provider, expires_at').eq('state', state).single();
-    await client.from('oauth_states').delete().eq('state', state);
-    if (!row || new Date(row.expires_at).getTime() < Date.now()) return null;
-    return { brandId: row.brand_id, purpose: row.purpose, provider: row.provider, expiresAt: new Date(row.expires_at).getTime() };
-  }
-  const d = oauthStatesMemory.get(state);
-  oauthStatesMemory.delete(state);
-  if (!d || d.expiresAt < Date.now()) return null;
-  return d;
+  if (!client) throw new Error('SUPABASE_NOT_CONFIGURED');
+  const { data: row } = await client.from('oauth_states').select('brand_id, purpose, provider, expires_at').eq('state', state).single();
+  await client.from('oauth_states').delete().eq('state', state);
+  if (!row || new Date(row.expires_at).getTime() < Date.now()) return null;
+  return { brandId: row.brand_id, purpose: row.purpose, provider: row.provider, expiresAt: new Date(row.expires_at).getTime() };
 }
 
 // --- Social account: upsert to Supabase when configured (for OAuth token storage) ---
@@ -172,6 +160,7 @@ export async function listIngestedPosts(options: {
   if (options.brandId) q = q.eq('brand_id', options.brandId);
   if (options.platform) q = q.eq('platform', options.platform);
   if (options.limit) q = q.limit(options.limit);
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) throw error;
   return (data ?? []) as IngestedPostRow[];
 }

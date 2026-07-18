@@ -13,8 +13,6 @@ export const STEWARD_VIEW_ROUTES: Record<string, string> = {
   calendar: "calendar",
   analytics: "analytics",
   accounts: "accounts",
-  campaigns: "campaigns",
-  settings: "settings",
   onboarding: "onboarding",
 };
 

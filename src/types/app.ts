@@ -114,6 +114,7 @@ export interface Post {
   campaignId?: string;
   authorId: string;
   mediaUrls?: string[];
+  mediaAssetIds?: string[];
   hashtags?: string[];
   metrics?: PostMetrics;
   recurrenceSchedule?: RecurrenceSchedule; // Recurring schedule configuration

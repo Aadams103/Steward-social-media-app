@@ -8,6 +8,7 @@ import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { getSupabaseClient } from '../supabase.js';
 import { assertWorkspaceAccess } from '../services/workspace.js';
 import { isSupabaseServiceConfigured } from '../services/steward-db.js';
+import { getPublishWorkerHealth } from '../workers/scheduler.js';
 
 const querySchema = z.object({
   organizationId: z.string().uuid(),
@@ -56,7 +57,7 @@ export async function getPublishHealthHandler(req: AuthenticatedRequest, res: Re
             .from('publish_jobs')
             .select('id', { count: 'exact', head: true })
             .eq('organization_id', query.organizationId)
-            .eq('status', 'succeeded')
+            .in('status', ['completed', 'succeeded'])
             .gte('completed_at', since24h);
           if (query.brandId) q = q.eq('brand_id', query.brandId);
           return q;
@@ -114,6 +115,7 @@ export async function getPublishHealthHandler(req: AuthenticatedRequest, res: Re
 
     res.json({
       health: {
+        worker: getPublishWorkerHealth(),
         queued_count: queued.count ?? 0,
         publishing_count: publishing.count ?? 0,
         succeeded_24h: succeeded.count ?? 0,

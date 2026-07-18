@@ -1,79 +1,144 @@
-import { useState } from "react";
-import { loginWithEmail } from "../auth/login";
-import { signUpWithEmail } from "../auth/signup";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Loader2, LockKeyhole, Mail } from "lucide-react";
+import { loginWithEmail } from "@/auth/login";
+import { AppLogo } from "@/components/AppLogo";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export function AuthPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(() => {
+    const stored = sessionStorage.getItem("steward_auth_error");
+    if (stored) sessionStorage.removeItem("steward_auth_error");
+    return stored;
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function handleSignUp() {
-    setMessage("Signing up...");
-    try {
-      await signUpWithEmail(email, password, fullName || undefined);
-      setMessage("Signed up successfully.");
-    } catch (error: any) {
-      setMessage(error?.message ?? "Failed to sign up.");
-    }
-  }
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session && !message) {
+        void navigate({ to: "/app" });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [message, navigate]);
 
-  async function handleLogin() {
-    setMessage("Logging in...");
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isLoading) return;
+
+    setMessage(null);
+    sessionStorage.removeItem("steward_auth_error");
+    setIsLoading(true);
     try {
-      await loginWithEmail(email, password);
-      setMessage("Logged in successfully.");
-    } catch (error: any) {
-      setMessage(error?.message ?? "Failed to log in.");
+      await loginWithEmail(email.trim().toLowerCase(), password);
+      await navigate({ to: "/app" });
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Failed to log in.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
-    <main style={{ padding: "2rem", maxWidth: 480, margin: "0 auto" }}>
-      <h1>Auth</h1>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%" }}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%" }}
-          />
-        </label>
-        <label>
-          Full name (signup only)
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{ width: "100%" }}
-          />
-        </label>
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-          <button type="button" onClick={handleSignUp}>
-            Sign Up
-          </button>
-          <button type="button" onClick={handleLogin}>
-            Log In
-          </button>
-        </div>
-        {message && (
-          <p style={{ marginTop: "0.75rem" }}>
-            {message}
-          </p>
-        )}
+    <main className="min-h-screen bg-[var(--steward-bg)] px-4 py-8 text-slate-950 sm:py-14">
+      <div className="mx-auto w-full max-w-md">
+        <Link
+          to="/"
+          className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-slate-300 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to Steward
+        </Link>
+
+        <Card className="border-white/10 shadow-2xl">
+          <CardHeader className="space-y-4 text-center">
+            <div className="mx-auto flex justify-center">
+              <AppLogo variant="lockup" theme="dark" size={36} />
+            </div>
+            <div>
+              <CardTitle className="text-2xl">Welcome back</CardTitle>
+              <CardDescription className="mt-2">
+                Private build—owner access only. Log in to manage content, approvals, and publishing.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleLogin}>
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="min-h-11 pl-9"
+                    placeholder="you@company.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <div className="relative">
+                  <LockKeyhole className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <Input
+                    id="login-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="min-h-11 pl-9"
+                    required
+                  />
+                </div>
+              </div>
+
+              {!isSupabaseConfigured ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    Authentication is not configured for this deployment.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {message ? (
+                <Alert variant="destructive" role="alert">
+                  <AlertDescription>{message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Button
+                type="submit"
+                className="min-h-11 w-full"
+                disabled={isLoading || !isSupabaseConfigured}
+              >
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                Log in
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                New accounts will open after the private owner launch is complete.
+              </p>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
 }
-

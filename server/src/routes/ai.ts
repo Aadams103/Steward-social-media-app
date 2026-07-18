@@ -16,6 +16,40 @@ const baseBodySchema = z.object({
   brandId: z.string().uuid(),
 });
 
+const capabilityOperationSchema = z.enum([
+  'media_analysis',
+  'brand_context',
+  'brand_summary',
+  'content_strategy',
+  'content_calendar',
+  'hook_generation',
+  'caption_generation',
+  'post_draft_generation',
+  'platform_variant_generation',
+  'carousel_generation',
+  'hashtag_generation',
+  'schedule_recommendation',
+  'content_score',
+  'content_repurpose',
+  'performance_analysis',
+  'pattern_detection',
+  'growth_tracking',
+  'optimization_advice',
+  'moderation_check',
+]);
+
+const genericRunSchema = baseBodySchema.extend({
+  operation: capabilityOperationSchema,
+  input: z.record(z.string(), z.unknown()).refine(
+    (value) => JSON.stringify(value).length <= 100_000,
+    'AI input is too large'
+  ),
+  relatedPostId: z.string().uuid().optional(),
+  relatedAssetId: z.string().uuid().optional(),
+  persistDraft: z.boolean().optional(),
+  persistVariants: z.boolean().optional(),
+});
+
 const analyzeMediaSchema = baseBodySchema.extend({
   assetId: z.string().uuid().optional(),
   description: z.string().max(8000).optional(),
@@ -129,6 +163,7 @@ async function runOp(
       promptVersion: result.promptVersion,
       estimatedCostCents: result.estimatedCostCents,
       totalTokens: result.totalTokens,
+      relatedPostId: result.relatedPostId,
     });
   } catch (err) {
     handleError(res, err);
@@ -142,6 +177,26 @@ export function initAiGatewayRoutes(): void {
 export async function analyzeMediaHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
   const body = analyzeMediaSchema.parse(req.body);
   await runOp(req, res, 'media_analysis', body, { relatedAssetId: body.assetId });
+}
+
+export async function runAiCapabilityHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const body = genericRunSchema.parse(req.body);
+  await runOp(
+    req,
+    res,
+    body.operation,
+    {
+      organizationId: body.organizationId,
+      brandId: body.brandId,
+      ...body.input,
+    },
+    {
+      relatedPostId: body.relatedPostId,
+      relatedAssetId: body.relatedAssetId,
+      persistDraft: body.persistDraft ?? body.operation === 'post_draft_generation',
+      persistVariants: body.persistVariants ?? body.operation === 'platform_variant_generation',
+    }
+  );
 }
 
 export async function generatePostDraftHandler(req: AuthenticatedRequest, res: Response): Promise<void> {

@@ -13,6 +13,8 @@ interface StewardAiActionsProps {
   assetId?: string;
   postId?: string;
   caption?: string;
+  platform?: 'facebook' | 'instagram';
+  prepareDraftInput?: () => Promise<Record<string, unknown>>;
   onDraftGenerated?: (result: AiGatewayResponse) => void;
 }
 
@@ -21,6 +23,8 @@ export function StewardAiActions({
   assetId,
   postId,
   caption,
+  platform = 'instagram',
+  prepareDraftInput,
   onDraftGenerated,
 }: StewardAiActionsProps) {
   const activeBrandId = useAppStore((s) => s.activeBrandId);
@@ -92,13 +96,16 @@ export function StewardAiActions({
             size="sm"
             disabled={disabled || loading !== null}
             onClick={() =>
-              run("draft", () =>
-                aiApi.generatePostDraft({
+              run("draft", async () => {
+                const prepared = prepareDraftInput ? await prepareDraftInput() : {};
+                return aiApi.generatePostDraft({
                   ...basePayload,
                   userPrompt: caption,
+                  platforms: [platform],
                   persistDraft: true,
-                })
-              )
+                  ...prepared,
+                });
+              })
             }
           >
             {loading === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -113,7 +120,7 @@ export function StewardAiActions({
                 aiApi.generatePlatformVariants({
                   ...basePayload,
                   postId,
-                  platforms: ["instagram", "facebook", "tiktok"],
+                  platforms: ["instagram", "facebook"],
                   persistVariants: true,
                 })
               )
@@ -130,7 +137,7 @@ export function StewardAiActions({
                 aiApi.recommendSchedule({
                   ...basePayload,
                   postId,
-                  platform: "instagram",
+                  platform,
                   draftCaption: caption,
                 })
               )
@@ -145,7 +152,7 @@ export function StewardAiActions({
             disabled={disabled || !caption || loading !== null}
             onClick={() =>
               run("score", () =>
-                aiApi.scoreContent({ ...basePayload, caption: caption!, platform: "instagram" })
+                aiApi.scoreContent({ ...basePayload, caption: caption!, platform })
               )
             }
           >
@@ -158,12 +165,12 @@ export function StewardAiActions({
             disabled={disabled || !caption || loading !== null}
             onClick={() =>
               run("moderate", () =>
-                aiApi.moderateContent({ ...basePayload, caption: caption!, platform: "instagram" })
+                aiApi.moderateContent({ ...basePayload, caption: caption!, platform })
               )
             }
           >
             <ShieldCheck className="h-4 w-4" />
-            Send to Review
+            Safety check
           </Button>
         </div>
 

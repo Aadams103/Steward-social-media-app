@@ -1,8 +1,10 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { Image, LayoutGrid, List, Search, Sparkles, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { useAppStore } from "@/store/app-store";
 import { useAssets, useUploadAssets } from "@/hooks/use-api";
+import { useCurrentWorkspace } from "@/hooks/use-current-workspace";
 import { UploadDropzone } from "@/components/uploads/UploadDropzone";
 import { StewardEmptyState, StatusChip } from "@/components/steward";
 import { Button } from "@/components/ui/button";
@@ -10,10 +12,18 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function ContentLibraryPage() {
   const setActiveView = useAppStore((s) => s.setActiveView);
-  const { data, isLoading, refetch } = useAssets();
+  const { organizationId, brandId, isRealWorkspace } = useCurrentWorkspace();
+  const { data, isLoading, error, refetch } = useAssets(
+    {
+      organizationId: organizationId ?? undefined,
+      brandId: brandId ?? undefined,
+    },
+    { enabled: isRealWorkspace },
+  );
   const upload = useUploadAssets();
 
   const [view, setView] = React.useState<"grid" | "list">("grid");
@@ -38,7 +48,20 @@ export function ContentLibraryPage() {
 
       <UploadDropzone
         accept="image/*,video/*"
-        onFilesSelected={(files) => void upload.mutateAsync({ files }).then(() => refetch())}
+        maxSizeMB={100}
+        disabled={!organizationId || !brandId}
+        onFilesSelected={(files) => {
+          if (!organizationId || !brandId) return;
+          void upload
+            .mutateAsync({ files, organizationId, brandId })
+            .then(async () => {
+              await refetch();
+              toast.success(`${files.length} asset${files.length === 1 ? "" : "s"} uploaded securely`);
+            })
+            .catch((uploadError) => {
+              toast.error(uploadError instanceof Error ? uploadError.message : "The upload could not be completed.");
+            });
+        }}
         title="Upload media"
         helperText="Drag and drop or click to browse"
         isUploading={upload.isPending}
@@ -56,17 +79,21 @@ export function ContentLibraryPage() {
         </div>
         <Tabs value={view} onValueChange={(v) => setView(v as "grid" | "list")}>
           <TabsList>
-            <TabsTrigger value="grid">
+            <TabsTrigger value="grid" aria-label="Grid view">
               <LayoutGrid className="h-4 w-4" />
             </TabsTrigger>
-            <TabsTrigger value="list">
+            <TabsTrigger value="list" aria-label="List view">
               <List className="h-4 w-4" />
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      ) : isLoading ? (
         <LoadingSkeleton className="h-64 w-full" />
       ) : assets.length === 0 ? (
         <StewardEmptyState
@@ -82,7 +109,12 @@ export function ContentLibraryPage() {
             <Card key={asset.id} className="overflow-hidden border-border/70">
               <div className="aspect-square bg-muted">
                 {asset.url ? (
-                  <img src={asset.url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={asset.url}
+                    alt={asset.metadata?.filename ? `Preview of ${asset.metadata.filename}` : "Uploaded content preview"}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center">
                     <Image className="h-8 w-8 text-muted-foreground" />
@@ -93,10 +125,13 @@ export function ContentLibraryPage() {
                 <p className="truncate text-sm font-medium">{asset.metadata?.filename ?? "Untitled"}</p>
                 <div className="flex flex-wrap gap-1">
                   <StatusChip label={asset.metadata?.mimeType?.startsWith("video") ? "Video" : "Image"} tone="muted" />
-                  <StatusChip label="Not analyzed" tone="info" />
+                  <StatusChip
+                    label={String(asset.metadata?.analysisStatus ?? "Pending analysis")}
+                    tone={asset.metadata?.analysisStatus === "completed" ? "success" : "info"}
+                  />
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="secondary" className="flex-1 text-xs" onClick={() => setActiveView("studio")}>
+                  <Button size="sm" variant="secondary" className="min-h-11 flex-1 text-xs" onClick={() => setActiveView("studio")}>
                     Create post
                   </Button>
                 </div>
@@ -120,7 +155,7 @@ export function ContentLibraryPage() {
                 <p className="font-medium">{asset.metadata?.filename}</p>
                 <p className="text-xs text-muted-foreground">{asset.metadata?.mimeType}</p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => setActiveView("studio")}>
+              <Button size="sm" className="min-h-11" variant="outline" onClick={() => setActiveView("studio")}>
                 Create post
               </Button>
             </div>

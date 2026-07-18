@@ -12,9 +12,12 @@ export interface AiGatewayConfig {
     vision: string;
     embedding: string;
     draft: string;
+    image: string;
+    moderation: string;
   };
   maxOutputTokens: number;
   requestTimeoutMs: number;
+  maxRetries: number;
   dailyOrgBudgetCents: number;
   monthlyOrgBudgetCents: number;
 }
@@ -37,14 +40,17 @@ export function loadAiGatewayConfig(): AiGatewayConfig {
     enabled: Boolean(openaiApiKey),
     openaiApiKey,
     models: {
-      default: process.env.OPENAI_DEFAULT_MODEL?.trim() || 'gpt-4.1-mini',
-      reasoning: process.env.OPENAI_REASONING_MODEL?.trim() || 'gpt-4.1',
-      vision: process.env.OPENAI_VISION_MODEL?.trim() || 'gpt-4.1-mini',
+      default: process.env.OPENAI_DEFAULT_MODEL?.trim() || 'gpt-5.6-luna',
+      reasoning: process.env.OPENAI_REASONING_MODEL?.trim() || 'gpt-5.6-terra',
+      vision: process.env.OPENAI_VISION_MODEL?.trim() || 'gpt-5.6-luna',
       embedding: process.env.OPENAI_EMBEDDING_MODEL?.trim() || 'text-embedding-3-small',
-      draft: process.env.OPENAI_DRAFT_MODEL?.trim() || 'gpt-4.1-mini',
+      draft: process.env.OPENAI_DRAFT_MODEL?.trim() || 'gpt-5.6-luna',
+      image: process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-2',
+      moderation: process.env.OPENAI_MODERATION_MODEL?.trim() || 'omni-moderation-latest',
     },
     maxOutputTokens: parseIntEnv('OPENAI_MAX_OUTPUT_TOKENS', 4096),
     requestTimeoutMs: parseIntEnv('OPENAI_REQUEST_TIMEOUT_MS', 120_000),
+    maxRetries: parseIntEnv('OPENAI_MAX_RETRIES', 2),
     dailyOrgBudgetCents: parseIntEnv('OPENAI_DAILY_ORG_BUDGET_CENTS', 500),
     monthlyOrgBudgetCents: parseIntEnv('OPENAI_MONTHLY_ORG_BUDGET_CENTS', 5000),
   };

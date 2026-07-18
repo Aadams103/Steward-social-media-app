@@ -114,8 +114,12 @@ export async function platformRequest(
 	// Build the final URL
 	let realUrl: string | URL | Request;
 	if (typeof url === "string") {
-		const pathClean = url.startsWith("/") ? url : `/${url}`;
-		realUrl = new URL(pathClean, baseUrl);
+		if (/^https?:\/\//i.test(url)) {
+			realUrl = url;
+		} else {
+			const pathClean = url.startsWith("/") ? url : `/${url}`;
+			realUrl = new URL(pathClean, baseUrl);
+		}
 	} else {
 		realUrl = url;
 	}

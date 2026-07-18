@@ -121,7 +121,9 @@ export async function createPostDraft(input: {
       content: input.content,
       main_caption: input.content,
       platform: input.platform,
-      status: input.status ?? 'draft',
+      // Creation is always approval-first. Only the approval and scheduling
+      // handlers may advance the canonical workflow state.
+      status: 'draft',
       title: input.title ?? null,
       hook: input.hook ?? null,
       cta: input.cta ?? null,

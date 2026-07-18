@@ -17,8 +17,12 @@ export interface OAuthInitiateResponse {
 export async function initiateOAuthFlow(
   platform: OAuthPlatform,
   organizationId: string,
+  brandId: string,
 ): Promise<OAuthInitiateResponse> {
-  const response = await oauthApi.initiate(platform, organizationId);
+  if (platform !== 'facebook' && platform !== 'instagram') {
+    throw new Error('Only Facebook and Instagram are supported in the private beta.');
+  }
+  const response = await oauthApi.initiate(platform, organizationId, brandId);
   return response;
 }
 
@@ -190,9 +194,10 @@ export function waitForOAuthPopup(
 export async function initiateOAuthFlowWithPopup(
   platform: OAuthPlatform,
   organizationId: string,
+  brandId: string,
 ): Promise<OAuthConnection> {
   // Initiate OAuth flow
-  const { authUrl, state } = await initiateOAuthFlow(platform, organizationId);
+  const { authUrl, state } = await initiateOAuthFlow(platform, organizationId, brandId);
 
   // Open popup
   const popup = openOAuthPopup(authUrl);
@@ -230,8 +235,8 @@ export async function refreshOAuthToken(connectionId: string): Promise<OAuthConn
 /**
  * Disconnect OAuth connection
  */
-export async function disconnectOAuth(connectionId: string): Promise<void> {
-  return oauthApi.disconnect(connectionId);
+export async function disconnectOAuth(connectionId: string, organizationId: string): Promise<void> {
+  return oauthApi.disconnect(connectionId, organizationId);
 }
 
 /**
